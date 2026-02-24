@@ -296,12 +296,12 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
              Trusted by 10,000+ Users
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 mb-6 tracking-tight leading-[1.1]">
+          <h2 className="text-5xl md:text-7xl font-extrabold text-slate-900 mb-6 tracking-tight leading-[1.1]">
             Master your Documents <br className="hidden md:block"/>
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 drop-shadow-sm">
               Without Limits.
             </span>
-          </h1>
+          </h2>
           
           <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed font-medium">
             Merge, Split, Compress, Convert, Resize, and <span className="text-indigo-600 font-bold">Protect</span> your documents. 
