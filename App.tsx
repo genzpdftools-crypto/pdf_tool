@@ -629,7 +629,7 @@ function App() {
                         className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200/60 shadow-sm"
                       >
                         <div>
-                          <h1 className="text-base md:text-2xl font-black text-slate-900">Merge Queue</h1>
+                          <h2 className="text-base md:text-2xl font-black text-slate-900">Merge Queue</h2>
                           <p className="text-[10px] md:text-sm text-slate-400 font-medium">Reorder files for final output</p>
                         </div>
                         <div className="flex gap-1 md:gap-2">
