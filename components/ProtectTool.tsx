@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PDFDocument } from 'pdf-lib'; // ✅ Added for PDF normalization
+import { PDFDocument, rgb } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt-lite';
 import {
   Lock,
@@ -19,6 +20,9 @@ import {
 import { FileUploader } from './FileUploader';
 import { clsx } from 'clsx';
 
+// Setup PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
 export const ProtectTool: React.FC = () => {
   // ---------- SEO CONFIGURATION ----------
   const SEO = {
@@ -35,6 +39,7 @@ export const ProtectTool: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processStatus, setProcessStatus] = useState('');
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -129,6 +134,30 @@ export const ProtectTool: React.FC = () => {
 
   }, []);
 
+  // ---------- HELPER: CHECK IF PAGE IS COMPLETELY WHITE ----------
+  const isPageBlank = async (page: any) => {
+    const viewport = page.getViewport({ scale: 0.2 });
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return true;
+    
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    
+    for (let i = 0; i < imgData.length; i += 4) {
+      if (imgData[i] < 250 || imgData[i+1] < 250 || imgData[i+2] < 250) {
+        return false;
+      }
+    }
+    return true;
+  };
+
   // ---------- LOGIC ----------
   const handleFileSelected = (files: File[]) => {
     if (files.length > 0) {
@@ -145,31 +174,95 @@ export const ProtectTool: React.FC = () => {
     setError(null);
 
     try {
-      await new Promise(res => setTimeout(res, 500));
-      
+      setProcessStatus('Preparing document...');
+      await new Promise(res => setTimeout(res, 100));
+
       const arrayBuffer = await file.arrayBuffer();
-
-      // ✅ NEW: Normalize the PDF using pdf-lib before encryption
       const pdfDoc = await PDFDocument.load(arrayBuffer);
-      const normalizedBytes = await pdfDoc.save(); // Uint8Array
+      const normalizedBytes = await pdfDoc.save();
 
-      // Encrypt the normalized PDF
-      const encryptedBytes = await encryptPDF(
-        normalizedBytes,
-        password,
-        password
-      );
+      setProcessStatus('Running initial encryption...');
+      let finalBytes = await encryptPDF(normalizedBytes, password, password);
 
-      const blob = new Blob([encryptedBytes], { type: 'application/pdf' });
+      // --- AUTO-DETECT BLANK PAGES LOGIC ---
+      setProcessStatus('Scanning for corrupted pages...');
+      
+      const originalPdfJs = await pdfjsLib.getDocument(new Uint8Array(arrayBuffer)).promise;
+      const encryptedPdfJs = await pdfjsLib.getDocument({ data: finalBytes, password: password }).promise;
+      
+      const brokenPages: number[] = [];
+      const totalPages = originalPdfJs.numPages;
+
+      for (let i = 1; i <= totalPages; i++) {
+        if (i % 10 === 0) {
+          setProcessStatus(`Scanning page ${i} of ${totalPages}...`);
+          await new Promise(r => setTimeout(r, 0));
+        }
+
+        const encPage = await encryptedPdfJs.getPage(i);
+        const isEncBlank = await isPageBlank(encPage);
+
+        if (isEncBlank) {
+          const origPage = await originalPdfJs.getPage(i);
+          const isOrigBlank = await isPageBlank(origPage);
+          
+          if (!isOrigBlank) {
+            brokenPages.push(i);
+          }
+        }
+      }
+
+      // --- FIX BROKEN PAGES WITH SCREENSHOTS ---
+      if (brokenPages.length > 0) {
+        setProcessStatus(`Fixing ${brokenPages.length} corrupted pages automatically...`);
+        
+        for (const pageNum of brokenPages) {
+          const page = await originalPdfJs.getPage(pageNum);
+          const viewport = page.getViewport({ scale: 2.0 });
+          
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          if(!context) continue;
+
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          context.fillStyle = '#ffffff';
+          context.fillRect(0, 0, canvas.width, canvas.height);
+
+          await page.render({ canvasContext: context, viewport }).promise;
+          const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+          const pdfLibPage = pdfDoc.getPage(pageNum - 1);
+          const { width, height } = pdfLibPage.getSize();
+          
+          const embeddedImage = await pdfDoc.embedJpg(imgData);
+
+          pdfLibPage.drawRectangle({
+            x: 0, y: 0, width, height, color: rgb(1, 1, 1)
+          });
+
+          pdfLibPage.drawImage(embeddedImage, {
+            x: 0, y: 0, width, height
+          });
+        }
+
+        setProcessStatus('Applying final security locks...');
+        const fixedBytes = await pdfDoc.save();
+        finalBytes = await encryptPDF(fixedBytes, password, password);
+      }
+
+      const blob = new Blob([finalBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       setDownloadUrl(url);
       setDownloadName(`protected-${file.name}`);
     } catch (error) {
       console.error("Error protecting PDF:", error);
-      setError("Failed to protect PDF. The file might already be encrypted or corrupted.");
+      setError("Failed to protect PDF. The file might be heavily corrupted or locked.");
     } finally {
       setIsProcessing(false);
+      setProcessStatus('');
     }
   };
 
@@ -322,7 +415,7 @@ export const ProtectTool: React.FC = () => {
                           <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-rose-600 via-red-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"></div>
                           <span className="relative z-10 flex items-center gap-2 sm:gap-3">
                             {isProcessing ? <Loader2 className="animate-spin w-5 h-5 sm:w-6 sm:h-6" /> : <Lock className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-110 transition-transform" />}
-                            {isProcessing ? "Encrypting..." : "Lock PDF Now"}
+                            {isProcessing ? processStatus : "Lock PDF Now"}
                           </span>
                         </button>
                       </div>
