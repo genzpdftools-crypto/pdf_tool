@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { PDFDocument } from 'pdf-lib'; // ✅ Added for PDF normalization
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt-lite';
 import {
   Lock,
@@ -147,10 +148,14 @@ export const ProtectTool: React.FC = () => {
       await new Promise(res => setTimeout(res, 500));
       
       const arrayBuffer = await file.arrayBuffer();
-      const pdfBytes = new Uint8Array(arrayBuffer);
 
+      // ✅ NEW: Normalize the PDF using pdf-lib before encryption
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const normalizedBytes = await pdfDoc.save(); // Uint8Array
+
+      // Encrypt the normalized PDF
       const encryptedBytes = await encryptPDF(
-        pdfBytes,
+        normalizedBytes,
         password,
         password
       );
