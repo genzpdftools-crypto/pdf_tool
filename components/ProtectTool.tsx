@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { PDFDocument } from 'pdf-lib';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt-lite';
 import {
   Lock,
@@ -35,7 +34,6 @@ export const ProtectTool: React.FC = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processStatus, setProcessStatus] = useState('');
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -103,6 +101,27 @@ export const ProtectTool: React.FC = () => {
           "ratingValue": "4.9",
           "ratingCount": "850"
         }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "How to password protect a PDF for free?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Upload your file to Genz PDF, enter a strong password, and click Protect. The file is encrypted instantly in your browser." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is it safe to encrypt PDF online?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes, with Genz PDF it is 100% safe because we use client-side SSL encryption. Your file never leaves your device." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I open the protected PDF on my phone?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes, the standard PDF encryption we use works on all devices including iPhone, Android, Mac, and Windows." }
+          }
+        ]
       }
     ];
     scriptTag.textContent = JSON.stringify(schemaData);
@@ -125,30 +144,27 @@ export const ProtectTool: React.FC = () => {
     setError(null);
 
     try {
-      setProcessStatus('Preparing document...');
-      await new Promise(res => setTimeout(res, 300));
-
-      const arrayBuffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      await new Promise(res => setTimeout(res, 500));
       
-      // ✅ BEST FIX: Save with useObjectStreams: false to keep content intact
-      setProcessStatus('Optimizing internal structure...');
-      const normalizedBytes = await pdfDoc.save({ useObjectStreams: false });
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfBytes = new Uint8Array(arrayBuffer);
 
-      setProcessStatus('Encrypting with military-grade security...');
-      const finalBytes = await encryptPDF(normalizedBytes, password, password);
+      const encryptedBytes = await encryptPDF(
+        pdfBytes,
+        password,
+        password
+      );
 
-      const blob = new Blob([finalBytes], { type: 'application/pdf' });
+      const blob = new Blob([encryptedBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       setDownloadUrl(url);
       setDownloadName(`protected-${file.name}`);
     } catch (error) {
       console.error("Error protecting PDF:", error);
-      setError("Failed to protect PDF. The file might be corrupted or locked.");
+      setError("Failed to protect PDF. The file might already be encrypted or corrupted.");
     } finally {
       setIsProcessing(false);
-      setProcessStatus('');
     }
   };
 
@@ -163,7 +179,7 @@ export const ProtectTool: React.FC = () => {
   return (
     <div className="w-full min-h-[calc(100vh-80px)] bg-slate-50 font-sans text-slate-900 selection:bg-rose-100 selection:text-rose-700 pb-16 relative overflow-hidden">
       
-      {/* ---------- BACKGROUND AMBIENCE ---------- */}
+      {/* ---------- BACKGROUND AMBIENCE (ROSE/RED TYPE) ---------- */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)', backgroundSize: '32px 32px', opacity: 0.5 }}></div>
         <div className="absolute top-[-10%] left-[-5%] w-[40vw] h-[40vw] max-w-[500px] max-h-[500px] rounded-full bg-rose-500/20 blur-[100px] mix-blend-multiply"></div>
@@ -193,13 +209,16 @@ export const ProtectTool: React.FC = () => {
         {/* ---------- MAIN TOOL CARD ---------- */}
         <div className="max-w-2xl mx-auto mb-16 sm:mb-24">
           <div className="relative group">
+            {/* Animated Gradient Border Glow */}
             <div className="absolute -inset-[2px] bg-gradient-to-r from-rose-500 via-red-500 to-orange-500 rounded-[2rem] sm:rounded-[2.5rem] blur-md opacity-30 group-hover:opacity-60 transition duration-700 animate-pulse"></div>
             
             <div className="relative bg-white/90 backdrop-blur-xl rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_8px_40px_rgb(0,0,0,0.08)] border border-white overflow-hidden transition-all duration-500">
               
+              {/* Top aesthetic bar */}
               <div className="h-1.5 sm:h-2 w-full bg-gradient-to-r from-rose-500 via-red-500 to-orange-500"></div>
               
               {!file ? (
+                // --- UPLOAD STATE ---
                 <div className="p-4 sm:p-8 md:p-12">
                   <div className="bg-slate-50/50 rounded-2xl sm:rounded-3xl p-1 sm:p-2 border border-slate-100/50 hover:border-rose-100 transition-colors">
                     <FileUploader 
@@ -220,7 +239,9 @@ export const ProtectTool: React.FC = () => {
                   </div>
                 </div>
               ) : (
+                // --- PROCESSING / SUCCESS STATE ---
                 <div className="p-0 animate-in fade-in zoom-in-95 duration-500">
+                  {/* File Header */}
                   <div className="bg-gradient-to-b from-slate-50 to-white px-4 sm:px-6 py-4 sm:py-5 md:px-10 md:py-6 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                       <div className="p-2 sm:p-3 bg-white shadow-sm border border-slate-100 text-rose-600 rounded-xl sm:rounded-2xl shrink-0">
@@ -233,7 +254,10 @@ export const ProtectTool: React.FC = () => {
                         </p>
                       </div>
                     </div>
-                    <button onClick={handleReset} className="group flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs md:text-sm text-slate-500 hover:text-rose-600 font-bold transition-colors bg-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl border border-slate-200 hover:border-rose-200 hover:bg-rose-50 shadow-sm">
+                    <button 
+                      onClick={handleReset} 
+                      className="group flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs md:text-sm text-slate-500 hover:text-rose-600 font-bold transition-colors bg-white px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl border border-slate-200 hover:border-rose-200 hover:bg-rose-50 shadow-sm"
+                    >
                       <RefreshCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover:-rotate-180 transition-transform duration-500" />
                       <span className="hidden sm:inline">Change File</span>
                     </button>
@@ -241,13 +265,14 @@ export const ProtectTool: React.FC = () => {
 
                   <div className="p-4 sm:p-6 md:p-10 space-y-6 sm:space-y-8">
                     {error && (
-                      <div className="p-3 sm:p-4 bg-red-50 text-red-700 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3 text-xs sm:text-sm font-medium border border-red-100 shadow-sm">
+                      <div className="p-3 sm:p-4 bg-red-50 text-red-700 rounded-xl sm:rounded-2xl flex items-start gap-2 sm:gap-3 text-xs sm:text-sm font-medium border border-red-100 shadow-sm animate-in slide-in-from-top-2">
                         <AlertCircle className="shrink-0 mt-0.5 text-red-500 w-4 h-4 sm:w-5 sm:h-5" /> 
                         <span className="leading-relaxed">{error}</span>
                       </div>
                     )}
 
                     {!downloadUrl ? (
+                      // --- PASSWORD INPUT SECTION ---
                       <div className="space-y-5 sm:space-y-6">
                         <div className="bg-slate-50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-slate-100 shadow-inner hover:border-rose-100 transition-colors duration-300">
                           <label className="block text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 sm:mb-3 ml-1 flex items-center gap-1.5 sm:gap-2">
@@ -262,11 +287,16 @@ export const ProtectTool: React.FC = () => {
                               className="w-full pl-4 sm:pl-6 pr-12 sm:pr-14 py-3 sm:py-4 md:py-5 bg-white border-2 border-slate-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-rose-500/15 focus:border-rose-500 outline-none transition-all font-bold text-base md:text-xl text-slate-800 placeholder:font-normal placeholder:text-slate-400 shadow-sm"
                               autoFocus
                             />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-1 sm:right-2 px-2.5 sm:px-3 flex items-center text-slate-400 hover:text-rose-600 transition-colors bg-white m-1 rounded-lg sm:rounded-xl">
+                            <button 
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute inset-y-0 right-1 sm:right-2 px-2.5 sm:px-3 flex items-center text-slate-400 hover:text-rose-600 transition-colors bg-white m-1 rounded-lg sm:rounded-xl"
+                            >
                               {showPassword ? <EyeOff className="w-5 h-5 sm:w-6 sm:h-6" /> : <Eye className="w-5 h-5 sm:w-6 sm:h-6" />}
                             </button>
                           </div>
                           
+                          {/* Password Strength Indicator (Visual Only) */}
                           <div className="mt-3 sm:mt-4 flex gap-1 h-1 sm:h-1.5 w-full bg-slate-200 rounded-full overflow-hidden">
                             <div className={clsx("h-full transition-all duration-500", password.length > 0 ? "w-1/3 bg-red-400" : "w-0")}></div>
                             <div className={clsx("h-full transition-all duration-500", password.length > 5 ? "w-1/3 bg-orange-400" : "w-0")}></div>
@@ -287,11 +317,12 @@ export const ProtectTool: React.FC = () => {
                           <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-rose-600 via-red-600 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0"></div>
                           <span className="relative z-10 flex items-center gap-2 sm:gap-3">
                             {isProcessing ? <Loader2 className="animate-spin w-5 h-5 sm:w-6 sm:h-6" /> : <Lock className="w-5 h-5 sm:w-6 sm:h-6 group-hover:scale-110 transition-transform" />}
-                            {isProcessing ? processStatus : "Lock PDF Now"}
+                            {isProcessing ? "Encrypting..." : "Lock PDF Now"}
                           </span>
                         </button>
                       </div>
                     ) : (
+                      // --- SUCCESS STATE ---
                       <div className="text-center py-4 sm:py-6">
                         <div className="relative inline-block mb-6 sm:mb-8">
                           <div className="absolute inset-0 bg-emerald-400 rounded-full blur-2xl opacity-40 animate-pulse"></div>
@@ -303,10 +334,17 @@ export const ProtectTool: React.FC = () => {
                         <p className="text-sm sm:text-base md:text-lg text-slate-500 mb-8 sm:mb-10 px-4">Your PDF is now encrypted and safe to share.</p>
                         
                         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                          <a href={downloadUrl} download={downloadName} className="flex-1 py-3.5 sm:py-4 px-4 sm:px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 transition-all hover:-translate-y-1 active:scale-[0.98]">
+                          <a 
+                            href={downloadUrl} 
+                            download={downloadName}
+                            className="flex-1 py-3.5 sm:py-4 px-4 sm:px-6 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 transition-all hover:-translate-y-1 active:scale-[0.98]"
+                          >
                             <Download className="w-4 h-4 sm:w-5 sm:h-5" /> Download
                           </a>
-                          <button onClick={handleReset} className="flex-1 py-3.5 sm:py-4 px-4 sm:px-6 bg-white border-2 border-slate-200 text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg transition-all active:scale-[0.98]">
+                          <button 
+                            onClick={handleReset}
+                            className="flex-1 py-3.5 sm:py-4 px-4 sm:px-6 bg-white border-2 border-slate-200 text-slate-700 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-700 rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base md:text-lg transition-all active:scale-[0.98]"
+                          >
                             Lock Another
                           </button>
                         </div>
@@ -321,25 +359,30 @@ export const ProtectTool: React.FC = () => {
 
         {/* ---------- FEATURES GRID ---------- */}
         <section className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-16 sm:mb-24 max-w-5xl mx-auto">
-          {/* Feature items */}
           {[
             { 
               icon: ShieldCheck, 
               title: "Absolute Privacy", 
               desc: "Your files are never uploaded. We encrypt the PDF directly inside your web browser.",
-              bg: "bg-rose-50/80", color: "text-rose-600", border: "border-rose-100"
+              bg: "bg-rose-50/80",
+              color: "text-rose-600",
+              border: "border-rose-100"
             },
             { 
               icon: Zap, 
               title: "Instant Processing", 
               desc: "No waiting in queues or uploading large files. Lightning-fast encryption by your device.",
-              bg: "bg-red-50/80", color: "text-red-600", border: "border-red-100"
+              bg: "bg-red-50/80",
+              color: "text-red-600",
+              border: "border-red-100"
             },
             { 
               icon: KeyRound, 
               title: "AES-256 Encryption", 
               desc: "We employ the highest standard of encryption, impossible for unauthorized access.",
-              bg: "bg-orange-50/80", color: "text-orange-600", border: "border-orange-100"
+              bg: "bg-orange-50/80",
+              color: "text-orange-600",
+              border: "border-orange-100"
             }
           ].map((item, i) => (
             <div key={i} className={`bg-white/60 backdrop-blur-sm p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2rem] border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(225,29,72,0.08)] transition-all duration-300 group hover:-translate-y-1 hover:border-rose-100`}>
@@ -351,6 +394,50 @@ export const ProtectTool: React.FC = () => {
             </div>
           ))}
         </section>
+
+        {/* ---------- FAQ SECTION ---------- */}
+        <section className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] p-6 sm:p-8 md:p-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100">
+            <div className="text-center mb-8 sm:mb-12">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 mb-3 sm:mb-4">Frequently Asked Questions</h2>
+              <p className="text-sm sm:text-base md:text-lg text-slate-500">Everything you need to know about our PDF protection tool.</p>
+            </div>
+
+            <div className="space-y-3 sm:space-y-4">
+              {[
+                {
+                  q: "Is it really safe to password protect PDF online?",
+                  a: "Yes, because our tool is built differently. We use 'Client-Side Processing'. This means your PDF never leaves your computer. The encryption happens locally in your browser, making it 100% secure against interception."
+                },
+                {
+                  q: "Will this protected PDF open on my smartphone?",
+                  a: "Absolutely. We use standard PDF encryption protocols that are universally supported by all modern PDF readers across iOS, Android, Windows, and macOS."
+                },
+                {
+                  q: "Can you help me recover a forgotten password?",
+                  a: "No. Since we do not store your files or passwords on our servers, it is mathematically impossible for us to recover or bypass the password. Please keep your password in a safe place."
+                },
+                {
+                  q: "Are there any hidden fees or limits?",
+                  a: "No. Genz PDF is completely free to use. There are no file size limits, no daily usage limits, and no premium tiers."
+                }
+              ].map((item, i) => (
+                <details key={i} className="group bg-slate-50 rounded-xl sm:rounded-2xl border border-slate-100 overflow-hidden transition-all duration-300 hover:border-rose-200">
+                  <summary className="flex justify-between items-center p-4 sm:p-6 font-bold text-slate-800 text-sm sm:text-base md:text-lg cursor-pointer list-none select-none">
+                    <span className="pr-4">{item.q}</span>
+                    <div className="p-1.5 sm:p-2 rounded-full bg-white shadow-sm text-rose-500 group-open:rotate-180 transition-transform duration-300 shrink-0">
+                      <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                  </summary>
+                  <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-1 sm:pt-2 text-slate-600 text-xs sm:text-sm md:text-base leading-relaxed">
+                    {item.a}
+                  </div>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
   );
