@@ -1,5 +1,5 @@
 // components/Home.tsx
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Files,
   Scissors,
@@ -23,6 +23,40 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ setMode }) => {
+  // ------------------------------------------------------------------
+  //  👥 VISITOR COUNTER
+  // ------------------------------------------------------------------
+  const [visitorCount, setVisitorCount] = useState<number | string>("10,000");
+
+  useEffect(() => {
+    const trackVisit = async () => {
+      try {
+        const hasVisited = sessionStorage.getItem('visited_genzpdf');
+        
+        if (!hasVisited) {
+          // Naya user: Count badhao
+          const res = await fetch('/api/visit', { method: 'POST' });
+          if (res.ok) {
+            const data = await res.json();
+            setVisitorCount(data.count);
+            sessionStorage.setItem('visited_genzpdf', 'true');
+          }
+        } else {
+          // Purana user (Refresh kiya hai): Sirf number fetch karo, badhao mat
+          const res = await fetch('/api/visit');
+          if (res.ok) {
+            const data = await res.json();
+            setVisitorCount(data.count);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load visitor stats");
+      }
+    };
+
+    trackVisit();
+  }, []);
+
   // ------------------------------------------------------------------
   //  🚀 MASTER SEO CONFIGURATION (Google #1 Ranking Logic)
   // ------------------------------------------------------------------
@@ -293,7 +327,7 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
         <header className="text-center mb-20 animate-in fade-in slide-in-from-bottom-6 duration-1000">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 border border-slate-200 shadow-sm backdrop-blur-md text-slate-600 text-xs font-bold uppercase tracking-widest mb-8 hover:scale-105 transition-transform cursor-default">
              <Star size={14} className="fill-yellow-400 text-yellow-400" />
-             Trusted by 10,000+ Users
+             Trusted by {visitorCount}+ Users
           </div>
           
           <h2 className="text-5xl md:text-7xl font-extrabold text-slate-900 mb-6 tracking-tight leading-[1.1]">
