@@ -38,6 +38,9 @@ import { Home } from './components/Home';
 import { Footer } from './components/Footer';
 import { PdfFile, SortOrder, AppMode } from './types';
 import { mergePdfs, createPdfUrl } from './services/pdfService';
+// --- New Imports for Advanced Flow ---
+import { VisualPdfEditor } from './components/VisualPdfEditor';
+import { transferPagesBetweenPdfs } from './services/pdfService';
 
 const SplitTool = lazy(() => import('./components/SplitTool'));
 const ConverterTool = lazy(() => import('./components/ConverterTool'));
@@ -256,6 +259,14 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
 
+  // New States for Advanced Flow
+  const [targetPdfId, setTargetPdfId] = useState<string | null>(null);
+  const [sourcePdfId, setSourcePdfId] = useState<string | null>(null);
+  const [editorMode, setEditorMode] = useState<'extract' | 'insert'>('extract');
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [activeFileForEditor, setActiveFileForEditor] = useState<File | null>(null);
+  const [pendingExtractedPages, setPendingExtractedPages] = useState<number[]>([]);
+
   const navigateTo = (targetMode: AppMode, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
     const path = targetMode === 'home' ? '/' : `/${targetMode}`;
@@ -423,6 +434,85 @@ function App() {
       setMergedPdfUrl(url);
     } catch (error: any) {
       alert(error.message || "Merge failed. Please check if any PDF is password protected.");
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  // Individual Download Handler
+  const handleIndividualDownload = (fileItem: PdfFile) => {
+    const url = URL.createObjectURL(fileItem.file);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `edited-${fileItem.name}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Step 1: User clicks "Extract Pages" on PDF 2
+  const handleOpenExtractEditor = (sourceId: string) => {
+    const fileItem = files.find(f => f.id === sourceId);
+    if (!fileItem) return;
+    setSourcePdfId(sourceId);
+    setActiveFileForEditor(fileItem.file);
+    setEditorMode('extract');
+    setIsEditorOpen(true);
+  };
+
+  // Step 2: User confirms pages to extract from PDF 2
+  const handleExtractConfirm = (selectedPages: number[]) => {
+    setPendingExtractedPages(selectedPages);
+    setIsEditorOpen(false); // Close extract modal
+    
+    // Immediately open Target PDF (PDF 1) in Insert Mode
+    setTimeout(() => {
+      const targetFileItem = files.find(f => f.id === targetPdfId);
+      if (targetFileItem) {
+        setActiveFileForEditor(targetFileItem.file);
+        setEditorMode('insert');
+        setIsEditorOpen(true);
+      }
+    }, 500);
+  };
+
+  // Step 3: User confirms insert position in PDF 1 -> Run processing
+  const handleInsertConfirm = async (insertIndex: number) => {
+    setIsEditorOpen(false); // Close modal
+    setIsMerging(true); // Show loader
+
+    try {
+      const targetItem = files.find(f => f.id === targetPdfId);
+      const sourceItem = files.find(f => f.id === sourcePdfId);
+      
+      if (!targetItem || !sourceItem) throw new Error("File missing");
+
+      // Core Logic Call
+      const { newTargetFile, newSourceFile } = await transferPagesBetweenPdfs(
+        targetItem.file,
+        sourceItem.file,
+        pendingExtractedPages,
+        insertIndex
+      );
+
+      // State Update with New Files
+      setFiles(prev => prev.map(f => {
+        if (f.id === targetPdfId) return { ...f, file: newTargetFile, size: newTargetFile.size };
+        if (f.id === sourcePdfId) return { ...f, file: newSourceFile, size: newSourceFile.size };
+        return f;
+      }));
+
+      // Reset Target/Source
+      setTargetPdfId(null);
+      setSourcePdfId(null);
+      setPendingExtractedPages([]);
+      
+      alert("Pages successfully inserted and updated!");
+
+    } catch (error) {
+      console.error(error);
+      alert("Error occurred while processing PDFs.");
     } finally {
       setIsMerging(false);
     }
@@ -645,7 +735,16 @@ function App() {
                         transition={{ delay: 0.1 }}
                         className="bg-white p-3 md:p-4 rounded-2xl md:rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100"
                       >
-                        <FileList files={files} setFiles={setFiles} onRemove={handleRemoveFile} />
+                        {/* Updated FileList with new props */}
+                        <FileList 
+                          files={files} 
+                          setFiles={setFiles} 
+                          onRemove={handleRemoveFile} 
+                          targetPdfId={targetPdfId}
+                          onSetTarget={setTargetPdfId}
+                          onEditPages={handleOpenExtractEditor}
+                          onIndividualDownload={handleIndividualDownload}
+                        />
                         <button 
                           onClick={() => fileInputRef.current?.click()}
                           className="w-full mt-3 md:mt-4 py-2 md:py-4 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all font-bold text-xs md:text-base"
@@ -703,6 +802,16 @@ function App() {
                           )}
                         </motion.button>
                       </motion.div>
+
+                      {/* Target Reset button */}
+                      {targetPdfId && (
+                        <button 
+                          onClick={() => setTargetPdfId(null)} 
+                          className="text-xs text-slate-500 hover:text-red-500 mt-2 text-center w-full underline"
+                        >
+                          Cancel Target Selection
+                        </button>
+                      )}
 
                       <AnimatePresence>
                       {mergedPdfUrl && (
@@ -772,6 +881,16 @@ function App() {
           )}
         </Suspense>
       </main>
+
+      {/* VisualPdfEditor Modal */}
+      <VisualPdfEditor 
+        isOpen={isEditorOpen}
+        file={activeFileForEditor}
+        mode={editorMode}
+        onClose={() => { setIsEditorOpen(false); setTargetPdfId(null); }}
+        onConfirmExtract={handleExtractConfirm}
+        onConfirmInsert={handleInsertConfirm}
+      />
 
       <Footer setMode={(m) => navigateTo(m)} />
       <AiAssistant isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
