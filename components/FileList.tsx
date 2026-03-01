@@ -30,7 +30,6 @@ const FileItem: React.FC<{
       id={file.id}
       dragListener={false}
       dragControls={controls}
-      // Animation props from existing code
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
@@ -59,7 +58,8 @@ const FileItem: React.FC<{
 
         {/* File info */}
         <div className="flex-1 min-w-0 pr-2">
-          <p className="text-xs md:text-sm font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+          {/* 🔹 Changed truncate to break-all for long file names */}
+          <p className="text-xs md:text-sm font-bold text-slate-800 break-all group-hover:text-indigo-600 transition-colors">
             {file.name}
           </p>
           <div className="flex flex-wrap items-center gap-1.5 md:gap-2 mt-1">
@@ -76,7 +76,8 @@ const FileItem: React.FC<{
       </div>
 
       {/* Bottom Row: Actions (Mobile Responsive) */}
-      <div className="flex items-center justify-between w-full pt-2.5 border-t border-slate-100">
+      {/* 🔹 Added flex-wrap and gap-2 for better responsiveness */}
+      <div className="flex flex-wrap items-center justify-between gap-2 w-full pt-2.5 border-t border-slate-100">
         <div>
           {!hasTargetSet ? (
             <motion.button
