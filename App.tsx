@@ -26,7 +26,8 @@ import {
   ChevronRight,
   Lock,
   PenTool,
-  Unlock
+  Unlock,
+  ChevronDown      // <-- Added for dropdown arrow
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { v4 as uuidv4 } from 'uuid';
@@ -568,11 +569,9 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
       
-      {/* ===== REPLACED HEADER START ===== */}
+      {/* ===== NEW HEADER WITH DROPDOWN ===== */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm transition-all duration-300">
-        {/* Yahan overflow-hidden hatakar flex-wrap aur padding (py-3 md:py-4) add kiya hai */}
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-4 lg:gap-8">
-          
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 md:h-20 flex items-center justify-between gap-4 lg:gap-8">
           <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative shrink-0">
             <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 group-hover:rotate-6 transition-transform duration-300">
               <img src="/logo.png" alt="Genz PDF Logo" className="w-5 h-5 md:w-7 md:h-7 object-contain brightness-0 invert" />
@@ -582,20 +581,40 @@ function App() {
             </span>
           </a>
 
-          {/* Tools Container me flex-wrap aur justify-center lagaya taaki wrap hone par sundar dikhe */}
-          <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
+          {/* 🚀 Updated Desktop Navigation with "More Tools" Dropdown */}
+          <div className="hidden lg:flex items-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner flex-shrink-0">
             <NavButton targetMode="home" icon={HomeIcon} label="Home" />
             <NavButton targetMode="merge" icon={Files} label="Merge" />
             <NavButton targetMode="split" icon={Scissors} label="Split" />
-            <NavButton targetMode="convert" icon={ArrowRightLeft} label="Convert" />
             <NavButton targetMode="compress" icon={Minimize2} label="Compress" />
-            <NavButton targetMode="resize" icon={Scaling} label="Resize" />
             <NavButton targetMode="protect" icon={Lock} label="Protect" />
-            <NavButton targetMode="signature" icon={PenTool} label="Sign" />
-            <NavButton targetMode="unlock" icon={Unlock} label="Unlock" />
+            
+            {/* 🔥 More Tools Dropdown */}
+            <div className="relative group">
+              <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-all outline-none">
+                <span>More Tools</span>
+                <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-300" />
+              </button>
+              
+              {/* Dropdown Menu (Hover par khulega) */}
+              <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 flex flex-col p-2">
+                 <a href="/convert" onClick={(e) => navigateTo('convert', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'convert' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
+                    <ArrowRightLeft size={16} className={mode === 'convert' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Convert
+                 </a>
+                 <a href="/resize" onClick={(e) => navigateTo('resize', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'resize' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
+                    <Scaling size={16} className={mode === 'resize' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Resize Image
+                 </a>
+                 <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'signature' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
+                    <PenTool size={16} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Sign PDF
+                 </a>
+                 <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'unlock' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
+                    <Unlock size={16} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Unlock PDF
+                 </a>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 ml-auto shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button 
               onClick={() => setIsAiOpen(true)}
               className="hidden md:flex group items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-indigo-600 transition-all duration-300 shadow-xl shadow-slate-200 font-bold text-sm"
@@ -613,7 +632,7 @@ function App() {
           </div>
         </div>
       </header>
-      {/* ===== REPLACED HEADER END ===== */}
+      {/* ===== END NEW HEADER ===== */}
 
       <div className={clsx(
         "fixed inset-0 bg-white/95 backdrop-blur-2xl z-40 md:hidden transition-all duration-500 ease-in-out flex flex-col pt-24 px-6 pb-8",
