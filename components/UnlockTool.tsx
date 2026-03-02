@@ -252,27 +252,26 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // ----- REPLACED handleSmartUnlock WITH NEW VERSION -----
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
-    stopBruteForceRef.current = false;
 
     const pool = getCharPool();
     let combinations: string[] = [];
 
-    // Tumhara purana hints wala logic ekdum same hai, usme koi ched chad nahi ki hai
     const generate = (currentStr: string, targetLen: number) => {
       if (combinations.length >= MAX_SMART_ATTEMPTS) return;
       if (currentStr.length === targetLen) {
         let isValid = true;
         
+        // 1. Existing Hint Checks
         if (firstChar && currentStr[0].toLowerCase() !== firstChar.toLowerCase()) isValid = false;
         if (lastChar && currentStr[currentStr.length - 1].toLowerCase() !== lastChar.toLowerCase()) isValid = false;
         if (middleHint && !currentStr.includes(middleHint)) isValid = false;
 
+        // 2. 🚀 NEW: EXACT COUNT CHECKS 🚀
         if (isValid && exactAlphabets !== '') {
            const alphaCount = (currentStr.match(/[a-zA-Z]/g) || []).length;
            if (alphaCount !== parseInt(exactAlphabets)) isValid = false;
@@ -306,99 +305,46 @@ export default function UnlockTool() {
       return;
     }
 
+    let unlocked = false;
     const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = new Uint8Array(arrayBuffer);
 
-    // CASE 1: Agar Titanium Lock (AES-256) hai
-    if (isAes256) {
-       // SUPER SPEED FIX: QPDF Engine ko sirf ek baar load karo, har password ke liye nahi!
-       const qpdf = await QPDF(); 
-       qpdf.FS.writeFile('input.pdf', pdfBytes);
-       
-       let unlocked = false;
-       for (let i = 0; i < combinations.length; i++) {
-         if (stopBruteForceRef.current) break; // User ne stop dabaya toh ruk jao
-         const pwd = combinations[i];
-         
-         if (i % 20 === 0) {
-           setCurrentTry(pwd);
-           setProgress(Math.round((i / combinations.length) * 100));
-           await new Promise(resolve => setTimeout(resolve, 15)); // Waiter ko UI update karne ka time do
-         }
+    for (let i = 0; i < combinations.length; i++) {
+      if (unlocked) break;
+      const pwd = combinations[i];
+      setCurrentTry(pwd);
+      
+      // 🚨 BROWSER ANTI-FREEZE MECHANISM 🚨
+      if (i % 10 === 0) {
+        setProgress(Math.round((i / combinations.length) * 100));
+        await new Promise(resolve => setTimeout(resolve, 5)); 
+      }
 
+      if (isAes256) {
          try {
-           try { qpdf.FS.unlink('output.pdf'); } catch(e){}
-           qpdf.callMain(['--password=' + pwd, '--decrypt', 'input.pdf', 'output.pdf']);
-           const unlockedBytes = qpdf.FS.readFile('output.pdf');
-           setUnlockedPdfBytes(unlockedBytes);
+           const bytes = await unlockWithWasm(pwd, pdfBytes);
+           setUnlockedPdfBytes(bytes);
            setStatus('unlocked');
            unlocked = true;
            break;
          } catch(e) {}
-       }
-       
-       try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e){}
-
-       if (!unlocked && !stopBruteForceRef.current) {
-         setStatus('needs_password');
-         setErrorMessage(`Smart Cracking Failed. Checked ${combinations.length} exact matches.`);
-       }
-       return;
+      } else {
+         try {
+           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+           const savedBytes = await pdfDoc.save();
+           setUnlockedPdfBytes(savedBytes);
+           setStatus('unlocked');
+           unlocked = true;
+           break;
+         } catch(e) {}
+      }
     }
 
-    // CASE 2: Agar Normal Lock hai toh Web Worker (Chef) ko bulao
-    const numCores = navigator.hardwareConcurrency || 4;
-    let activeWorkers = numCores;
-    let isUnlocked = false;
-    const chunkSize = Math.ceil(combinations.length / numCores);
-
-    for (let i = 0; i < numCores; i++) {
-      const startIdx = i * chunkSize;
-      const endIdx = Math.min(startIdx + chunkSize, combinations.length);
-
-      if (startIdx >= combinations.length) {
-        activeWorkers--;
-        continue;
-      }
-
-      const workerPasswords = combinations.slice(startIdx, endIdx);
-      const worker = new PdfWorker();
-      workersRef.current.push(worker);
-
-      // Chef ko password ki list bhejo
-      worker.postMessage({
-        type: 'smart_cracking',
-        pdfBytes,
-        passwordsToTry: workerPasswords,
-        workerId: i
-      });
-
-      worker.onmessage = async (msg) => {
-        const { type, password, currentTry: wTry } = msg.data;
-
-        if (type === 'success') {
-          isUnlocked = true;
-          stopBruteForceRef.current = true;
-          terminateAllWorkers();
-          const pdfDoc = await PDFDocument.load(pdfBytes, { password });
-          const savedBytes = await pdfDoc.save();
-          setUnlockedPdfBytes(savedBytes);
-          setStatus('unlocked');
-        } 
-        else if (type === 'progress') {
-          setCurrentTry(`${wTry}`);
-        } 
-        else if (type === 'done') {
-          activeWorkers--;
-          if (activeWorkers <= 0 && !isUnlocked && !stopBruteForceRef.current) {
-            setStatus('needs_password');
-            setErrorMessage(`Smart Recovery Failed. Checked ${combinations.length} exact matches.`);
-          }
-        }
-      };
+    if (!unlocked) {
+      setStatus('needs_password');
+      setErrorMessage(`Smart Cracking Failed. Checked ${combinations.length} exact matches based on your hints.`);
     }
   };
-  // ----- END OF REPLACED FUNCTION -----
 
   const downloadUnlockedPdf = () => {
     if (!unlockedPdfBytes || !file) return;
