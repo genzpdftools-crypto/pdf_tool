@@ -1,4 +1,3 @@
-// App.tsx
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
@@ -27,7 +26,7 @@ import {
   Lock,
   PenTool,
   Unlock,
-  ChevronDown      // <-- Added for dropdown arrow
+  ChevronDown      
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { v4 as uuidv4 } from 'uuid';
@@ -205,7 +204,6 @@ const SEO_METADATA: Record<AppMode, {
       { name: "Sign PDF", url: `${BASE_URL}/signature` }
     ]
   },
-  // --- New SEO entry for Unlock Tool ---
   unlock: {
     title: "Unlock PDF - Remove Password from PDF Online Free | Genz PDF",
     description: "Remove password from PDF files instantly. Unlock secured PDFs online for free. 100% client-side, no upload, no signup.",
@@ -264,7 +262,7 @@ function App() {
       if (path.includes('/resize')) return 'resize';
       if (path.includes('/protect')) return 'protect';
       if (path.includes('/signature')) return 'signature';
-      if (path.includes('/unlock')) return 'unlock';    // <-- New route detection
+      if (path.includes('/unlock')) return 'unlock';
       if (path.includes('/about')) return 'about';
       if (path.includes('/contact')) return 'contact';
       if (path.includes('/policy')) return 'policy';
@@ -541,7 +539,7 @@ function App() {
     }
   };
 
-  // ========== UPDATED NavButton COMPONENT ==========
+  // ========== UPDATED NavButton COMPONENT WITH ANIMATION ==========
   const NavButton = ({ targetMode, icon: Icon, label, mobile = false }: { targetMode: AppMode, icon: any, label: string, mobile?: boolean }) => {
     const isActive = (mode === targetMode) || (targetMode === 'home' && mode === 'home');
     return (
@@ -551,7 +549,7 @@ function App() {
         className={clsx(
           "flex items-center gap-2 xl:gap-3 transition-all duration-300 font-bold rounded-xl group",
           mobile 
-            ? "w-full p-4 text-base border border-slate-100 hover:bg-indigo-50"
+            ? "w-full p-4 text-base border border-slate-100 hover:bg-indigo-50 hover:shadow-sm"
             : "px-3 py-2 text-sm hover:bg-white hover:shadow-md hover:-translate-y-0.5", // ✨ Smooth lift & shadow hover effect
           isActive
             ? "bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100"
@@ -577,7 +575,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
       
-      {/* ===== UPDATED HEADER WITH DROPDOWN ===== */}
+      {/* ===== HEADER ===== */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm transition-all duration-300">
         <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-4 lg:gap-8">
           <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative shrink-0">
@@ -589,47 +587,46 @@ function App() {
             </span>
           </a>
 
-          {/* 🚀 New Order with Horizontal Layout & Cool Hover Effects */}
+          {/* 🚀 Navigation order: Home > Merge > Split > Convert > Compress > Resize */}
           <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner flex-shrink-0">
             <NavButton targetMode="home" icon={HomeIcon} label="Home" />
             <NavButton targetMode="merge" icon={Files} label="Merge" />
             <NavButton targetMode="split" icon={Scissors} label="Split" />
+            <NavButton targetMode="convert" icon={ArrowRightLeft} label="Convert" />
             <NavButton targetMode="compress" icon={Minimize2} label="Compress" />
-            <NavButton targetMode="protect" icon={Lock} label="Protect" />
+            <NavButton targetMode="resize" icon={Scaling} label="Resize" />
             
-            {/* 🔥 More Tools Dropdown */}
+            {/* 🔥 More Tools Dropdown - HORIZONTAL VERSION */}
             <div className="relative group">
               <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-white hover:shadow-md hover:-translate-y-0.5 rounded-xl transition-all duration-300 outline-none">
                 <span>More Tools</span>
                 <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-300 text-slate-400 group-hover:text-indigo-600" />
               </button>
               
-              {/* Dropdown Menu (With pop-up animation) */}
-              <div className="absolute top-full right-0 mt-3 w-52 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 flex flex-col p-2 origin-top-right scale-95 group-hover:scale-100">
-                 <a href="/convert" onClick={(e) => navigateTo('convert', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'convert' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'convert' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <ArrowRightLeft size={16} className={mode === 'convert' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+              {/* 🚀 HORIZONTAL Dropdown Menu for [Protect, Sign, Unlock] */}
+              <div className="absolute top-full right-0 mt-3 w-max bg-white/95 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 flex flex-row gap-2 p-2 origin-top-right scale-95 group-hover:scale-100">
+                 
+                 <a href="/protect" onClick={(e) => navigateTo('protect', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'protect' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-2 rounded-lg transition-colors", mode === 'protect' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <Lock size={20} className={mode === 'protect' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
                     </div>
-                    Convert
+                    Protect
                  </a>
-                 <a href="/resize" onClick={(e) => navigateTo('resize', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'resize' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'resize' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <Scaling size={16} className={mode === 'resize' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                 
+                 <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'signature' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-2 rounded-lg transition-colors", mode === 'signature' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <PenTool size={20} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
                     </div>
-                    Resize Image
+                    Sign
                  </a>
-                 <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'signature' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'signature' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <PenTool size={16} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                 
+                 <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'unlock' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-2 rounded-lg transition-colors", mode === 'unlock' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <Unlock size={20} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
                     </div>
-                    Sign PDF
+                    Unlock
                  </a>
-                 <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'unlock' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'unlock' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <Unlock size={16} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
-                    </div>
-                    Unlock PDF
-                 </a>
+
               </div>
             </div>
           </div>
@@ -652,8 +649,8 @@ function App() {
           </div>
         </div>
       </header>
-      {/* ===== END UPDATED HEADER ===== */}
 
+      {/* ===== MOBILE MENU ===== */}
       <div className={clsx(
         "fixed inset-0 bg-white/95 backdrop-blur-2xl z-40 md:hidden transition-all duration-500 ease-in-out flex flex-col pt-24 px-6 pb-8",
         isMobileMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"
@@ -803,7 +800,6 @@ function App() {
                         transition={{ delay: 0.1 }}
                         className="bg-white p-3 md:p-4 rounded-2xl md:rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100"
                       >
-                        {/* Updated FileList with new props */}
                         <FileList 
                           files={files} 
                           setFiles={setFiles} 
@@ -871,7 +867,6 @@ function App() {
                         </motion.button>
                       </motion.div>
 
-                      {/* Target Reset button */}
                       {targetPdfId && (
                         <button 
                           onClick={() => setTargetPdfId(null)} 
@@ -935,7 +930,7 @@ function App() {
             <ProtectTool />
           ) : mode === 'signature' ? (
             <SignatureTool />
-          ) : mode === 'unlock' ? (   // <-- New route for UnlockTool
+          ) : mode === 'unlock' ? (
             <UnlockTool />
           ) : (
             <div className="bg-white p-4 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-xl border border-slate-100 min-h-[500px]">
@@ -952,7 +947,6 @@ function App() {
         </Suspense>
       </main>
 
-      {/* VisualPdfEditor Modal */}
       <VisualPdfEditor 
         isOpen={isEditorOpen}
         file={activeFileForEditor}
