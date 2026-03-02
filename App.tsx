@@ -541,6 +541,7 @@ function App() {
     }
   };
 
+  // ========== UPDATED NavButton COMPONENT ==========
   const NavButton = ({ targetMode, icon: Icon, label, mobile = false }: { targetMode: AppMode, icon: any, label: string, mobile?: boolean }) => {
     const isActive = (mode === targetMode) || (targetMode === 'home' && mode === 'home');
     return (
@@ -548,30 +549,37 @@ function App() {
         href={targetMode === 'home' ? '/' : `/${targetMode}`}
         onClick={(e) => navigateTo(targetMode, e)}
         className={clsx(
-          "flex items-center gap-3 transition-all duration-300 font-medium rounded-xl group",
+          "flex items-center gap-2 xl:gap-3 transition-all duration-300 font-bold rounded-xl group",
           mobile 
-            ? "w-full p-4 text-base border border-slate-100 hover:bg-slate-50"
-            : "px-4 py-2 text-sm hover:bg-white/50",
+            ? "w-full p-4 text-base border border-slate-100 hover:bg-indigo-50"
+            : "px-3 py-2 text-sm hover:bg-white hover:shadow-md hover:-translate-y-0.5", // ✨ Smooth lift & shadow hover effect
           isActive
             ? "bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100"
-            : "text-slate-600 hover:text-slate-900"
+            : "text-slate-600 hover:text-indigo-600"
         )}
       >
-        <div className={clsx("p-2 rounded-lg transition-colors", isActive ? "bg-indigo-50" : "bg-slate-100 group-hover:bg-white")}>
-          <Icon size={mobile ? 20 : 18} className={isActive ? "text-indigo-600" : "text-slate-500"} />
+        <div className={clsx(
+          "p-1.5 md:p-2 rounded-lg transition-all duration-300", 
+          isActive ? "bg-indigo-50" : "bg-slate-100 group-hover:bg-indigo-100 group-hover:scale-110" // ✨ Icon scale animation
+        )}>
+          <Icon size={mobile ? 20 : 16} className={clsx(
+            "transition-colors duration-300",
+            isActive ? "text-indigo-600" : "text-slate-500 group-hover:text-indigo-600"
+          )} />
         </div>
         {label}
         {mobile && <ChevronRight size={16} className="ml-auto text-slate-300" />}
       </a>
     );
   };
+  // =================================================
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
       
-      {/* ===== NEW HEADER WITH DROPDOWN ===== */}
+      {/* ===== UPDATED HEADER WITH DROPDOWN ===== */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm transition-all duration-300">
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 md:h-20 flex items-center justify-between gap-4 lg:gap-8">
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-4 lg:gap-8">
           <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative shrink-0">
             <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 group-hover:rotate-6 transition-transform duration-300">
               <img src="/logo.png" alt="Genz PDF Logo" className="w-5 h-5 md:w-7 md:h-7 object-contain brightness-0 invert" />
@@ -581,8 +589,8 @@ function App() {
             </span>
           </a>
 
-          {/* 🚀 Updated Desktop Navigation with "More Tools" Dropdown */}
-          <div className="hidden lg:flex items-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner flex-shrink-0">
+          {/* 🚀 New Order with Horizontal Layout & Cool Hover Effects */}
+          <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner flex-shrink-0">
             <NavButton targetMode="home" icon={HomeIcon} label="Home" />
             <NavButton targetMode="merge" icon={Files} label="Merge" />
             <NavButton targetMode="split" icon={Scissors} label="Split" />
@@ -591,24 +599,36 @@ function App() {
             
             {/* 🔥 More Tools Dropdown */}
             <div className="relative group">
-              <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-white/50 rounded-xl transition-all outline-none">
+              <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-white hover:shadow-md hover:-translate-y-0.5 rounded-xl transition-all duration-300 outline-none">
                 <span>More Tools</span>
-                <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-300" />
+                <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-300 text-slate-400 group-hover:text-indigo-600" />
               </button>
               
-              {/* Dropdown Menu (Hover par khulega) */}
-              <div className="absolute top-full right-0 mt-2 w-48 bg-white border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 flex flex-col p-2">
-                 <a href="/convert" onClick={(e) => navigateTo('convert', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'convert' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
-                    <ArrowRightLeft size={16} className={mode === 'convert' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Convert
+              {/* Dropdown Menu (With pop-up animation) */}
+              <div className="absolute top-full right-0 mt-3 w-52 bg-white/95 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 flex flex-col p-2 origin-top-right scale-95 group-hover:scale-100">
+                 <a href="/convert" onClick={(e) => navigateTo('convert', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'convert' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'convert' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <ArrowRightLeft size={16} className={mode === 'convert' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                    </div>
+                    Convert
                  </a>
-                 <a href="/resize" onClick={(e) => navigateTo('resize', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'resize' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
-                    <Scaling size={16} className={mode === 'resize' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Resize Image
+                 <a href="/resize" onClick={(e) => navigateTo('resize', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'resize' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'resize' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <Scaling size={16} className={mode === 'resize' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                    </div>
+                    Resize Image
                  </a>
-                 <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'signature' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
-                    <PenTool size={16} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Sign PDF
+                 <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'signature' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'signature' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <PenTool size={16} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                    </div>
+                    Sign PDF
                  </a>
-                 <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group/item", mode === 'unlock' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900")}>
-                    <Unlock size={16} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-500"} /> Unlock PDF
+                 <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold transition-all duration-300 group/item hover:pl-5", mode === 'unlock' ? "bg-indigo-50 text-indigo-600" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                    <div className={clsx("p-1.5 rounded-lg transition-colors", mode === 'unlock' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                      <Unlock size={16} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                    </div>
+                    Unlock PDF
                  </a>
               </div>
             </div>
@@ -632,7 +652,7 @@ function App() {
           </div>
         </div>
       </header>
-      {/* ===== END NEW HEADER ===== */}
+      {/* ===== END UPDATED HEADER ===== */}
 
       <div className={clsx(
         "fixed inset-0 bg-white/95 backdrop-blur-2xl z-40 md:hidden transition-all duration-500 ease-in-out flex flex-col pt-24 px-6 pb-8",
