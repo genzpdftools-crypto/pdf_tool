@@ -141,7 +141,7 @@ const SEO_METADATA: Record<AppMode, {
     schema: {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
-      "name": "PDF Converter Tool",
+      "name": "Convert PDF Tool",
       "applicationCategory": "UtilitiesApplication",
       "operatingSystem": "Any",
       "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
@@ -568,9 +568,12 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
       
+      {/* ===== REPLACED HEADER START ===== */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm transition-all duration-300">
-        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 h-14 md:h-20 flex items-center justify-between gap-4 lg:gap-8 overflow-hidden">
-          <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative">
+        {/* Yahan overflow-hidden hatakar flex-wrap aur padding (py-3 md:py-4) add kiya hai */}
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-4 lg:gap-8">
+          
+          <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative shrink-0">
             <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50 group-hover:rotate-6 transition-transform duration-300">
               <img src="/logo.png" alt="Genz PDF Logo" className="w-5 h-5 md:w-7 md:h-7 object-contain brightness-0 invert" />
             </div>
@@ -579,7 +582,8 @@ function App() {
             </span>
           </a>
 
-          <div className="hidden md:flex items-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner flex-shrink-0">
+          {/* Tools Container me flex-wrap aur justify-center lagaya taaki wrap hone par sundar dikhe */}
+          <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner">
             <NavButton targetMode="home" icon={HomeIcon} label="Home" />
             <NavButton targetMode="merge" icon={Files} label="Merge" />
             <NavButton targetMode="split" icon={Scissors} label="Split" />
@@ -591,7 +595,7 @@ function App() {
             <NavButton targetMode="unlock" icon={Unlock} label="Unlock" />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 ml-auto shrink-0">
             <button 
               onClick={() => setIsAiOpen(true)}
               className="hidden md:flex group items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-indigo-600 transition-all duration-300 shadow-xl shadow-slate-200 font-bold text-sm"
@@ -601,14 +605,15 @@ function App() {
             </button>
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors z-50 relative"
+              className="lg:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors z-50 relative"
               aria-label="Toggle menu"
             >
               {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
-      </header> 
+      </header>
+      {/* ===== REPLACED HEADER END ===== */}
 
       <div className={clsx(
         "fixed inset-0 bg-white/95 backdrop-blur-2xl z-40 md:hidden transition-all duration-500 ease-in-out flex flex-col pt-24 px-6 pb-8",
