@@ -27,17 +27,18 @@ export default function UnlockTool() {
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // Hints States
+  // Hints States (Updated for Capital/Small distinction)
   const [lenMin, setLenMin] = useState(4);
   const [lenMax, setLenMax] = useState(6);
-  const [hasAlphabets, setHasAlphabets] = useState(true);
+  const [hasUppercase, setHasUppercase] = useState(false); // Naya: For A-Z
+  const [hasLowercase, setHasLowercase] = useState(true);  // Naya: For a-z
   const [hasNumbers, setHasNumbers] = useState(true);
   const [hasSymbols, setHasSymbols] = useState(false);
   const [firstChar, setFirstChar] = useState('');
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
   
-  // 🚀 NAYE HINTS: Exact Counts
+  // Exact Counts
   const [exactAlphabets, setExactAlphabets] = useState<string>('');
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
@@ -54,7 +55,13 @@ export default function UnlockTool() {
     setErrorMessage("Auto-Cracking stopped. Please enter details manually.");
   };
 
-  // 🚀 WASM ENGINE (Memory safe)
+  const handleStopSmartCracking = () => {
+    stopBruteForceRef.current = true;
+    setStatus('needs_password');
+    setErrorMessage("Smart Recovery stopped manually.");
+  };
+
+  // WASM ENGINE (Memory safe)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
@@ -92,7 +99,6 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
-      // STEP 1: Fast Security Check (Detect AES-256 or Normal)
       for (const pwd of autoTryPasswords) {
         try {
           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
@@ -111,7 +117,6 @@ export default function UnlockTool() {
         }
       }
 
-      // STEP 2: Agar lock heavy hai (AES-256), toh WASM se sirf common passwords check karo 
       if (aesDetected && !isUnlocked) {
          setStatus('processing_wasm');
          try {
@@ -130,7 +135,6 @@ export default function UnlockTool() {
          }
       }
 
-      // STEP 3: Agar Normal Lock hai aur auto se nahi khula, toh Workers (Multi-threading) chalao
       if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
@@ -188,7 +192,6 @@ export default function UnlockTool() {
         }
       }
 
-      // Sab fail hone par manual mode me bhejo
       if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('needs_password');
         if (aesDetected) {
@@ -244,9 +247,11 @@ export default function UnlockTool() {
     }
   };
 
+  // Naya character pool logic (Capital aur Small ke hisaab se)
   const getCharPool = () => {
     let pool = '';
-    if (hasAlphabets) pool += 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (hasUppercase) pool += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (hasLowercase) pool += 'abcdefghijklmnopqrstuvwxyz';
     if (hasNumbers) pool += '0123456789';
     if (hasSymbols) pool += '@#$%&*!';
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -257,92 +262,94 @@ export default function UnlockTool() {
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
+    stopBruteForceRef.current = false; // Reset stop flag
 
     const pool = getCharPool();
-    let combinations: string[] = [];
-
-    const generate = (currentStr: string, targetLen: number) => {
-      if (combinations.length >= MAX_SMART_ATTEMPTS) return;
-      if (currentStr.length === targetLen) {
-        let isValid = true;
-        
-        // 1. Existing Hint Checks
-        if (firstChar && currentStr[0].toLowerCase() !== firstChar.toLowerCase()) isValid = false;
-        if (lastChar && currentStr[currentStr.length - 1].toLowerCase() !== lastChar.toLowerCase()) isValid = false;
-        if (middleHint && !currentStr.includes(middleHint)) isValid = false;
-
-        // 2. 🚀 NEW: EXACT COUNT CHECKS 🚀
-        if (isValid && exactAlphabets !== '') {
-           const alphaCount = (currentStr.match(/[a-zA-Z]/g) || []).length;
-           if (alphaCount !== parseInt(exactAlphabets)) isValid = false;
-        }
-        if (isValid && exactNumbers !== '') {
-           const numCount = (currentStr.match(/[0-9]/g) || []).length;
-           if (numCount !== parseInt(exactNumbers)) isValid = false;
-        }
-        if (isValid && exactSymbols !== '') {
-           const symCount = (currentStr.match(/[^a-zA-Z0-9]/g) || []).length;
-           if (symCount !== parseInt(exactSymbols)) isValid = false;
-        }
-
-        if (isValid) combinations.push(currentStr);
-        return;
-      }
-      for (let i = 0; i < pool.length; i++) {
-        generate(currentStr + pool[i], targetLen);
-        if (combinations.length >= MAX_SMART_ATTEMPTS) break;
-      }
-    };
-
-    for (let len = lenMin; len <= lenMax; len++) {
-      if (combinations.length >= MAX_SMART_ATTEMPTS) break;
-      generate('', len);
-    }
-
-    if (combinations.length === 0) {
-      setStatus('needs_password');
-      setErrorMessage('Could not generate combinations. Try relaxing your strict counts or hints.');
-      return;
-    }
-
-    let unlocked = false;
     const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = new Uint8Array(arrayBuffer);
 
-    for (let i = 0; i < combinations.length; i++) {
-      if (unlocked) break;
-      const pwd = combinations[i];
-      setCurrentTry(pwd);
-      
-      // 🚨 BROWSER ANTI-FREEZE MECHANISM 🚨
-      if (i % 10 === 0) {
-        setProgress(Math.round((i / combinations.length) * 100));
-        await new Promise(resolve => setTimeout(resolve, 5)); 
-      }
+    let unlocked = false;
+    let attempts = 0;
+    let nodesVisited = 0;
 
-      if (isAes256) {
-         try {
-           const bytes = await unlockWithWasm(pwd, pdfBytes);
-           setUnlockedPdfBytes(bytes);
-           setStatus('unlocked');
-           unlocked = true;
-           break;
-         } catch(e) {}
-      } else {
-         try {
-           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-           const savedBytes = await pdfDoc.save();
-           setUnlockedPdfBytes(savedBytes);
-           setStatus('unlocked');
-           unlocked = true;
-           break;
-         } catch(e) {}
+    // Naya Asynchronous iterative generator, jisse UI freeze nahi hoga
+    for (let len = lenMin; len <= lenMax; len++) {
+      if (unlocked || stopBruteForceRef.current) break;
+
+      const stack = [{ str: '', depth: 0 }];
+
+      while (stack.length > 0) {
+        if (stopBruteForceRef.current || unlocked || attempts >= MAX_SMART_ATTEMPTS) break;
+
+        const { str, depth } = stack.pop()!;
+
+        if (depth === len) {
+          nodesVisited++;
+          
+          // Browser ko saans lene ka waqt do har 5000 strings generate hone par
+          if (nodesVisited % 5000 === 0) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+          }
+
+          let isValid = true;
+          if (firstChar && str[0] !== firstChar) isValid = false;
+          if (lastChar && str[str.length - 1] !== lastChar) isValid = false;
+          if (middleHint && !str.includes(middleHint)) isValid = false;
+
+          if (isValid && exactAlphabets !== '') {
+             const alphaCount = (str.match(/[a-zA-Z]/g) || []).length;
+             if (alphaCount !== parseInt(exactAlphabets)) isValid = false;
+          }
+          if (isValid && exactNumbers !== '') {
+             const numCount = (str.match(/[0-9]/g) || []).length;
+             if (numCount !== parseInt(exactNumbers)) isValid = false;
+          }
+          if (isValid && exactSymbols !== '') {
+             const symCount = (str.match(/[^a-zA-Z0-9]/g) || []).length;
+             if (symCount !== parseInt(exactSymbols)) isValid = false;
+          }
+
+          if (isValid) {
+            attempts++;
+            setCurrentTry(str);
+            
+            // Testing ke waqt progress bar update aur freeze rokne ke liye
+            if (attempts % 10 === 0) {
+              setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
+              await new Promise(resolve => setTimeout(resolve, 1)); 
+            }
+
+            if (isAes256) {
+               try {
+                 const bytes = await unlockWithWasm(str, pdfBytes);
+                 setUnlockedPdfBytes(bytes);
+                 setStatus('unlocked');
+                 unlocked = true;
+                 break;
+               } catch(e) {}
+            } else {
+               try {
+                 const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
+                 const savedBytes = await pdfDoc.save();
+                 setUnlockedPdfBytes(savedBytes);
+                 setStatus('unlocked');
+                 unlocked = true;
+                 break;
+               } catch(e) {}
+            }
+          }
+        } else {
+          // Aage ke characters stack me daalo
+          for (let i = pool.length - 1; i >= 0; i--) {
+            stack.push({ str: str + pool[i], depth: depth + 1 });
+          }
+        }
       }
     }
 
-    if (!unlocked) {
+    if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Checked ${combinations.length} exact matches based on your hints.`);
+      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} valid combinations.`);
     }
   };
 
@@ -414,7 +421,7 @@ export default function UnlockTool() {
             <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
           </div>
           <p className="text-sm text-gray-500 mt-2">{progress}% Completed</p>
-          <button onClick={() => setStatus('needs_password')} className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+          <button onClick={handleStopSmartCracking} className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
              Stop Recovery
           </button>
         </div>
@@ -470,13 +477,14 @@ export default function UnlockTool() {
                   <div>
                     <label className="font-semibold block mb-2">Included Characters</label>
                     <div className="flex gap-4 mt-2">
-                      <label className="cursor-pointer"><input type="checkbox" checked={hasAlphabets} onChange={e => setHasAlphabets(e.target.checked)} className="mr-1 accent-purple-600"/> A-Z</label>
+                      <label className="cursor-pointer"><input type="checkbox" checked={hasUppercase} onChange={e => setHasUppercase(e.target.checked)} className="mr-1 accent-purple-600"/> A-Z</label>
+                      <label className="cursor-pointer"><input type="checkbox" checked={hasLowercase} onChange={e => setHasLowercase(e.target.checked)} className="mr-1 accent-purple-600"/> a-z</label>
                       <label className="cursor-pointer"><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)} className="mr-1 accent-purple-600"/> 0-9</label>
                       <label className="cursor-pointer"><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)} className="mr-1 accent-purple-600"/> @#$</label>
                     </div>
                   </div>
                   
-                  {/* 🚀 NEW EXACT COUNT HINTS 🚀 */}
+                  {/* EXACT COUNT HINTS */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
                     <p className="text-sm text-gray-500 mb-3"><b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)</p>
                     <div className="grid grid-cols-3 gap-4">
