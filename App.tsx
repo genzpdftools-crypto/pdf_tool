@@ -25,7 +25,8 @@ import {
   X,
   ChevronRight,
   Lock,
-  PenTool
+  PenTool,
+  Unlock
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { v4 as uuidv4 } from 'uuid';
@@ -587,6 +588,7 @@ function App() {
             <NavButton targetMode="resize" icon={Scaling} label="Resize" />
             <NavButton targetMode="protect" icon={Lock} label="Protect" />
             <NavButton targetMode="signature" icon={PenTool} label="Sign" />
+            <NavButton targetMode="unlock" icon={Unlock} label="Unlock" />
           </div>
 
           <div className="flex items-center gap-3">
@@ -622,6 +624,7 @@ function App() {
           <NavButton targetMode="resize" icon={Scaling} label="Resize Image" mobile />
           <NavButton targetMode="protect" icon={Lock} label="Protect PDF" mobile />
           <NavButton targetMode="signature" icon={PenTool} label="Sign PDF" mobile />
+          <NavButton targetMode="unlock" icon={Unlock} label="Unlock PDF" mobile />
           <div className="my-2 border-t border-slate-100"></div>
           <button 
             onClick={() => { setIsAiOpen(true); setIsMobileMenuOpen(false); }}
