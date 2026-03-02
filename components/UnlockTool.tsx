@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, StopCircle } from 'lucide-react';
+// VITE SPECIAL IMPORT FOR WORKER
+import PdfWorker from './pdfWorker?worker';
 
 const COMMON_PASSWORDS = ['password', 'admin', '123456', '12345678'];
 const MAX_SMART_ATTEMPTS = 5000;
@@ -12,16 +14,15 @@ export default function UnlockTool() {
   const [errorMessage, setErrorMessage] = useState('');
   
   const [progress, setProgress] = useState(0);
-  const [currentTry, setCurrentTry] = useState(''); // User ko dikhane ke liye ki kya check ho raha hai
+  const [currentTry, setCurrentTry] = useState(''); 
   
-  // Bruteforce ko rokne ke liye reference
+  // Workers manage karne ke liye
+  const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
 
-  // Normal Password State
+  // States for Smart Hint (same as before)
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-
-  // Smart Hint States
   const [lenMin, setLenMin] = useState(4);
   const [lenMax, setLenMax] = useState(6);
   const [hasAlphabets, setHasAlphabets] = useState(true);
@@ -30,6 +31,19 @@ export default function UnlockTool() {
   const [firstChar, setFirstChar] = useState('');
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
+
+  // SAARE WORKERS KO ROKNE KA FUNCTION
+  const terminateAllWorkers = () => {
+    workersRef.current.forEach(worker => worker.terminate());
+    workersRef.current = [];
+  };
+
+  const handleStopBruteForce = () => {
+    stopBruteForceRef.current = true;
+    terminateAllWorkers();
+    setStatus('needs_password');
+    setErrorMessage("Aapne Multi-threaded Cracking rok di. Niche manually details bharein.");
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -45,17 +59,10 @@ export default function UnlockTool() {
       const pdfBytes = new Uint8Array(arrayBuffer);
       const fileNameWithoutExt = uploadedFile.name.replace('.pdf', '');
       
-      // PHASE 1: Try Common and File Name
-      const autoTryPasswords = [
-        ...COMMON_PASSWORDS,
-        fileNameWithoutExt,
-        fileNameWithoutExt.toLowerCase(),
-        fileNameWithoutExt.toUpperCase()
-      ];
-
+      const autoTryPasswords = [...COMMON_PASSWORDS, fileNameWithoutExt, fileNameWithoutExt.toLowerCase(), fileNameWithoutExt.toUpperCase()];
       let isUnlocked = false;
 
-      // Common Checks
+      // Phase 1: Basic Check
       for (const pwd of autoTryPasswords) {
         try {
           setCurrentTry(pwd);
@@ -72,44 +79,75 @@ export default function UnlockTool() {
         }
       }
 
-      // PHASE 2: The 1 to 9 Digits Loop (User requested logic)
+      // Phase 2: MULTI-THREADED NUMBER CRACKING (1 to 9 Digits)
       if (!isUnlocked) {
         setStatus('number_bruteforce');
         
-        // Loop for lengths 1 to 9
+        // Device ke cores detect karo (Ya default 4 use karo)
+        const numCores = navigator.hardwareConcurrency || 4;
+        
         for (let length = 1; length <= 9; length++) {
           if (isUnlocked || stopBruteForceRef.current) break;
           
-          let maxNum = Math.pow(10, length) - 1; // Example: if length 2, max is 99
+          let maxNum = Math.pow(10, length) - 1;
           
-          // Chunking to prevent browser crash
-          const chunkSize = 100; 
+          // Promise wrapper taaki jab tak saare workers ek length check na kar le, aage na badhe
+          await new Promise<void>((resolve) => {
+            let activeWorkers = numCores;
+            const chunkSize = Math.ceil((maxNum + 1) / numCores);
 
-          for (let i = 0; i <= maxNum; i += chunkSize) {
-            if (isUnlocked || stopBruteForceRef.current) break;
+            for (let i = 0; i < numCores; i++) {
+              if (stopBruteForceRef.current) { resolve(); return; }
 
-            // UI Update (Progress & Current Number)
-            if (i % 1000 === 0) {
-               setProgress(Math.round((i / maxNum) * 100));
-               setCurrentTry(`${i.toString().padStart(length, '0')} (Length: ${length})`);
-               await new Promise(res => setTimeout(res, 0)); // Let browser breathe
-            }
-
-            // Test Chunk
-            for (let j = 0; j < chunkSize && (i + j) <= maxNum; j++) {
-              const numPwd = (i + j).toString().padStart(length, '0');
-              try {
-                const pdfDoc = await PDFDocument.load(pdfBytes, { password: numPwd });
-                const savedBytes = await pdfDoc.save();
-                setUnlockedPdfBytes(savedBytes);
-                setStatus('unlocked');
-                isUnlocked = true;
-                break;
-              } catch (e) {
-                // Ignore wrong password
+              const startNum = i * chunkSize;
+              let endNum = startNum + chunkSize - 1;
+              if (endNum > maxNum) endNum = maxNum;
+              if (startNum > maxNum) {
+                activeWorkers--;
+                continue;
               }
+
+              // Naya Worker Banao
+              const worker = new PdfWorker();
+              workersRef.current.push(worker);
+
+              // Worker ko data bhejo
+              worker.postMessage({
+                pdfBytes,
+                startNum,
+                endNum,
+                length,
+                workerId: i
+              });
+
+              // Worker se response suno
+              worker.onmessage = async (msg) => {
+                const { type, password, currentTry: wTry } = msg.data;
+
+                if (type === 'success') {
+                  isUnlocked = true;
+                  stopBruteForceRef.current = true;
+                  terminateAllWorkers();
+                  
+                  // Unlock file with correct password
+                  const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                  const savedBytes = await pdfDoc.save();
+                  setUnlockedPdfBytes(savedBytes);
+                  setStatus('unlocked');
+                  resolve();
+                } 
+                else if (type === 'progress') {
+                  setCurrentTry(`${wTry} (Len: ${length}) - [CPU Cores Active: ${numCores}]`);
+                  // Rough progress calculation
+                  setProgress(Math.round(((parseInt(wTry) / maxNum) * 100)));
+                } 
+                else if (type === 'done') {
+                  activeWorkers--;
+                  if (activeWorkers <= 0) resolve(); // Saare workers free ho gaye
+                }
+              };
             }
-          }
+          });
         }
       }
 
@@ -128,17 +166,10 @@ export default function UnlockTool() {
     }
   };
 
-  const handleStopBruteForce = () => {
-    stopBruteForceRef.current = true;
-    setStatus('needs_password');
-    setErrorMessage("Aapne Number Cracking beech me rok di. Niche manually details bharein.");
-  };
-
   const handleManualUnlock = async () => {
     if (!file || !manualPassword) return;
     setStatus('auto_cracking');
     setErrorMessage('');
-
     try {
       const arrayBuffer = await file.arrayBuffer();
       const pdfBytes = new Uint8Array(arrayBuffer);
@@ -152,7 +183,7 @@ export default function UnlockTool() {
     }
   };
 
-  // ... (getCharPool aur handleSmartUnlock same rahenge)
+  // getCharPool aur handleSmartUnlock ko purane code jaisa hi rakhna hai
   const getCharPool = () => {
     let pool = '';
     if (hasAlphabets) pool += 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -240,8 +271,8 @@ export default function UnlockTool() {
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Advance PDF Unlocker</h2>
-        <p className="text-gray-600">File upload karein, hum numbers aur hints ke through password break karenge.</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Turbo PDF Unlocker</h2>
+        <p className="text-gray-600">Multi-threading ka use karke fast password cracking.</p>
       </div>
 
       {!file && (
@@ -261,12 +292,11 @@ export default function UnlockTool() {
         </div>
       )}
 
-      {/* NEW: Number BruteForce Screen */}
       {status === 'number_bruteforce' && (
         <div className="text-center p-10 bg-blue-50 rounded-xl border border-blue-100">
           <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">All Numbers Check Ho Rahe Hain (1 to 9 Digits)...</h3>
-          <p className="text-gray-600 mb-2">Ye thoda lamba chal sakta hai. Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
+          <p className="text-gray-600 mb-2">System cores engaged. <br/> Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
           
           <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-6">
             <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
@@ -306,7 +336,7 @@ export default function UnlockTool() {
           <div className="flex items-center text-amber-600 bg-amber-50 p-4 rounded-lg border border-amber-200">
             <AlertCircle className="w-6 h-6 mr-3" />
             <div>
-              <span className="font-bold block">Auto-Crack / Number loop fail hua (ya stop kiya).</span>
+              <span className="font-bold block">Cracking Stopped or Failed.</span>
               <span className="text-sm">Ab manual password daalein ya Smart Recovery me hints dein.</span>
             </div>
           </div>
