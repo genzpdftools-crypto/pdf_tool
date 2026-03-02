@@ -41,6 +41,8 @@ import { mergePdfs, createPdfUrl } from './services/pdfService';
 // --- New Imports for Advanced Flow ---
 import { VisualPdfEditor } from './components/VisualPdfEditor';
 import { transferPagesBetweenPdfs } from './services/pdfService';
+// --- New Import for Unlock Tool ---
+import UnlockTool from './components/UnlockTool';
 
 const SplitTool = lazy(() => import('./components/SplitTool'));
 const ConverterTool = lazy(() => import('./components/ConverterTool'));
@@ -201,6 +203,24 @@ const SEO_METADATA: Record<AppMode, {
       { name: "Sign PDF", url: `${BASE_URL}/signature` }
     ]
   },
+  // --- New SEO entry for Unlock Tool ---
+  unlock: {
+    title: "Unlock PDF - Remove Password from PDF Online Free | Genz PDF",
+    description: "Remove password from PDF files instantly. Unlock secured PDFs online for free. 100% client-side, no upload, no signup.",
+    keywords: "unlock pdf, remove pdf password, pdf password remover, unlock secured pdf, free pdf unlocker, remove password from pdf online",
+    schema: {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Unlock PDF Tool",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    },
+    breadcrumb: [
+      { name: "Home", url: BASE_URL },
+      { name: "Unlock PDF", url: `${BASE_URL}/unlock` }
+    ]
+  },
   about: {
     title: "About Us - Genz PDF Team",
     description: "Learn about the mission behind Genz PDF. We provide free, secure, client-side PDF tools for everyone.",
@@ -242,6 +262,7 @@ function App() {
       if (path.includes('/resize')) return 'resize';
       if (path.includes('/protect')) return 'protect';
       if (path.includes('/signature')) return 'signature';
+      if (path.includes('/unlock')) return 'unlock';    // <-- New route detection
       if (path.includes('/about')) return 'about';
       if (path.includes('/contact')) return 'contact';
       if (path.includes('/policy')) return 'policy';
@@ -867,6 +888,8 @@ function App() {
             <ProtectTool />
           ) : mode === 'signature' ? (
             <SignatureTool />
+          ) : mode === 'unlock' ? (   // <-- New route for UnlockTool
+            <UnlockTool />
           ) : (
             <div className="bg-white p-4 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-xl border border-slate-100 min-h-[500px]">
               {mode === 'split' && <SplitTool />}
