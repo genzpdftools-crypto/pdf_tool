@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, StopCircle } from 'lucide-react';
+import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, StopCircle, Server } from 'lucide-react';
 // VITE SPECIAL IMPORT FOR WORKER
 import PdfWorker from './pdfWorker?worker';
 
@@ -9,18 +9,18 @@ const MAX_SMART_ATTEMPTS = 5000;
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<'idle' | 'auto_cracking' | 'number_bruteforce' | 'needs_password' | 'smart_cracking' | 'unlocked' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'auto_cracking' | 'number_bruteforce' | 'needs_password' | 'smart_cracking' | 'sending_to_factory' | 'unlocked' | 'error'>('idle');
   const [unlockedPdfBytes, setUnlockedPdfBytes] = useState<Uint8Array | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   
   const [progress, setProgress] = useState(0);
   const [currentTry, setCurrentTry] = useState(''); 
   
-  // Workers manage karne ke liye
+  // Worker References
   const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
 
-  // States for Smart Hint (same as before)
+  // States for Smart Hint & Manual Entry
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [lenMin, setLenMin] = useState(4);
@@ -32,7 +32,6 @@ export default function UnlockTool() {
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
 
-  // SAARE WORKERS KO ROKNE KA FUNCTION
   const terminateAllWorkers = () => {
     workersRef.current.forEach(worker => worker.terminate());
     workersRef.current = [];
@@ -42,7 +41,20 @@ export default function UnlockTool() {
     stopBruteForceRef.current = true;
     terminateAllWorkers();
     setStatus('needs_password');
-    setErrorMessage("Aapne Multi-threaded Cracking rok di. Niche manually details bharein.");
+    setErrorMessage("Multi-threaded Cracking stopped. Please enter details manually below.");
+  };
+
+  // Convert File to Base64 (For sending to Vercel Backend)
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); 
+      };
+      reader.onerror = error => reject(error);
+    });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +74,7 @@ export default function UnlockTool() {
       const autoTryPasswords = [...COMMON_PASSWORDS, fileNameWithoutExt, fileNameWithoutExt.toLowerCase(), fileNameWithoutExt.toUpperCase()];
       let isUnlocked = false;
 
-      // Phase 1: Basic Check
+      // Phase 1: Basic Check (Common Passwords)
       for (const pwd of autoTryPasswords) {
         try {
           setCurrentTry(pwd);
@@ -82,8 +94,6 @@ export default function UnlockTool() {
       // Phase 2: MULTI-THREADED NUMBER CRACKING (1 to 9 Digits)
       if (!isUnlocked) {
         setStatus('number_bruteforce');
-        
-        // Device ke cores detect karo (Ya default 4 use karo)
         const numCores = navigator.hardwareConcurrency || 4;
         
         for (let length = 1; length <= 9; length++) {
@@ -91,7 +101,6 @@ export default function UnlockTool() {
           
           let maxNum = Math.pow(10, length) - 1;
           
-          // Promise wrapper taaki jab tak saare workers ek length check na kar le, aage na badhe
           await new Promise<void>((resolve) => {
             let activeWorkers = numCores;
             const chunkSize = Math.ceil((maxNum + 1) / numCores);
@@ -107,11 +116,9 @@ export default function UnlockTool() {
                 continue;
               }
 
-              // Naya Worker Banao
               const worker = new PdfWorker();
               workersRef.current.push(worker);
 
-              // Worker ko data bhejo
               worker.postMessage({
                 pdfBytes,
                 startNum,
@@ -120,16 +127,14 @@ export default function UnlockTool() {
                 workerId: i
               });
 
-              // Worker se response suno (with fatal_error handling)
               worker.onmessage = async (msg) => {
                 const { type, password, currentTry: wTry, message } = msg.data;
 
-                // NAYA: Agar worker fatt jaye toh rok do
                 if (type === 'fatal_error') {
                   stopBruteForceRef.current = true;
                   terminateAllWorkers();
-                  setStatus('error');
-                  setErrorMessage(`Technical Error: ${message}. (Shayad file badi hai ya format support nahi kar raha)`);
+                  setStatus('needs_password');
+                  setErrorMessage(`Technical limitations detected. Try entering the password manually to use the Cloud Factory.`);
                   resolve();
                 }
                 else if (type === 'success') {
@@ -145,12 +150,11 @@ export default function UnlockTool() {
                 } 
                 else if (type === 'progress') {
                   setCurrentTry(`${wTry} (Len: ${length}) - [CPU Cores Active: ${numCores}]`);
-                  // Rough progress calculation
                   setProgress(Math.round(((parseInt(wTry) / maxNum) * 100)));
                 } 
                 else if (type === 'done') {
                   activeWorkers--;
-                  if (activeWorkers <= 0) resolve(); // Saare workers free ho gaye
+                  if (activeWorkers <= 0) resolve(); 
                 }
               };
             }
@@ -164,11 +168,11 @@ export default function UnlockTool() {
 
     } catch (err: any) {
       if (err.message === 'Unsupported encryption') {
-        setStatus('error');
-        setErrorMessage("Ye file 'AES-256' high security se locked hai. Browser me ye crack nahi ho sakti.");
+        setStatus('needs_password');
+        setErrorMessage("High-security AES-256 detected. Please enter the password manually to process it via our Cloud API.");
       } else {
         setStatus('error');
-        setErrorMessage("File format error.");
+        setErrorMessage("File format error. Please upload a valid PDF.");
       }
     }
   };
@@ -177,6 +181,7 @@ export default function UnlockTool() {
     if (!file || !manualPassword) return;
     setStatus('auto_cracking');
     setErrorMessage('');
+
     try {
       const arrayBuffer = await file.arrayBuffer();
       const pdfBytes = new Uint8Array(arrayBuffer);
@@ -184,13 +189,43 @@ export default function UnlockTool() {
       const savedBytes = await pdfDoc.save();
       setUnlockedPdfBytes(savedBytes);
       setStatus('unlocked');
-    } catch (error) {
-      setStatus('needs_password');
-      setErrorMessage('Galat password! Dobara try karein.');
+    } catch (error: any) {
+      const errorMsg = error.message ? error.message.toLowerCase() : "";
+      
+      // Fallback to Vercel Backend Factory for AES-256 locks
+      if (errorMsg.includes('not supported') || errorMsg.includes('encrypt')) {
+        setStatus('sending_to_factory');
+        setErrorMessage('Titanium Lock detected! Sending file to Cloud Factory...');
+        
+        try {
+          const base64Data = await fileToBase64(file);
+          
+          const res = await fetch('/api/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64: base64Data, password: manualPassword })
+          });
+          
+          const data = await res.json();
+
+          if (data.success) {
+            setStatus('needs_password');
+            setErrorMessage(`✅ FACTORY TEST SUCCESS: ${data.message}`);
+          } else {
+            setStatus('needs_password');
+            setErrorMessage(`❌ FACTORY ERROR: ${data.error}`);
+          }
+        } catch (apiError) {
+          setStatus('needs_password');
+          setErrorMessage('❌ Backend connection failed. Please check your internet or API settings.');
+        }
+      } else {
+        setStatus('needs_password');
+        setErrorMessage('❌ Incorrect password! Please try again.');
+      }
     }
   };
 
-  // getCharPool aur handleSmartUnlock ko purane code jaisa hi rakhna hai
   const getCharPool = () => {
     let pool = '';
     if (hasAlphabets) pool += 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -233,7 +268,7 @@ export default function UnlockTool() {
 
     if (combinations.length === 0) {
       setStatus('needs_password');
-      setErrorMessage('Aapke hints ke hisaab se koi combination nahi ban paya.');
+      setErrorMessage('Could not generate combinations from the provided hints.');
       return;
     }
 
@@ -260,7 +295,7 @@ export default function UnlockTool() {
 
     if (!unlocked) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Fail! Humne ${combinations.length} best combinations try kiye. Kripya manual password daalein.`);
+      setErrorMessage(`Smart Cracking Failed. Tried the best ${combinations.length} combinations.`);
     }
   };
 
@@ -279,7 +314,7 @@ export default function UnlockTool() {
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">Turbo PDF Unlocker</h2>
-        <p className="text-gray-600">Multi-threading ka use karke fast password cracking.</p>
+        <p className="text-gray-600">Advanced multi-threading & Cloud API for rapid password cracking.</p>
       </div>
 
       {!file && (
@@ -287,7 +322,7 @@ export default function UnlockTool() {
           <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" id="file-upload" />
           <label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center">
             <Upload className="w-12 h-12 text-purple-600 mb-4" />
-            <span className="text-lg font-medium text-gray-700">PDF File Select Karo</span>
+            <span className="text-lg font-medium text-gray-700">Select PDF File</span>
           </label>
         </div>
       )}
@@ -295,7 +330,7 @@ export default function UnlockTool() {
       {status === 'auto_cracking' && (
         <div className="text-center p-10 bg-purple-50 rounded-xl border border-purple-100">
           <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">Basic checks chalu hain...</h3>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Executing initial checks...</h3>
         </div>
       )}
 
@@ -313,8 +348,16 @@ export default function UnlockTool() {
             onClick={handleStopBruteForce}
             className="inline-flex items-center px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200 transition-colors"
           >
-            <StopCircle className="w-5 h-5 mr-2" /> Stop & Try Manual/Smart Mode
+            <StopCircle className="w-5 h-5 mr-2" /> Stop & Switch to Manual Mode
           </button>
+        </div>
+      )}
+
+      {status === 'sending_to_factory' && (
+        <div className="text-center p-10 bg-indigo-50 rounded-xl border border-indigo-100">
+          <Server className="animate-bounce w-16 h-16 text-indigo-600 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Connecting to Cloud Factory...</h3>
+          <p className="text-gray-600">AES-256 Lock detected. Outsourcing to Vercel Backend servers.</p>
         </div>
       )}
 
@@ -334,7 +377,7 @@ export default function UnlockTool() {
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2 mt-4">
             <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
           </div>
-          <p className="text-sm text-gray-500 mt-2">{progress}% Checked</p>
+          <p className="text-sm text-gray-500 mt-2">{progress}% Completed</p>
         </div>
       )}
 
@@ -343,18 +386,22 @@ export default function UnlockTool() {
           <div className="flex items-center text-amber-600 bg-amber-50 p-4 rounded-lg border border-amber-200">
             <AlertCircle className="w-6 h-6 mr-3" />
             <div>
-              <span className="font-bold block">Cracking Stopped or Failed.</span>
-              <span className="text-sm">Ab manual password daalein ya Smart Recovery me hints dein.</span>
+              <span className="font-bold block">Cracking Interrupted or Failed.</span>
+              <span className="text-sm">Please input the password manually or use Smart Recovery hints.</span>
             </div>
           </div>
 
-          {errorMessage && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{errorMessage}</p>}
+          {errorMessage && (
+            <div className={`p-4 rounded-lg border ${errorMessage.includes('SUCCESS') ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+              <p className="text-sm font-medium">{errorMessage}</p>
+            </div>
+          )}
 
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Agar exact password yaad hai toh daalein:</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Manual Password Entry:</h3>
             <div className="flex gap-4">
-              <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Password enter karein..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
-              <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">Unlock</button>
+              <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+              <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">Unlock Document</button>
             </div>
           </div>
 
@@ -363,7 +410,7 @@ export default function UnlockTool() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors">
               <div className="flex items-center text-gray-800 font-semibold">
-                <Key className="w-5 h-5 mr-2 text-purple-600" /> Password Bhul Gaye? (Smart Cracking Use Karein)
+                <Key className="w-5 h-5 mr-2 text-purple-600" /> Lost Password? (Use Smart Recovery)
               </div>
               {showAdvanced ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
             </button>
@@ -372,25 +419,25 @@ export default function UnlockTool() {
               <div className="p-6 space-y-6 border-t border-gray-200">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="font-semibold text-gray-800 block mb-2">Length Min Se Max</label>
+                    <label className="font-semibold text-gray-800 block mb-2">Length Range</label>
                     <div className="flex gap-2">
                        <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Min" />
                        <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Max" />
                     </div>
                   </div>
                   <div>
-                    <label className="font-semibold text-gray-800 block mb-2">Character Type</label>
+                    <label className="font-semibold text-gray-800 block mb-2">Included Characters</label>
                     <div className="flex gap-4 mt-2">
                       <label><input type="checkbox" checked={hasAlphabets} onChange={e => setHasAlphabets(e.target.checked)}/> A-Z</label>
                       <label><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)}/> 0-9</label>
                       <label><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)}/> @#$</label>
                     </div>
                   </div>
-                  <div><label className="font-semibold text-gray-800 block mb-2">First Char?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg" /></div>
-                  <div><label className="font-semibold text-gray-800 block mb-2">Last Char?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg" /></div>
-                  <div className="col-span-2"><label className="font-semibold text-gray-800 block mb-2">Bich me koi word yaad hai?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg" placeholder="eg: pintu" /></div>
+                  <div><label className="font-semibold text-gray-800 block mb-2">Starting Character?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg" /></div>
+                  <div><label className="font-semibold text-gray-800 block mb-2">Ending Character?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg" /></div>
+                  <div className="col-span-2"><label className="font-semibold text-gray-800 block mb-2">Known string inside?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg" placeholder="eg: pintu" /></div>
                 </div>
-                <button onClick={handleSmartUnlock} className="w-full bg-purple-100 text-purple-700 py-3 rounded-lg font-bold hover:bg-purple-200">START SMART CRACKING</button>
+                <button onClick={handleSmartUnlock} className="w-full bg-purple-100 text-purple-700 py-3 rounded-lg font-bold hover:bg-purple-200">INITIATE SMART RECOVERY</button>
               </div>
             )}
           </div>
@@ -400,7 +447,7 @@ export default function UnlockTool() {
       {status === 'unlocked' && (
         <div className="text-center p-10 bg-green-50 rounded-2xl border border-green-200">
           <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
-          <h3 className="text-3xl font-bold text-gray-900 mb-3">Unlocked Successfully!</h3>
+          <h3 className="text-3xl font-bold text-gray-900 mb-3">Document Unlocked Successfully!</h3>
           <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg">
             <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
           </button>
