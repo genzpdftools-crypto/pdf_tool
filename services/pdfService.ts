@@ -81,8 +81,13 @@ export const removePagesFromPdf = async (file: File, pagesToRemove: number[]): P
   return await newPdf.save();
 };
 
+// ========== REPLACED imagesToPdf FUNCTION ==========
 export const imagesToPdf = async (files: File[]): Promise<Uint8Array> => {
   const pdfDoc = await PDFDocument.create();
+
+  // Standard A4 page dimensions (points mein)
+  const A4_WIDTH = 595.28;
+  const A4_HEIGHT = 841.89;
 
   for (const file of files) {
     const arrayBuffer = await file.arrayBuffer();
@@ -97,17 +102,37 @@ export const imagesToPdf = async (files: File[]): Promise<Uint8Array> => {
       continue; // Skip unsupported
     }
 
-    const page = pdfDoc.addPage([image.width, image.height]);
+    // Har page ko standard A4 size ka banate hain, image ke size ka nahi
+    const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+
+    // Image ka aspect ratio maintain karne ke liye scaling calculate karte hain
+    const imgWidth = image.width;
+    const imgHeight = image.height;
+
+    const widthRatio = A4_WIDTH / imgWidth;
+    const heightRatio = A4_HEIGHT / imgHeight;
+    
+    // Jo ratio chota hai use lenge taaki image page ke bahar na nikal jaye
+    const scale = Math.min(widthRatio, heightRatio);
+
+    const scaledWidth = imgWidth * scale;
+    const scaledHeight = imgHeight * scale;
+
+    // Image ko page ke ekdum center mein place karne ke liye math
+    const x = (A4_WIDTH - scaledWidth) / 2;
+    const y = (A4_HEIGHT - scaledHeight) / 2;
+
     page.drawImage(image, {
-      x: 0,
-      y: 0,
-      width: image.width,
-      height: image.height,
+      x: x,
+      y: y,
+      width: scaledWidth,
+      height: scaledHeight,
     });
   }
 
   return await pdfDoc.save();
 };
+// ===================================================
 
 export const createPdfUrl = (pdfBytes: Uint8Array): string => {
   const blob = new Blob([pdfBytes], { type: 'application/pdf' });
