@@ -315,9 +315,9 @@ export default function UnlockTool() {
       setCurrentTry(pwd);
       
       // 🚨 BROWSER ANTI-FREEZE MECHANISM 🚨
-      if (i % 10 === 0) {
+      if (i % 2 === 0) {
         setProgress(Math.round((i / combinations.length) * 100));
-        await new Promise(resolve => setTimeout(resolve, 5)); 
+        await new Promise(resolve => setTimeout(resolve, 15)); 
       }
 
       if (isAes256) {
