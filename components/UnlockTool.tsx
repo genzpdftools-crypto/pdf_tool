@@ -7,7 +7,7 @@ import PdfWorker from './pdfWorker?worker';
 import QPDF from 'qpdf-wasm-esm-embedded';
 
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
-const MAX_SMART_ATTEMPTS = 10000; // Limit taaki hang na ho
+const MAX_SMART_ATTEMPTS = 20000; // Limit thodi badha di hai kyunki ab speed fast hai
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -27,18 +27,17 @@ export default function UnlockTool() {
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // Hints States (Updated for Capital/Small distinction)
+  // Hints States
   const [lenMin, setLenMin] = useState(4);
   const [lenMax, setLenMax] = useState(6);
-  const [hasUppercase, setHasUppercase] = useState(false); // Naya: For A-Z
-  const [hasLowercase, setHasLowercase] = useState(true);  // Naya: For a-z
+  const [hasUppercase, setHasUppercase] = useState(false);
+  const [hasLowercase, setHasLowercase] = useState(true);
   const [hasNumbers, setHasNumbers] = useState(true);
   const [hasSymbols, setHasSymbols] = useState(false);
   const [firstChar, setFirstChar] = useState('');
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
   
-  // Exact Counts
   const [exactAlphabets, setExactAlphabets] = useState<string>('');
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
@@ -61,16 +60,13 @@ export default function UnlockTool() {
     setErrorMessage("Smart Recovery stopped manually.");
   };
 
-  // WASM ENGINE (Memory safe)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
       try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
-      
       qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
-      
       try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e){}
       return unlockedBytes;
     } catch (e) {
@@ -130,9 +126,7 @@ export default function UnlockTool() {
                      break;
                  } catch (e) {}
              }
-         } catch (err) {
-             console.error("WASM Quick Check Error:", err);
-         }
+         } catch (err) {}
       }
 
       if (!aesDetected && !isUnlocked) {
@@ -194,9 +188,7 @@ export default function UnlockTool() {
 
       if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('needs_password');
-        if (aesDetected) {
-            setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
-        }
+        if (aesDetected) setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
       }
 
     } catch (err: any) {
@@ -227,7 +219,6 @@ export default function UnlockTool() {
       setStatus('unlocked');
     } catch (error: any) {
       const errorMsg = error.message ? error.message.toLowerCase() : "";
-      
       if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
         setIsAes256(true); 
         try {
@@ -247,7 +238,6 @@ export default function UnlockTool() {
     }
   };
 
-  // Naya character pool logic (Capital aur Small ke hisaab se)
   const getCharPool = () => {
     let pool = '';
     if (hasUppercase) pool += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -262,7 +252,7 @@ export default function UnlockTool() {
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
-    stopBruteForceRef.current = false; // Reset stop flag
+    stopBruteForceRef.current = false;
 
     const pool = getCharPool();
     const arrayBuffer = await file.arrayBuffer();
@@ -270,9 +260,10 @@ export default function UnlockTool() {
 
     let unlocked = false;
     let attempts = 0;
-    let nodesVisited = 0;
+    
+    // Naya 🚀 Time-based Fast Yielding (Hang hone se rokega aur speed badhayega)
+    let lastYieldTime = Date.now();
 
-    // Naya Asynchronous iterative generator, jisse UI freeze nahi hoga
     for (let len = lenMin; len <= lenMax; len++) {
       if (unlocked || stopBruteForceRef.current) break;
 
@@ -283,41 +274,45 @@ export default function UnlockTool() {
 
         const { str, depth } = stack.pop()!;
 
+        // 🚀 SMART PRUNING: Faltu combinations banne se pehle hi rok do
+        if (depth === 0 && firstChar) {
+            stack.push({ str: firstChar, depth: 1 });
+            continue;
+        }
+        if (depth === len - 1 && lastChar) {
+            stack.push({ str: str + lastChar, depth: len });
+            continue;
+        }
+
         if (depth === len) {
-          nodesVisited++;
-          
-          // Browser ko saans lene ka waqt do har 5000 strings generate hone par
-          if (nodesVisited % 5000 === 0) {
+          // Har 50ms me browser ko saans lene do (10x faster than before)
+          if (Date.now() - lastYieldTime > 50) {
+            setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
             await new Promise(resolve => setTimeout(resolve, 0));
+            lastYieldTime = Date.now();
           }
 
           let isValid = true;
-          if (firstChar && str[0] !== firstChar) isValid = false;
-          if (lastChar && str[str.length - 1] !== lastChar) isValid = false;
+          
           if (middleHint && !str.includes(middleHint)) isValid = false;
 
-          if (isValid && exactAlphabets !== '') {
-             const alphaCount = (str.match(/[a-zA-Z]/g) || []).length;
-             if (alphaCount !== parseInt(exactAlphabets)) isValid = false;
-          }
-          if (isValid && exactNumbers !== '') {
-             const numCount = (str.match(/[0-9]/g) || []).length;
-             if (numCount !== parseInt(exactNumbers)) isValid = false;
-          }
-          if (isValid && exactSymbols !== '') {
-             const symCount = (str.match(/[^a-zA-Z0-9]/g) || []).length;
-             if (symCount !== parseInt(exactSymbols)) isValid = false;
+          // 🚀 FAST COUNTING (Without heavy Regex)
+          if (isValid && (exactAlphabets !== '' || exactNumbers !== '' || exactSymbols !== '')) {
+             let alphaCount = 0, numCount = 0, symCount = 0;
+             for(let i=0; i<str.length; i++) {
+                 const code = str.charCodeAt(i);
+                 if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) alphaCount++;
+                 else if (code >= 48 && code <= 57) numCount++;
+                 else symCount++;
+             }
+             if (exactAlphabets !== '' && alphaCount !== parseInt(exactAlphabets)) isValid = false;
+             if (exactNumbers !== '' && numCount !== parseInt(exactNumbers)) isValid = false;
+             if (exactSymbols !== '' && symCount !== parseInt(exactSymbols)) isValid = false;
           }
 
           if (isValid) {
             attempts++;
             setCurrentTry(str);
-            
-            // Testing ke waqt progress bar update aur freeze rokne ke liye
-            if (attempts % 10 === 0) {
-              setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-              await new Promise(resolve => setTimeout(resolve, 1)); 
-            }
 
             if (isAes256) {
                try {
@@ -339,7 +334,6 @@ export default function UnlockTool() {
             }
           }
         } else {
-          // Aage ke characters stack me daalo
           for (let i = pool.length - 1; i >= 0; i--) {
             stack.push({ str: str + pool[i], depth: depth + 1 });
           }
