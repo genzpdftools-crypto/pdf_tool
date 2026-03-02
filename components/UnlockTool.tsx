@@ -120,16 +120,23 @@ export default function UnlockTool() {
                 workerId: i
               });
 
-              // Worker se response suno
+              // Worker se response suno (with fatal_error handling)
               worker.onmessage = async (msg) => {
-                const { type, password, currentTry: wTry } = msg.data;
+                const { type, password, currentTry: wTry, message } = msg.data;
 
-                if (type === 'success') {
+                // NAYA: Agar worker fatt jaye toh rok do
+                if (type === 'fatal_error') {
+                  stopBruteForceRef.current = true;
+                  terminateAllWorkers();
+                  setStatus('error');
+                  setErrorMessage(`Technical Error: ${message}. (Shayad file badi hai ya format support nahi kar raha)`);
+                  resolve();
+                }
+                else if (type === 'success') {
                   isUnlocked = true;
                   stopBruteForceRef.current = true;
                   terminateAllWorkers();
                   
-                  // Unlock file with correct password
                   const pdfDoc = await PDFDocument.load(pdfBytes, { password });
                   const savedBytes = await pdfDoc.save();
                   setUnlockedPdfBytes(savedBytes);
