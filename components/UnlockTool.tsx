@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, StopCircle } from 'lucide-react';
 
-const COMMON_PASSWORDS = [
-  '', '1234', '12345', '123456', '12345678', 'password', '123', '0000', '1111', '123123', 'admin'
-];
-const MAX_ATTEMPTS = 5000;
+const COMMON_PASSWORDS = ['password', 'admin', '123456', '12345678'];
+const MAX_SMART_ATTEMPTS = 5000;
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<'idle' | 'auto_cracking' | 'needs_password' | 'smart_cracking' | 'unlocked' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'auto_cracking' | 'number_bruteforce' | 'needs_password' | 'smart_cracking' | 'unlocked' | 'error'>('idle');
   const [unlockedPdfBytes, setUnlockedPdfBytes] = useState<Uint8Array | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  
   const [progress, setProgress] = useState(0);
+  const [currentTry, setCurrentTry] = useState(''); // User ko dikhane ke liye ki kya check ho raha hai
+  
+  // Bruteforce ko rokne ke liye reference
+  const stopBruteForceRef = useRef(false);
 
   // Normal Password State
   const [manualPassword, setManualPassword] = useState('');
@@ -27,74 +30,108 @@ export default function UnlockTool() {
   const [firstChar, setFirstChar] = useState('');
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
-  const [knownChars, setKnownChars] = useState('');
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
     setFile(uploadedFile);
-    setStatus('auto_cracking'); // AUTOMATIC CRACKING START
+    setStatus('auto_cracking');
     setErrorMessage('');
     setProgress(0);
+    stopBruteForceRef.current = false;
 
     try {
       const arrayBuffer = await uploadedFile.arrayBuffer();
       const pdfBytes = new Uint8Array(arrayBuffer);
-      
       const fileNameWithoutExt = uploadedFile.name.replace('.pdf', '');
       
-      // Automatic cracking ke liye list (Common + File Name variations)
+      // PHASE 1: Try Common and File Name
       const autoTryPasswords = [
         ...COMMON_PASSWORDS,
         fileNameWithoutExt,
         fileNameWithoutExt.toLowerCase(),
-        fileNameWithoutExt.toUpperCase(),
-        `${fileNameWithoutExt}123`,
-        `${fileNameWithoutExt}1234`
+        fileNameWithoutExt.toUpperCase()
       ];
-
-      // Remove duplicates
-      const uniquePasswords = Array.from(new Set(autoTryPasswords));
 
       let isUnlocked = false;
 
-      // Thoda UI ko saans lene ka time dete hain taaki progress dikhe
-      for (let i = 0; i < uniquePasswords.length; i++) {
-        const pwd = uniquePasswords[i];
-        setProgress(Math.round(((i + 1) / uniquePasswords.length) * 100));
-        
-        // UI render hone ke liye tiny delay
-        await new Promise(res => setTimeout(res, 50));
-
+      // Common Checks
+      for (const pwd of autoTryPasswords) {
         try {
+          setCurrentTry(pwd);
           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
           const savedBytes = await pdfDoc.save();
           setUnlockedPdfBytes(savedBytes);
           setStatus('unlocked');
           isUnlocked = true;
-          break; // Mil gaya toh stop
+          break;
         } catch (error: any) {
-          // Encryption not supported wala error aane par sidha reject karo
           if (error.message && error.message.includes('not supported')) {
             throw new Error('Unsupported encryption');
           }
         }
       }
 
-      // Agar list me se koi match nahi kiya
+      // PHASE 2: The 1 to 9 Digits Loop (User requested logic)
       if (!isUnlocked) {
+        setStatus('number_bruteforce');
+        
+        // Loop for lengths 1 to 9
+        for (let length = 1; length <= 9; length++) {
+          if (isUnlocked || stopBruteForceRef.current) break;
+          
+          let maxNum = Math.pow(10, length) - 1; // Example: if length 2, max is 99
+          
+          // Chunking to prevent browser crash
+          const chunkSize = 100; 
+
+          for (let i = 0; i <= maxNum; i += chunkSize) {
+            if (isUnlocked || stopBruteForceRef.current) break;
+
+            // UI Update (Progress & Current Number)
+            if (i % 1000 === 0) {
+               setProgress(Math.round((i / maxNum) * 100));
+               setCurrentTry(`${i.toString().padStart(length, '0')} (Length: ${length})`);
+               await new Promise(res => setTimeout(res, 0)); // Let browser breathe
+            }
+
+            // Test Chunk
+            for (let j = 0; j < chunkSize && (i + j) <= maxNum; j++) {
+              const numPwd = (i + j).toString().padStart(length, '0');
+              try {
+                const pdfDoc = await PDFDocument.load(pdfBytes, { password: numPwd });
+                const savedBytes = await pdfDoc.save();
+                setUnlockedPdfBytes(savedBytes);
+                setStatus('unlocked');
+                isUnlocked = true;
+                break;
+              } catch (e) {
+                // Ignore wrong password
+              }
+            }
+          }
+        }
+      }
+
+      if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('needs_password');
       }
 
     } catch (err: any) {
       if (err.message === 'Unsupported encryption') {
         setStatus('error');
-        setErrorMessage("Ye file 'AES-256' high security se locked hai jo browser me support nahi karti. Is tool se nahi khulegi.");
+        setErrorMessage("Ye file 'AES-256' high security se locked hai. Browser me ye crack nahi ho sakti.");
       } else {
         setStatus('error');
-        setErrorMessage("File format me koi error hai ya corrupted hai.");
+        setErrorMessage("File format error.");
       }
     }
+  };
+
+  const handleStopBruteForce = () => {
+    stopBruteForceRef.current = true;
+    setStatus('needs_password');
+    setErrorMessage("Aapne Number Cracking beech me rok di. Niche manually details bharein.");
   };
 
   const handleManualUnlock = async () => {
@@ -115,9 +152,9 @@ export default function UnlockTool() {
     }
   };
 
+  // ... (getCharPool aur handleSmartUnlock same rahenge)
   const getCharPool = () => {
     let pool = '';
-    if (knownChars) return knownChars; 
     if (hasAlphabets) pool += 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     if (hasNumbers) pool += '0123456789';
     if (hasSymbols) pool += '@#$%&*!';
@@ -136,7 +173,7 @@ export default function UnlockTool() {
     let combinations: string[] = [];
 
     const generate = (currentStr: string, targetLen: number) => {
-      if (combinations.length >= MAX_ATTEMPTS) return;
+      if (combinations.length >= MAX_SMART_ATTEMPTS) return;
       if (currentStr.length === targetLen) {
         let isValid = true;
         if (firstChar && currentStr[0].toLowerCase() !== firstChar.toLowerCase()) isValid = false;
@@ -147,12 +184,12 @@ export default function UnlockTool() {
       }
       for (let i = 0; i < pool.length; i++) {
         generate(currentStr + pool[i], targetLen);
-        if (combinations.length >= MAX_ATTEMPTS) break;
+        if (combinations.length >= MAX_SMART_ATTEMPTS) break;
       }
     };
 
     for (let len = lenMin; len <= lenMax; len++) {
-      if (combinations.length >= MAX_ATTEMPTS) break;
+      if (combinations.length >= MAX_SMART_ATTEMPTS) break;
       generate('', len);
     }
 
@@ -179,9 +216,7 @@ export default function UnlockTool() {
           setStatus('unlocked');
           unlocked = true;
           break;
-        } catch (e) {
-          // Ignored
-        }
+        } catch (e) {}
       }
     }
 
@@ -205,8 +240,8 @@ export default function UnlockTool() {
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Unlock PDF</h2>
-        <p className="text-gray-600">File upload karein, humara system weak passwords khud bypass karne ki koshish karega.</p>
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Advance PDF Unlocker</h2>
+        <p className="text-gray-600">File upload karein, hum numbers aur hints ke through password break karenge.</p>
       </div>
 
       {!file && (
@@ -219,15 +254,30 @@ export default function UnlockTool() {
         </div>
       )}
 
-      {/* AUTO CRACKING SCREEN - Ye pehle aayega */}
       {status === 'auto_cracking' && (
         <div className="text-center p-10 bg-purple-50 rounded-xl border border-purple-100">
           <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">Automatic Weak Password check ho raha hai...</h3>
-          <p className="text-gray-600 mb-6">Kripya thoda wait karein. Agar password simple hua toh khud khul jayega.</p>
-          <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
-            <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+          <h3 className="text-xl font-bold text-gray-800 mb-2">Basic checks chalu hain...</h3>
+        </div>
+      )}
+
+      {/* NEW: Number BruteForce Screen */}
+      {status === 'number_bruteforce' && (
+        <div className="text-center p-10 bg-blue-50 rounded-xl border border-blue-100">
+          <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-800 mb-2">All Numbers Check Ho Rahe Hain (1 to 9 Digits)...</h3>
+          <p className="text-gray-600 mb-2">Ye thoda lamba chal sakta hai. Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
+          
+          <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-6">
+            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
           </div>
+
+          <button 
+            onClick={handleStopBruteForce}
+            className="inline-flex items-center px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200 transition-colors"
+          >
+            <StopCircle className="w-5 h-5 mr-2" /> Stop & Try Manual/Smart Mode
+          </button>
         </div>
       )}
 
@@ -242,8 +292,8 @@ export default function UnlockTool() {
 
       {status === 'smart_cracking' && (
         <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-100">
-          <Settings className="animate-spin w-12 h-12 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Smart Cracking Chalu Hai...</h3>
+          <Loader2 className="animate-spin w-12 h-12 text-purple-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Smart Cracking Processing...</h3>
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2 mt-4">
             <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
           </div>
@@ -251,91 +301,59 @@ export default function UnlockTool() {
         </div>
       )}
 
-      {/* USER OPTIONS SCREEN - Ye tab aayega jab auto-crack fail hoga */}
       {status === 'needs_password' && (
         <div className="space-y-6">
           <div className="flex items-center text-amber-600 bg-amber-50 p-4 rounded-lg border border-amber-200">
             <AlertCircle className="w-6 h-6 mr-3" />
             <div>
-              <span className="font-bold block">Auto-Crack Fail Ho Gaya!</span>
-              <span className="text-sm">Password strong/complex hai. Niche manual password daalein ya Smart Recovery use karein.</span>
+              <span className="font-bold block">Auto-Crack / Number loop fail hua (ya stop kiya).</span>
+              <span className="text-sm">Ab manual password daalein ya Smart Recovery me hints dein.</span>
             </div>
           </div>
 
           {errorMessage && <p className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">{errorMessage}</p>}
 
-          {/* NORMAL PASSWORD SECTION */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Agar password yaad hai toh yaha daalein:</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Agar exact password yaad hai toh daalein:</h3>
             <div className="flex gap-4">
-              <input 
-                type="password" 
-                value={manualPassword} 
-                onChange={(e) => setManualPassword(e.target.value)} 
-                onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()}
-                placeholder="Password enter karein..." 
-                className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" 
-              />
-              <button 
-                onClick={handleManualUnlock} 
-                className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-              >
-                Unlock
-              </button>
+              <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Password enter karein..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+              <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">Unlock</button>
             </div>
           </div>
 
           <div className="text-center text-gray-400 font-medium">OR</div>
 
-          {/* ADVANCED SMART CRACKING SECTION */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <button 
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors"
-            >
+            <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100 transition-colors">
               <div className="flex items-center text-gray-800 font-semibold">
-                <Key className="w-5 h-5 mr-2 text-purple-600" />
-                Password Bhul Gaye? (Smart Cracking Use Karein)
+                <Key className="w-5 h-5 mr-2 text-purple-600" /> Password Bhul Gaye? (Smart Cracking Use Karein)
               </div>
               {showAdvanced ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
             </button>
 
             {showAdvanced && (
               <div className="p-6 space-y-6 border-t border-gray-200">
-                <p className="text-sm text-gray-600 mb-4 border-b pb-4">Aapko password ke baare me jo bhi hints yaad hain, wo niche bharein. Hum combinations banakar try karenge.</p>
-                
-                <div>
-                  <label className="font-semibold text-gray-800 block mb-2">1. Length kitni ho sakti hai?</label>
-                  <div className="flex items-center gap-4">
-                    <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Min" />
-                    <span className="text-gray-500">Se</span>
-                    <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-24 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Max" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="font-semibold text-gray-800 block mb-2">2. Password me kya-kya tha?</label>
-                  <div className="flex gap-6">
-                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hasAlphabets} onChange={e => setHasAlphabets(e.target.checked)} className="w-4 h-4 text-purple-600" /> Alphabets</label>
-                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)} className="w-4 h-4 text-purple-600" /> Numbers</label>
-                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)} className="w-4 h-4 text-purple-600" /> Symbols</label>
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="font-semibold text-gray-800 block mb-2">3. First character?</label>
-                    <input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Optional" />
+                    <label className="font-semibold text-gray-800 block mb-2">Length Min Se Max</label>
+                    <div className="flex gap-2">
+                       <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Min" />
+                       <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500" placeholder="Max" />
+                    </div>
                   </div>
                   <div>
-                    <label className="font-semibold text-gray-800 block mb-2">4. Last character?</label>
-                    <input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Optional" />
+                    <label className="font-semibold text-gray-800 block mb-2">Character Type</label>
+                    <div className="flex gap-4 mt-2">
+                      <label><input type="checkbox" checked={hasAlphabets} onChange={e => setHasAlphabets(e.target.checked)}/> A-Z</label>
+                      <label><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)}/> 0-9</label>
+                      <label><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)}/> @#$</label>
+                    </div>
                   </div>
+                  <div><label className="font-semibold text-gray-800 block mb-2">First Char?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg" /></div>
+                  <div><label className="font-semibold text-gray-800 block mb-2">Last Char?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg" /></div>
+                  <div className="col-span-2"><label className="font-semibold text-gray-800 block mb-2">Bich me koi word yaad hai?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg" placeholder="eg: pintu" /></div>
                 </div>
-
-                <button onClick={handleSmartUnlock} className="w-full bg-purple-100 text-purple-700 py-3 rounded-lg font-bold hover:bg-purple-200 transition-colors">
-                  START SMART CRACKING
-                </button>
+                <button onClick={handleSmartUnlock} className="w-full bg-purple-100 text-purple-700 py-3 rounded-lg font-bold hover:bg-purple-200">START SMART CRACKING</button>
               </div>
             )}
           </div>
@@ -346,8 +364,7 @@ export default function UnlockTool() {
         <div className="text-center p-10 bg-green-50 rounded-2xl border border-green-200">
           <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
           <h3 className="text-3xl font-bold text-gray-900 mb-3">Unlocked Successfully!</h3>
-          <p className="text-gray-600 mb-8">Password remove ho gaya hai. Ab file download kar lijiye.</p>
-          <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1">
+          <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg">
             <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
           </button>
         </div>
