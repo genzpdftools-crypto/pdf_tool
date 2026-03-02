@@ -13,7 +13,8 @@ import {
   Globe,
   Star,
   CheckCircle2,
-  PenTool // ✅ Added PenTool import
+  PenTool, // ✅ Added PenTool import
+  Unlock   // ✅ Added Unlock import for the new tool
 } from 'lucide-react';
 import { AppMode } from '../types';
 import { ScrollHero } from './ScrollHero'; // 👈 Added ScrollHero import
@@ -304,6 +305,18 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
       border: 'hover:border-teal-500/50',
       gradient: 'from-teal-500 to-emerald-600',
       badge: 'Premium'
+    },
+    // 🔓 UNLOCK PDF TOOL (New tool)
+    {
+      id: 'unlock',
+      title: 'Unlock PDF',
+      desc: 'Apne PDF ke passwords aur edit/print restrictions ko aasani se remove karo.',
+      icon: Unlock,
+      iconBg: 'bg-gradient-to-br from-purple-500 to-pink-600',
+      shadow: 'hover:shadow-purple-500/20',
+      border: 'hover:border-purple-500/50',
+      gradient: 'from-purple-500 to-pink-600',
+      badge: 'New' // Optional: you can keep or remove the badge
     },
   ];
 
