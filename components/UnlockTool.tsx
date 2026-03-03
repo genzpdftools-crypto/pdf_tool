@@ -9,6 +9,9 @@ import QPDF from 'qpdf-wasm-esm-embedded';
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
 const MAX_SMART_ATTEMPTS = 200000; // Limit thoda badha di hai lambe passwords ke liye
 
+// NAYA: Global cache ko function ke BAHAR rakho taaki render hone par reset na ho
+let cachedQpdf: any = null;
+
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
   
@@ -45,6 +48,8 @@ export default function UnlockTool() {
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
 
+  // NAYA: Global cache for QPDF engine (ek baar load, baar baar istemal) – ab component ke bahar hai
+
   const terminateAllWorkers = () => {
     workersRef.current.forEach(worker => worker.terminate());
     workersRef.current = [];
@@ -77,9 +82,14 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
-  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED)
+  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED - CACHED VERSION)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
-    const qpdf = await QPDF();
+    // NAYA: Agar engine load nahi hai, toh hi load karo, warna purana (cached) use karo
+    if (!cachedQpdf) {
+      cachedQpdf = await QPDF();
+    }
+    const qpdf = cachedQpdf; 
+    
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
       try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
@@ -90,7 +100,6 @@ export default function UnlockTool() {
       // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
       
-      // 👇 FIX: Sirf file length check karo (exitCode hata diya gaya hai)
       if (!unlockedBytes || unlockedBytes.length === 0) {
         throw new Error("Wrong password - 0 byte file generated");
       }
@@ -160,71 +169,93 @@ export default function UnlockTool() {
         setStatus('auto_cracking');
         setErrorMessage('');
         
-        try {
-          const response = await fetch('/api/unlock', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fetchPasswordsOnly: true })
-          });
-          
-          const data = await response.json();
-          
-          if (response.ok && data.success && data.passwords) {
-            const passwordsList = data.passwords;
+        // ========== REPLACED BLOCK START ==========
+        // NAYA: Conveyor Belt ke Variables
+        let skipCount = 0;
+        let hasMoreBatches = true;
+
+        // NAYA: Jab tak aur data hai, aur taala nahi khula, tab tak loop chalne do
+        while (hasMoreBatches && !isUnlocked && !stopBruteForceRef.current) {
+          try {
+            const response = await fetch('/api/unlock', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              // skipCount bhej rahe hain taaki backend agla dabba (batch) bheje
+              body: JSON.stringify({ fetchPasswordsOnly: true, skip: skipCount }) 
+            });
             
-            currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
-            setTriedPasswords(currentTriedSet);
-
-            const totalPasswords = passwordsList.length;
-            let count = 0;
-
-            for (const pwd of passwordsList) {
-              if (!pwd) continue;
+            const data = await response.json();
+            
+            if (response.ok && data.success && data.passwords && data.passwords.length > 0) {
+              const passwordsList = data.passwords;
               
-              setCurrentTry(pwd);
-              count++;
-              setProgress(Math.round((count / totalPasswords) * 100));
+              // Backend ne bataya hai ki aur list baaki hai ya nahi
+              hasMoreBatches = data.hasMore; 
+              // Agli baar ke liye 5000 aur skip karne ke liye counter badha do
+              skipCount += 5000; 
 
-              if (count % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-              }
+              currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
+              setTriedPasswords(currentTriedSet);
 
-              if (aesDetected) {
-                try {
-                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                  setUnlockedPdfBytes(unlockedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (e) {}
-              } else {
-                try {
-                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                  const savedBytes = await pdfDoc.save();
-                  setUnlockedPdfBytes(savedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (error: any) {
-                  const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
-                    aesDetected = true;
-                    setIsAes256(true);
-                    try {
-                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                      setUnlockedPdfBytes(unlockedBytes);
-                      setStatus('unlocked');
-                      isUnlocked = true;
-                      break;
-                    } catch(e) {}
+              const totalPasswords = passwordsList.length;
+              let count = 0;
+
+              for (const pwd of passwordsList) {
+                // Agar user ne stop daba diya ya taala khul gaya, toh turant ruko
+                if (!pwd || stopBruteForceRef.current || isUnlocked) continue;
+                
+                setCurrentTry(pwd);
+                count++;
+                
+                // NAYA: UI atke na, isliye har 20 password ke baad thoda saans lene ka time do
+                if (count % 20 === 0) {
+                  setProgress(Math.round((count / totalPasswords) * 100));
+                  await new Promise(resolve => setTimeout(resolve, 0));
+                }
+
+                if (aesDetected) {
+                  try {
+                    const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                    setUnlockedPdfBytes(unlockedBytes);
+                    setStatus('unlocked');
+                    isUnlocked = true;
+                    break;
+                  } catch (e) {}
+                } else {
+                  try {
+                    const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+                    const savedBytes = await pdfDoc.save();
+                    setUnlockedPdfBytes(savedBytes);
+                    setStatus('unlocked');
+                    isUnlocked = true;
+                    break;
+                  } catch (error: any) {
+                    const errorMsg = error.message ? error.message.toLowerCase() : "";
+                    // FIX: Yahan se 'encrypt' word hata diya gaya hai false alarm rokne ke liye
+                    if (errorMsg.includes('not supported') || errorMsg.includes('aes') || errorMsg.includes('aes-256')) {
+                      aesDetected = true;
+                      setIsAes256(true);
+                      try {
+                        const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                        setUnlockedPdfBytes(unlockedBytes);
+                        setStatus('unlocked');
+                        isUnlocked = true;
+                        break;
+                      } catch(e) {}
+                    }
                   }
                 }
               }
+            } else {
+              // Agar API fail ho jaye ya list me data na aaye toh loop rok do
+              hasMoreBatches = false; 
             }
+          } catch (apiError) {
+            console.error("DB Passwords fetch error:", apiError);
+            hasMoreBatches = false; 
           }
-        } catch (apiError) {
-          console.error("DB Passwords fetch error:", apiError);
         }
+        // ========== REPLACED BLOCK END ==========
       }
 
       if (!aesDetected && !isUnlocked) {
