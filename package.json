@@ -29,6 +29,7 @@
     "pdf-lib": "latest",
     "pdfjs-dist": "3.11.174",
     "qpdf-wasm-esm-embedded": "^1.1.1",
+    "mongodb": "^6.3.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "redis": "^4.6.13",
