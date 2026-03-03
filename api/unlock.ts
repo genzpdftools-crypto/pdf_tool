@@ -19,12 +19,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // NAYA BLOCK: Agar frontend sirf DB se passwords list maang raha hai
     if (fetchPasswordsOnly) {
+      // 1. Check karo kitne passwords chhodne (skip) hain. Agar nahi bheja toh 0 maano.
+      const skipAmount = req.body.skip || 0; 
+      const limitAmount = 5000;
+
       await client.connect();
       const database = client.db('pdf_tool');
-      const passwordDocs = await database.collection('passwords').find({}).limit(5000).toArray();
+      
+      // 2. .skip() ka use karke purane passwords chhod do, aur uske aage ke 5000 uthao
+      const passwordDocs = await database.collection('passwords')
+        .find({})
+        .skip(skipAmount)
+        .limit(limitAmount)
+        .toArray();
+        
       const passwordsList = passwordDocs.map(doc => doc.password);
       await client.close();
-      return res.status(200).json({ success: true, passwords: passwordsList });
+
+      // 3. Ek signal bhejo ki Godown mein aur maal (data) bacha hai ya nahi
+      const hasMoreData = passwordsList.length === limitAmount;
+
+      return res.status(200).json({ 
+        success: true, 
+        passwords: passwordsList, 
+        hasMore: hasMoreData // Frontend ko isse pata chalega ki kab rukna hai
+      });
     }
 
     if (!fileBase64) {
