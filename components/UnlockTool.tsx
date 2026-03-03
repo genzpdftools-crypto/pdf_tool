@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw } from 'lucide-react';
+import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle } from 'lucide-react';
 import PdfWorker from './pdfWorker?worker';
 
 // @ts-ignore
 import QPDF from 'qpdf-wasm-esm-embedded';
 
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
-const MAX_SMART_ATTEMPTS = 200000; // Limit thodi badha di hai lambe passwords ke liye
+const MAX_SMART_ATTEMPTS = 20000; // Limit thodi badha di hai kyunki ab speed fast hai
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -20,9 +20,6 @@ export default function UnlockTool() {
   
   const [progress, setProgress] = useState(0);
   const [currentTry, setCurrentTry] = useState(''); 
-  
-  // Jo passwords check ho chuke hain unko yaad rakhne ke liye Set
-  const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
   
   const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
@@ -63,20 +60,6 @@ export default function UnlockTool() {
     setErrorMessage("Smart Recovery stopped manually.");
   };
 
-  // NAYA: Page refresh kiye bina reset karne ka function
-  const resetTool = () => {
-    setFile(null);
-    setUnlockedPdfBytes(null);
-    setStatus('idle');
-    setErrorMessage('');
-    setProgress(0);
-    setCurrentTry('');
-    setIsAes256(false);
-    setManualPassword('');
-    setTriedPasswords(new Set());
-    stopBruteForceRef.current = false;
-  };
-
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
@@ -92,12 +75,14 @@ export default function UnlockTool() {
     }
   };
 
+  // PDF ko API tak bhejne ke liye format converter
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
         const result = reader.result as string;
+        // "data:application/pdf;base64," wale hisse ko hata kar sirf main data bhejna hai
         resolve(result.split(',')[1]); 
       };
       reader.onerror = error => reject(error);
@@ -121,9 +106,6 @@ export default function UnlockTool() {
       
       const autoTryPasswords = [...COMMON_PASSWORDS, fileNameWithoutExt, fileNameWithoutExt.toLowerCase(), fileNameWithoutExt.toUpperCase()];
       
-      let currentTriedSet = new Set<string>(autoTryPasswords);
-      setTriedPasswords(currentTriedSet);
-
       let isUnlocked = false;
       let aesDetected = false;
 
@@ -145,28 +127,27 @@ export default function UnlockTool() {
         }
       }
 
+      // 🚀 NAYA SUPER-FAST STEP: PDF bhejne ke bajaye sirf MongoDB se Passwords mangwao
       if (!isUnlocked) {
         setStatus('auto_cracking');
         setErrorMessage('');
         
         try {
+          // Backend se top 5000 passwords ki list mangwao
           const response = await fetch('/api/unlock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fetchPasswordsOnly: true })
+            body: JSON.stringify({ fetchPasswordsOnly: true }) // Backend ko bolo sirf array de
           });
           
           const data = await response.json();
           
           if (response.ok && data.success && data.passwords) {
             const passwordsList = data.passwords;
-            
-            currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
-            setTriedPasswords(currentTriedSet);
-
             const totalPasswords = passwordsList.length;
             let count = 0;
 
+            // Har password ko locally check karo (Frontend par hi)
             for (const pwd of passwordsList) {
               if (!pwd) continue;
               
@@ -174,6 +155,7 @@ export default function UnlockTool() {
               count++;
               setProgress(Math.round((count / totalPasswords) * 100));
 
+              // 🌟 MAGIC TRICK: Har 5 attempt ke baad 0ms ka break do, taaki React screen par text badal sake!
               if (count % 5 === 0) {
                 await new Promise(resolve => setTimeout(resolve, 0));
               }
@@ -184,7 +166,7 @@ export default function UnlockTool() {
                   setUnlockedPdfBytes(unlockedBytes);
                   setStatus('unlocked');
                   isUnlocked = true;
-                  break;
+                  break; // Khulte hi loop tod do
                 } catch (e) {}
               } else {
                 try {
@@ -193,9 +175,10 @@ export default function UnlockTool() {
                   setUnlockedPdfBytes(savedBytes);
                   setStatus('unlocked');
                   isUnlocked = true;
-                  break;
+                  break; // Khulte hi loop tod do
                 } catch (error: any) {
                   const errorMsg = error.message ? error.message.toLowerCase() : "";
+                  // Agar achanak AES lock pata chala (kuch files me aisa hota hai)
                   if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
                     aesDetected = true;
                     setIsAes256(true);
@@ -339,8 +322,6 @@ export default function UnlockTool() {
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
-    // YAHAN FIX KIYA HAI: Purana "subzero" hat jayega aur naya text aayega jab tak engine start ho
-    setCurrentTry('Starting Engine...'); 
     stopBruteForceRef.current = false;
 
     const pool = getCharPool();
@@ -350,6 +331,7 @@ export default function UnlockTool() {
     let unlocked = false;
     let attempts = 0;
     
+    // Naya 🚀 Time-based Fast Yielding (Hang hone se rokega aur speed badhayega)
     let lastYieldTime = Date.now();
 
     for (let len = lenMin; len <= lenMax; len++) {
@@ -362,6 +344,7 @@ export default function UnlockTool() {
 
         const { str, depth } = stack.pop()!;
 
+        // 🚀 SMART PRUNING: Faltu combinations banne se pehle hi rok do
         if (depth === 0 && firstChar) {
             stack.push({ str: firstChar, depth: 1 });
             continue;
@@ -372,17 +355,10 @@ export default function UnlockTool() {
         }
 
         if (depth === len) {
-          // ELIMINATION METHOD: Agar Database ya Basic list me check ho chuka hai, to turant Skip (Speed+)
-          if (triedPasswords.has(str)) {
-              continue; 
-          }
-
-          // FIX FOR BROWSER HANG: WASM ke heavy process me browser ko UI update karne ka time do
-          const timeLimit = isAes256 ? 20 : 50; 
-          if (Date.now() - lastYieldTime > timeLimit) {
+          // Har 50ms me browser ko saans lene do (10x faster than before)
+          if (Date.now() - lastYieldTime > 50) {
             setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-            // Chhota sa delay taaki screen par password update ho sake bina atke
-            await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
+            await new Promise(resolve => setTimeout(resolve, 0));
             lastYieldTime = Date.now();
           }
 
@@ -390,6 +366,7 @@ export default function UnlockTool() {
           
           if (middleHint && !str.includes(middleHint)) isValid = false;
 
+          // 🚀 FAST COUNTING (Without heavy Regex)
           if (isValid && (exactAlphabets !== '' || exactNumbers !== '' || exactSymbols !== '')) {
              let alphaCount = 0, numCount = 0, symCount = 0;
              for(let i=0; i<str.length; i++) {
@@ -405,7 +382,7 @@ export default function UnlockTool() {
 
           if (isValid) {
             attempts++;
-            setCurrentTry(str); // Yahan text smoothly update hota rahega
+            setCurrentTry(str);
 
             if (isAes256) {
                try {
@@ -436,7 +413,7 @@ export default function UnlockTool() {
 
     if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} valid new combinations.`);
+      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} valid combinations.`);
     }
   };
 
@@ -474,6 +451,7 @@ export default function UnlockTool() {
           <h3 className="text-xl font-bold text-gray-800">Checking Database Passwords...</h3>
           <p className="text-gray-500 mt-2">Trying passwords at turbo speed...</p>
           
+          {/* NAYA: Badalta hua text aur Progress Bar */}
           {currentTry && (
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200 inline-block min-w-[200px] shadow-sm">
               <span className="text-sm text-gray-400 block mb-1">Current Try:</span>
@@ -612,15 +590,9 @@ export default function UnlockTool() {
         <div className="text-center p-10 bg-green-50 rounded-2xl border border-green-200">
           <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
           <h3 className="text-3xl font-bold text-gray-900 mb-3">Document Unlocked!</h3>
-          
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
-            <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
-              <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
-            </button>
-            <button onClick={resetTool} className="inline-flex items-center px-8 py-4 bg-white border-2 border-green-600 text-green-700 font-bold rounded-xl hover:bg-green-50 shadow-sm transition-transform hover:-translate-y-1">
-              <RefreshCw className="w-5 h-5 mr-3" /> Unlock Another File
-            </button>
-          </div>
+          <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
+            <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
+          </button>
         </div>
       )}
     </div>
