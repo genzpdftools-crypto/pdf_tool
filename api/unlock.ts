@@ -1,39 +1,49 @@
+// api/unlock.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+// Package use karne ke liye baad me package.json me "node-qpdf" add karna hoga
+import qpdf from 'node-qpdf'; 
+import fs from 'fs';
+import path from 'path';
 
 export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb', // Badi PDFs ke liye truck (request) ka size bada kar diya
-    },
-  },
+  api: { bodyParser: { sizeLimit: '10mb' } },
 };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Sirf POST request allow karenge (Dukaan se truck aayega tabhi darwaza khulega)
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Sirf POST requests allowed hain.' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Sirf POST requests allowed hain.' });
 
   try {
-    // Truck me se file (base64) aur password nikalo
-    const { fileBase64, password } = req.body;
+    const { fileBase64 } = req.body;
+    
+    // File ko temporary server memory me save karna
+    const tempFilePath = path.join('/tmp', 'locked.pdf');
+    fs.writeFileSync(tempFilePath, Buffer.from(fileBase64, 'base64'));
 
-    if (!fileBase64 || !password) {
-      return res.status(400).json({ error: 'File aur Password dono zaroori hain.' });
+    // Yahan future me hum database se tumhare bache hue 10 million passwords line by line fetch karenge
+    const passwordsToTry = ['123', 'password', '...']; 
+
+    let rightPassword = '';
+    let isUnlocked = false;
+
+    for (let pwd of passwordsToTry) {
+       // QPDF backend me super-fast speed se test karega
+       try {
+          // qpdf checking logic yaha aayega
+          rightPassword = pwd;
+          isUnlocked = true;
+          break;
+       } catch(e) { 
+          continue; 
+       }
     }
 
-    console.log(`Backend Factory Me File Aayi! Password: ${password}`);
+    if (isUnlocked) {
+       return res.status(200).json({ success: true, password: rightPassword });
+    } else {
+       return res.status(400).json({ error: 'Backend factory me bhi password nahi mila.' });
+    }
 
-    // Abhi ke liye hum sirf connection test kar rahe hain.
-    // Agle step me yaha par hum iLovePDF wala 'Titanium Cutter' library lagayenge.
-
-    return res.status(200).json({ 
-      success: true, 
-      message: 'Connection Successful! Factory ne file receive kar li hai.' 
-    });
-
-  } catch (error: any) {
-    console.error("Backend API Error:", error);
-    return res.status(500).json({ error: 'Factory me machinary fatt gayi!' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Factory server crash ho gaya!' });
   }
 }
