@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Database se passwords ka guccha (batch) fetch karo
       const passwordDocs = await collection.find({}).limit(5000).toArray();
-      const passwordsToTry = passwordDocs.map(doc => doc.pwd);
+      const passwordsToTry = passwordDocs.map(doc => doc.password);
 
       console.log(`Godown se ${passwordsToTry.length} passwords fetch kiye. Testing start...`);
 
