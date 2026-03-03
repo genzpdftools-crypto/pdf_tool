@@ -77,17 +77,28 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
+  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
       try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
-      qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
+      
+      // Engine run karo
+      const exitCode = qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
+      
+      // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
+      
+      // 👇 YAHAN MAIN FIX HAI: Agar exitCode fail bataye YA file 0 byte ki ho, toh error throw karo
+      if (exitCode !== 0 || unlockedBytes.length === 0) {
+        throw new Error("Wrong password - 0 byte file generated");
+      }
+      
       try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e){}
       return unlockedBytes;
     } catch (e) {
-      try { qpdf.FS.unlink('input.pdf'); } catch(err){}
+      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(err){}
       throw new Error("Wrong password");
     }
   };
