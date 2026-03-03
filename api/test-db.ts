@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { MongoClient } from 'mongodb';
 
 // Yahan apna asli Atlas connection link dalo
-const uri = "mongodb+srv://<USERNAME>:<PASSWORD>@cluster0.mongodb.net/?retryWrites=true&w=majority";
+const uri = "mongodb+srv://pintu_admin:pintu123@cluster0.ykbmgld.mongodb.net/";
 const client = new MongoClient(uri);
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
