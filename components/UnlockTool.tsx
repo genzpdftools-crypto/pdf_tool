@@ -75,6 +75,20 @@ export default function UnlockTool() {
     }
   };
 
+  // PDF ko API tak bhejne ke liye format converter
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // "data:application/pdf;base64," wale hisse ko hata kar sirf main data bhejna hai
+        resolve(result.split(',')[1]); 
+      };
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
@@ -110,6 +124,38 @@ export default function UnlockTool() {
             setIsAes256(true);
             break; 
           }
+        }
+      }
+
+      // 🚀 NAYA STEP: Agar local password kaam nahi kiya, toh Godown (MongoDB) se pucho
+      if (!isUnlocked && !aesDetected) {
+        try {
+          // User ko dikhao ki Database check ho raha hai
+          setStatus('auto_cracking'); 
+          setErrorMessage('Database se top passwords match kar rahe hain...');
+
+          const base64String = await fileToBase64(uploadedFile);
+          
+          // Factory ko file bhej di
+          const response = await fetch('/api/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileBase64: base64String })
+          });
+          
+          const result = await response.json();
+          
+          // Agar factory ne chabi dhoond li!
+          if (response.ok && result.success && result.password) {
+             const pdfDoc = await PDFDocument.load(pdfBytes, { password: result.password });
+             const savedBytes = await pdfDoc.save();
+             setUnlockedPdfBytes(savedBytes);
+             setStatus('unlocked');
+             isUnlocked = true;
+          }
+        } catch (apiError) {
+          console.error("Backend API Error:", apiError);
+          // API fail hui toh aage wale bruteforce step par chala jayega
         }
       }
 
