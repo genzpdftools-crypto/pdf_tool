@@ -159,9 +159,11 @@ export default function UnlockTool() {
         }
       }
 
+      // 🚀 UPDATED AES-256 BLOCK with database fallback
       if (aesDetected && !isUnlocked) {
          setStatus('processing_wasm');
          try {
+             // 1. Pehle local common passwords WASM me try karega
              for (const pwd of autoTryPasswords) {
                  setCurrentTry(pwd);
                  try {
@@ -172,6 +174,36 @@ export default function UnlockTool() {
                      break;
                  } catch (e) {}
              }
+
+             // 2. NAYA STEP: Agar file abhi tak unlock nahi hui, toh Database se passwords mangwao
+             if (!isUnlocked) {
+                 setErrorMessage('High-Security PDF detect hui. Database se passwords check ho rahe hain...');
+                 try {
+                     const response = await fetch('/api/unlock', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ fetchPasswordsOnly: true })
+                     });
+                     
+                     const data = await response.json();
+                     if (response.ok && data.success && data.passwords) {
+                         for (const pwd of data.passwords) {
+                             if (!pwd) continue;
+                             setCurrentTry(pwd);
+                             try {
+                                 const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                                 setUnlockedPdfBytes(unlockedBytes);
+                                 setStatus('unlocked');
+                                 isUnlocked = true;
+                                 break; // Taala khulte hi ruk jayega
+                             } catch (e) {}
+                         }
+                     }
+                 } catch (apiError) {
+                     console.error("DB Passwords fetch error:", apiError);
+                 }
+             }
+
          } catch (err) {}
       }
 
