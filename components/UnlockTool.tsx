@@ -7,7 +7,7 @@ import PdfWorker from './pdfWorker?worker';
 import QPDF from 'qpdf-wasm-esm-embedded';
 
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
-const MAX_SMART_ATTEMPTS = 20000;
+const MAX_SMART_ATTEMPTS = 200000; // Limit thodi badha di hai lambe passwords ke liye
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,7 +21,7 @@ export default function UnlockTool() {
   const [progress, setProgress] = useState(0);
   const [currentTry, setCurrentTry] = useState(''); 
   
-  // NAYA: Jo passwords check ho chuke hain unko yaad rakhne ke liye Set
+  // Jo passwords check ho chuke hain unko yaad rakhne ke liye Set
   const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
   
   const workersRef = useRef<Worker[]>([]);
@@ -121,7 +121,6 @@ export default function UnlockTool() {
       
       const autoTryPasswords = [...COMMON_PASSWORDS, fileNameWithoutExt, fileNameWithoutExt.toLowerCase(), fileNameWithoutExt.toUpperCase()];
       
-      // Basic passwords ko tried list me daalo
       let currentTriedSet = new Set<string>(autoTryPasswords);
       setTriedPasswords(currentTriedSet);
 
@@ -162,7 +161,6 @@ export default function UnlockTool() {
           if (response.ok && data.success && data.passwords) {
             const passwordsList = data.passwords;
             
-            // Database wale passwords ko bhi tried list me jod do taaki dubara try na ho
             currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
             setTriedPasswords(currentTriedSet);
 
@@ -341,6 +339,8 @@ export default function UnlockTool() {
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
+    // YAHAN FIX KIYA HAI: Purana "subzero" hat jayega aur naya text aayega jab tak engine start ho
+    setCurrentTry('Starting Engine...'); 
     stopBruteForceRef.current = false;
 
     const pool = getCharPool();
@@ -352,7 +352,6 @@ export default function UnlockTool() {
     
     let lastYieldTime = Date.now();
 
-    // Sirf user ki di hui limit (lenMin to lenMax) me chalega, uske bahar bilkul nahi!
     for (let len = lenMin; len <= lenMax; len++) {
       if (unlocked || stopBruteForceRef.current) break;
 
@@ -373,14 +372,17 @@ export default function UnlockTool() {
         }
 
         if (depth === len) {
-          // 🚀 ELIMINATION METHOD: Agar Database ya Basic list me check ho chuka hai, to turant Skip (Speed+)
+          // ELIMINATION METHOD: Agar Database ya Basic list me check ho chuka hai, to turant Skip (Speed+)
           if (triedPasswords.has(str)) {
               continue; 
           }
 
-          if (Date.now() - lastYieldTime > 50) {
+          // FIX FOR BROWSER HANG: WASM ke heavy process me browser ko UI update karne ka time do
+          const timeLimit = isAes256 ? 20 : 50; 
+          if (Date.now() - lastYieldTime > timeLimit) {
             setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-            await new Promise(resolve => setTimeout(resolve, 0));
+            // Chhota sa delay taaki screen par password update ho sake bina atke
+            await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
             lastYieldTime = Date.now();
           }
 
@@ -403,7 +405,7 @@ export default function UnlockTool() {
 
           if (isValid) {
             attempts++;
-            setCurrentTry(str);
+            setCurrentTry(str); // Yahan text smoothly update hota rahega
 
             if (isAes256) {
                try {
@@ -611,7 +613,6 @@ export default function UnlockTool() {
           <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
           <h3 className="text-3xl font-bold text-gray-900 mb-3">Document Unlocked!</h3>
           
-          {/* NAYA: Download ke sath "Unlock Another File" ka option */}
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
             <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
               <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
