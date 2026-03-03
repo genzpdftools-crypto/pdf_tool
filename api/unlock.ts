@@ -1,49 +1,61 @@
-// api/unlock.ts
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-// Package use karne ke liye baad me package.json me "node-qpdf" add karna hoga
-import qpdf from 'node-qpdf'; 
-import fs from 'fs';
-import path from 'path';
+import { PDFDocument } from 'pdf-lib';
+import { MongoClient } from 'mongodb';
 
-export const config = {
-  api: { bodyParser: { sizeLimit: '10mb' } },
-};
+// Tera MongoDB connection string (Atlas dashboard se milega)
+// Isme <USERNAME> aur <PASSWORD> ki jagah apni details dalna
+const uri = "mongodb+srv://pintu_admin:pintu123@cluster0.ykbmgld.mongodb.net/";
+const client = new MongoClient(uri);
+
+export const config = { api: { bodyParser: { sizeLimit: '10mb' } } };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Sirf POST requests allowed hain.' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Only POST' });
 
   try {
     const { fileBase64 } = req.body;
-    
-    // File ko temporary server memory me save karna
-    const tempFilePath = path.join('/tmp', 'locked.pdf');
-    fs.writeFileSync(tempFilePath, Buffer.from(fileBase64, 'base64'));
-
-    // Yahan future me hum database se tumhare bache hue 10 million passwords line by line fetch karenge
-    const passwordsToTry = ['123', 'password', '...']; 
-
-    let rightPassword = '';
+    const pdfBuffer = Buffer.from(fileBase64, 'base64');
     let isUnlocked = false;
+    let correctPassword = '';
 
-    for (let pwd of passwordsToTry) {
-       // QPDF backend me super-fast speed se test karega
-       try {
-          // qpdf checking logic yaha aayega
-          rightPassword = pwd;
-          isUnlocked = true;
-          break;
-       } catch(e) { 
-          continue; 
-       }
+    console.log("Database se connect ho raha hai...");
+    
+    // 1. Database ka darwaza kholo
+    await client.connect();
+    const database = client.db('pdf_tool');
+    const collection = database.collection('passwords');
+
+    // 2. 5000 passwords ka guccha (Batch) mangwao
+    // Real app me hum limit() aur skip() use karke page-by-page mangwate hain
+    const passwordDocs = await collection.find({}).limit(5000).toArray();
+    
+    // JSON se sirf password string alag nikal lo
+    const passwordsToTry = passwordDocs.map(doc => doc.pwd); 
+
+    console.log(`Godown se ${passwordsToTry.length} passwords aa gaye! Lock check shuru...`);
+
+    // 3. Fast RAM me taala kholne ki koshish
+    for (const pwd of passwordsToTry) {
+      try {
+        await PDFDocument.load(pdfBuffer, { password: pwd, updateMetadata: false });
+        correctPassword = pwd;
+        isUnlocked = true;
+        break; // Taala khul gaya toh loop rok do
+      } catch (e) {
+        continue; // Galat chabi, agla try karo
+      }
     }
 
     if (isUnlocked) {
-       return res.status(200).json({ success: true, password: rightPassword });
+      return res.status(200).json({ success: true, password: correctPassword });
     } else {
-       return res.status(400).json({ error: 'Backend factory me bhi password nahi mila.' });
+      return res.status(400).json({ error: 'In 5000 passwords me se koi nahi chala.' });
     }
 
   } catch (error) {
-    return res.status(500).json({ error: 'Factory server crash ho gaya!' });
+    return res.status(500).json({ error: 'Server ya Database crash ho gaya.' });
+  } finally {
+    // 4. Aakhir me Godown ka darwaza hamesha band karo
+    await client.close(); 
   }
 }
