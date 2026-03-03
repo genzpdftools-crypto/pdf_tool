@@ -7,7 +7,7 @@ import PdfWorker from './pdfWorker?worker';
 import QPDF from 'qpdf-wasm-esm-embedded';
 
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
-const MAX_SMART_ATTEMPTS = 200000; // Limit thodi badha di hai lambe passwords ke liye
+const MAX_SMART_ATTEMPTS = 200000; // Limit thoda badha di hai lambe passwords ke liye
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -334,12 +334,12 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
+  // =============== NEW SMART UNLOCK FUNCTION (FULLY OPTIMIZED) ===============
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
-    // YAHAN FIX KIYA HAI: Purana "subzero" hat jayega aur naya text aayega jab tak engine start ho
     setCurrentTry('Starting Engine...'); 
     stopBruteForceRef.current = false;
 
@@ -349,64 +349,102 @@ export default function UnlockTool() {
 
     let unlocked = false;
     let attempts = 0;
-    
     let lastYieldTime = Date.now();
+
+    // User ki advance counting hints fetch karna
+    const reqAlpha = exactAlphabets !== '' ? parseInt(exactAlphabets) : -1;
+    const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
+    const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
 
     for (let len = lenMin; len <= lenMax; len++) {
       if (unlocked || stopBruteForceRef.current) break;
 
-      const stack = [{ str: '', depth: 0 }];
+      // HINT INJECTION METHOD: Middle hint ke liye sirf wahi valid positions nikalna jaha wo fit ho sake
+      const startIndices = middleHint ? Array.from({length: Math.max(0, len - middleHint.length + 1)}, (_, i) => i) : [null];
 
-      while (stack.length > 0) {
-        if (stopBruteForceRef.current || unlocked || attempts >= MAX_SMART_ATTEMPTS) break;
+      for (const mIdx of startIndices) {
+        if (unlocked || stopBruteForceRef.current) break;
 
-        const { str, depth } = stack.pop()!;
-
-        if (depth === 0 && firstChar) {
-            stack.push({ str: firstChar, depth: 1 });
-            continue;
-        }
-        if (depth === len - 1 && lastChar) {
-            stack.push({ str: str + lastChar, depth: len });
-            continue;
+        // Pre-Validation: Agar firstChar aur middleHint ka first char clash kare toh path reject karo
+        if (middleHint && mIdx !== null) {
+            if (firstChar && mIdx === 0 && middleHint[0] !== firstChar) continue;
+            if (lastChar && mIdx + middleHint.length === len && middleHint[middleHint.length - 1] !== lastChar) continue;
         }
 
-        if (depth === len) {
-          // ELIMINATION METHOD: Agar Database ya Basic list me check ho chuka hai, to turant Skip (Speed+)
-          if (triedPasswords.has(str)) {
-              continue; 
-          }
+        // Stack me character counts store karenge taaki track kar sakein
+        const stack = [{ str: '', depth: 0, alpha: 0, num: 0, sym: 0 }];
 
-          // FIX FOR BROWSER HANG: WASM ke heavy process me browser ko UI update karne ka time do
-          const timeLimit = isAes256 ? 20 : 50; 
-          if (Date.now() - lastYieldTime > timeLimit) {
-            setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-            // Chhota sa delay taaki screen par password update ho sake bina atke
-            await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
-            lastYieldTime = Date.now();
-          }
+        while (stack.length > 0) {
+          if (stopBruteForceRef.current || unlocked || attempts >= MAX_SMART_ATTEMPTS) break;
 
-          let isValid = true;
-          
-          if (middleHint && !str.includes(middleHint)) isValid = false;
+          const { str, depth, alpha, num, sym } = stack.pop()!;
 
-          if (isValid && (exactAlphabets !== '' || exactNumbers !== '' || exactSymbols !== '')) {
-             let alphaCount = 0, numCount = 0, symCount = 0;
-             for(let i=0; i<str.length; i++) {
-                 const code = str.charCodeAt(i);
-                 if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) alphaCount++;
-                 else if (code >= 48 && code <= 57) numCount++;
-                 else symCount++;
+          // 🚀 RULE 1: EARLY COUNT PRUNING (Phaltu branches pehle hi kaat do)
+          const remaining = len - depth;
+          if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
+          if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
+          if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
+
+          // 🚀 RULE 2: MIDDLE HINT INJECTION (Sidhe word paste karo, combination mat banao)
+          if (middleHint && mIdx !== null && depth === mIdx) {
+             let mAlpha=0, mNum=0, mSym=0;
+             for(let i=0; i<middleHint.length; i++){
+                 const c = middleHint.charCodeAt(i);
+                 if ((c>=65 && c<=90)||(c>=97 && c<=122)) mAlpha++;
+                 else if(c>=48 && c<=57) mNum++;
+                 else mSym++;
              }
-             if (exactAlphabets !== '' && alphaCount !== parseInt(exactAlphabets)) isValid = false;
-             if (exactNumbers !== '' && numCount !== parseInt(exactNumbers)) isValid = false;
-             if (exactSymbols !== '' && symCount !== parseInt(exactSymbols)) isValid = false;
+             stack.push({
+                 str: str + middleHint,
+                 depth: depth + middleHint.length,
+                 alpha: alpha + mAlpha,
+                 num: num + mNum,
+                 sym: sym + mSym
+             });
+             continue;
           }
 
-          if (isValid) {
-            attempts++;
-            setCurrentTry(str); // Yahan text smoothly update hota rahega
+          // 🚀 RULE 3: FIRST CHAR FORCING
+          if (depth === 0 && firstChar) {
+              let isA=0, isN=0, isS=0;
+              const c = firstChar.charCodeAt(0);
+              if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+              stack.push({ str: firstChar, depth: 1, alpha: isA, num: isN, sym: isS });
+              continue;
+          }
 
+          // 🚀 RULE 4: LAST CHAR FORCING
+          if (depth === len - 1 && lastChar) {
+              let isA=0, isN=0, isS=0;
+              const c = lastChar.charCodeAt(0);
+              if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+              stack.push({ str: str + lastChar, depth: len, alpha: alpha+isA, num: num+isN, sym: sym+isS });
+              continue;
+          }
+
+          // PASSWORD READY - Final Testing Phase
+          if (depth === len) {
+            
+            // 🚀 RULE 5: AVOID DUPLICATES (Jo automatic/DB me check ho gaya use skip karo)
+            if (triedPasswords.has(str)) continue;
+
+            // Ek last baar counts verify karo before executing Heavy WASM engine
+            if (reqAlpha !== -1 && alpha !== reqAlpha) continue;
+            if (reqNum !== -1 && num !== reqNum) continue;
+            if (reqSym !== -1 && sym !== reqSym) continue;
+
+            attempts++;
+
+            // Yahan text smoothly update hota rahega screen par
+            const timeLimit = isAes256 ? 20 : 50; 
+            if (Date.now() - lastYieldTime > timeLimit) {
+              setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
+              setCurrentTry(str); 
+              await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
+              lastYieldTime = Date.now();
+            }
+
+            // Engine Try 
             if (isAes256) {
                try {
                  const bytes = await unlockWithWasm(str, pdfBytes);
@@ -425,10 +463,14 @@ export default function UnlockTool() {
                  break;
                } catch(e) {}
             }
-          }
-        } else {
-          for (let i = pool.length - 1; i >= 0; i--) {
-            stack.push({ str: str + pool[i], depth: depth + 1 });
+          } else {
+            // Normal character picking (Isme logic optimize kiya gaya hai)
+            for (let i = pool.length - 1; i >= 0; i--) {
+                let isA=0, isN=0, isS=0;
+                const c = pool.charCodeAt(i);
+                if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+                stack.push({ str: str + pool[i], depth: depth + 1, alpha: alpha+isA, num: num+isN, sym: sym+isS });
+            }
           }
         }
       }
@@ -436,9 +478,10 @@ export default function UnlockTool() {
 
     if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} valid new combinations.`);
+      setErrorMessage(`Smart Cracking Failed. Target ke hisab se ${attempts} combinations check kiye gaye.`);
     }
   };
+  // =============== END OF NEW SMART UNLOCK ===============
 
   const downloadUnlockedPdf = () => {
     if (!unlockedPdfBytes || !file) return;
