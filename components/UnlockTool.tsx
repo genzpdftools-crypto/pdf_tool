@@ -77,17 +77,28 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
+  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
       try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
+      
+      // Engine run karo
       qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
+      
+      // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
+      
+      // 👇 FIX: Sirf file length check karo (exitCode hata diya gaya hai)
+      if (!unlockedBytes || unlockedBytes.length === 0) {
+        throw new Error("Wrong password - 0 byte file generated");
+      }
+      
       try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e){}
       return unlockedBytes;
     } catch (e) {
-      try { qpdf.FS.unlink('input.pdf'); } catch(err){}
+      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(err){}
       throw new Error("Wrong password");
     }
   };
