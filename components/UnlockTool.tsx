@@ -85,13 +85,13 @@ export default function UnlockTool() {
       try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
       
       // Engine run karo
-      const exitCode = qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
+      qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
       
       // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
       
-      // 👇 YAHAN MAIN FIX HAI: Agar exitCode fail bataye YA file 0 byte ki ho, toh error throw karo
-      if (exitCode !== 0 || unlockedBytes.length === 0) {
+      // 👇 FIX: Sirf file length check karo (exitCode hata diya gaya hai)
+      if (!unlockedBytes || unlockedBytes.length === 0) {
         throw new Error("Wrong password - 0 byte file generated");
       }
       
