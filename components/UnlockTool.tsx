@@ -127,84 +127,76 @@ export default function UnlockTool() {
         }
       }
 
-      // 🚀 NAYA STEP: Agar local password kaam nahi kiya, toh Godown (MongoDB) se pucho
-      if (!isUnlocked && !aesDetected) {
+      // 🚀 NAYA SUPER-FAST STEP: PDF bhejne ke bajaye sirf MongoDB se Passwords mangwao
+      if (!isUnlocked) {
+        setStatus('auto_cracking');
+        setErrorMessage('');
+        
         try {
-          // User ko dikhao ki Database check ho raha hai
-          setStatus('auto_cracking'); 
-          setErrorMessage('Database se top passwords match kar rahe hain...');
-
-          const base64String = await fileToBase64(uploadedFile);
-          
-          // Factory ko file bhej di
+          // Backend se top 5000 passwords ki list mangwao
           const response = await fetch('/api/unlock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileBase64: base64String })
+            body: JSON.stringify({ fetchPasswordsOnly: true }) // Backend ko bolo sirf array de
           });
           
-          const result = await response.json();
+          const data = await response.json();
           
-          // Agar factory ne chabi dhoond li!
-          if (response.ok && result.success && result.password) {
-             const pdfDoc = await PDFDocument.load(pdfBytes, { password: result.password });
-             const savedBytes = await pdfDoc.save();
-             setUnlockedPdfBytes(savedBytes);
-             setStatus('unlocked');
-             isUnlocked = true;
+          if (response.ok && data.success && data.passwords) {
+            const passwordsList = data.passwords;
+            const totalPasswords = passwordsList.length;
+            let count = 0;
+
+            // Har password ko locally check karo (Frontend par hi)
+            for (const pwd of passwordsList) {
+              if (!pwd) continue;
+              
+              setCurrentTry(pwd);
+              count++;
+              setProgress(Math.round((count / totalPasswords) * 100));
+
+              // 🌟 MAGIC TRICK: Har 5 attempt ke baad 0ms ka break do, taaki React screen par text badal sake!
+              if (count % 5 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+              }
+
+              if (aesDetected) {
+                try {
+                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                  setUnlockedPdfBytes(unlockedBytes);
+                  setStatus('unlocked');
+                  isUnlocked = true;
+                  break; // Khulte hi loop tod do
+                } catch (e) {}
+              } else {
+                try {
+                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+                  const savedBytes = await pdfDoc.save();
+                  setUnlockedPdfBytes(savedBytes);
+                  setStatus('unlocked');
+                  isUnlocked = true;
+                  break; // Khulte hi loop tod do
+                } catch (error: any) {
+                  const errorMsg = error.message ? error.message.toLowerCase() : "";
+                  // Agar achanak AES lock pata chala (kuch files me aisa hota hai)
+                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
+                    aesDetected = true;
+                    setIsAes256(true);
+                    try {
+                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                      setUnlockedPdfBytes(unlockedBytes);
+                      setStatus('unlocked');
+                      isUnlocked = true;
+                      break;
+                    } catch(e) {}
+                  }
+                }
+              }
+            }
           }
         } catch (apiError) {
-          console.error("Backend API Error:", apiError);
-          // API fail hui toh aage wale bruteforce step par chala jayega
+          console.error("DB Passwords fetch error:", apiError);
         }
-      }
-
-      // 🚀 UPDATED AES-256 BLOCK with database fallback
-      if (aesDetected && !isUnlocked) {
-         setStatus('processing_wasm');
-         try {
-             // 1. Pehle local common passwords WASM me try karega
-             for (const pwd of autoTryPasswords) {
-                 setCurrentTry(pwd);
-                 try {
-                     const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                     setUnlockedPdfBytes(unlockedBytes);
-                     setStatus('unlocked');
-                     isUnlocked = true;
-                     break;
-                 } catch (e) {}
-             }
-
-             // 2. NAYA STEP: Agar file abhi tak unlock nahi hui, toh Database se passwords mangwao
-             if (!isUnlocked) {
-                 setErrorMessage('High-Security PDF detect hui. Database se passwords check ho rahe hain...');
-                 try {
-                     const response = await fetch('/api/unlock', {
-                         method: 'POST',
-                         headers: { 'Content-Type': 'application/json' },
-                         body: JSON.stringify({ fetchPasswordsOnly: true })
-                     });
-                     
-                     const data = await response.json();
-                     if (response.ok && data.success && data.passwords) {
-                         for (const pwd of data.passwords) {
-                             if (!pwd) continue;
-                             setCurrentTry(pwd);
-                             try {
-                                 const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                                 setUnlockedPdfBytes(unlockedBytes);
-                                 setStatus('unlocked');
-                                 isUnlocked = true;
-                                 break; // Taala khulte hi ruk jayega
-                             } catch (e) {}
-                         }
-                     }
-                 } catch (apiError) {
-                     console.error("DB Passwords fetch error:", apiError);
-                 }
-             }
-
-         } catch (err) {}
       }
 
       if (!aesDetected && !isUnlocked) {
@@ -456,8 +448,25 @@ export default function UnlockTool() {
       {status === 'auto_cracking' && (
         <div className="text-center p-10 bg-purple-50 rounded-xl">
           <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800">Checking File Security...</h3>
-          <p className="text-gray-500 mt-2">Trying common passwords rapidly...</p>
+          <h3 className="text-xl font-bold text-gray-800">Checking Database Passwords...</h3>
+          <p className="text-gray-500 mt-2">Trying passwords at turbo speed...</p>
+          
+          {/* NAYA: Badalta hua text aur Progress Bar */}
+          {currentTry && (
+            <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200 inline-block min-w-[200px] shadow-sm">
+              <span className="text-sm text-gray-400 block mb-1">Current Try:</span>
+              <span className="font-mono text-xl font-bold text-purple-700">{currentTry}</span>
+            </div>
+          )}
+          
+          {progress > 0 && (
+            <div className="w-full max-w-md mx-auto mt-6">
+              <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                <div className="bg-purple-600 h-2.5 transition-all duration-75" style={{ width: `${progress}%` }}></div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">{progress}% Checked</p>
+            </div>
+          )}
         </div>
       )}
 
