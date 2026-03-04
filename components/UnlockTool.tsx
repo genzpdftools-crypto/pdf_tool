@@ -77,7 +77,6 @@ export default function UnlockTool() {
     setErrorMessage("Smart Recovery stopped manually.");
   };
 
-  // Reset tool without page refresh
   const resetTool = () => {
     setFile(null);
     setUnlockedPdfBytes(null);
@@ -91,7 +90,6 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
-  // Updated unlockWithWasm with proper error handling
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
@@ -355,7 +353,6 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // Optimized Smart Unlock with exact counts and early pruning
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -501,13 +498,13 @@ export default function UnlockTool() {
 
   return (
     <div className="w-full min-h-screen pb-12">
-      <div className="max-w-4xl mx-auto p-5 sm:p-8 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-100 relative overflow-hidden transition-all duration-500">
+      <div className="max-w-4xl mx-auto p-5 sm:p-8 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl shadow-rose-500/10 border border-rose-50 relative overflow-hidden transition-all duration-500">
         
         {/* Subtle background glow */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-40 bg-gradient-to-b from-purple-500/10 to-transparent pointer-events-none rounded-t-3xl"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-40 bg-gradient-to-b from-rose-400/10 to-transparent pointer-events-none rounded-t-3xl"></div>
 
         <div className="text-center mb-10 relative z-10 mt-4">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 mb-4 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-500 mb-4 tracking-tight">
             Free PDF Password Remover
           </h1>
           <p className="text-gray-500 text-sm sm:text-base font-medium max-w-2xl mx-auto">
@@ -515,13 +512,13 @@ export default function UnlockTool() {
           </p>
         </div>
 
-        {/* Selected File Badge */}
+        {/* Selected File Badge (Text Wrapping Fix Included) */}
         {file && status !== 'unlocked' && (
           <div className="mb-8 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
-             <div className="inline-flex items-center p-3 px-5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/60 rounded-2xl max-w-full shadow-sm">
-                <FileText className="w-5 h-5 text-purple-600 mr-3 flex-shrink-0" />
+             <div className="inline-flex items-center p-3 px-5 bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/60 rounded-2xl max-w-full shadow-sm">
+                <FileText className="w-5 h-5 text-rose-500 mr-3 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-semibold text-purple-900 break-words text-center">
+                   <p className="text-sm font-semibold text-rose-900 break-words text-center">
                       {file.name}
                    </p>
                 </div>
@@ -531,65 +528,65 @@ export default function UnlockTool() {
 
         {/* Upload Zone */}
         {!file && (
-          <div className="group relative border-2 border-dashed border-purple-300 rounded-3xl p-10 sm:p-20 text-center bg-gradient-to-b from-purple-50/50 to-white hover:bg-purple-50/80 hover:border-purple-500 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] overflow-hidden">
+          <div className="group relative border-2 border-dashed border-rose-300 rounded-3xl p-10 sm:p-20 text-center bg-gradient-to-b from-rose-50/50 to-white hover:bg-rose-50/80 hover:border-rose-400 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-[0_0_30px_rgba(244,63,94,0.15)] overflow-hidden">
             <input type="file" accept=".pdf" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="file-upload" />
             <div className="flex flex-col items-center pointer-events-none relative z-0">
-              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-purple-600 transition-all duration-300 shadow-inner">
-                <Upload className="w-10 h-10 text-purple-600 group-hover:text-white transition-colors duration-300" />
+              <div className="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-rose-500 transition-all duration-300 shadow-inner">
+                <Upload className="w-10 h-10 text-rose-500 group-hover:text-white transition-colors duration-300" />
               </div>
-              <span className="text-xl sm:text-2xl font-bold text-gray-800 group-hover:text-purple-700 transition-colors">Tap or Drop PDF Here</span>
-              <span className="text-sm text-gray-500 mt-2">Secure & Private • Auto Recovery</span>
+              <span className="text-xl sm:text-2xl font-bold text-gray-800 group-hover:text-rose-600 transition-colors">Tap or Drop PDF Here</span>
+              <span className="text-sm text-gray-400 mt-2">Secure & Private • Auto Recovery</span>
             </div>
           </div>
         )}
 
         {status === 'auto_cracking' && (
-          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-3xl border border-purple-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
-            <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-6 drop-shadow-md" />
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-rose-50 to-pink-50 rounded-3xl border border-rose-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <Loader2 className="animate-spin w-16 h-16 text-rose-500 mx-auto mb-6 drop-shadow-md" />
             <h3 className="text-2xl font-bold text-gray-800 mb-2">Checking Database...</h3>
             <p className="text-gray-500 font-medium">Turbo speed engine is running 🚀</p>
             
             {currentTry && (
-              <div className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-200 inline-block min-w-[250px] shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+              <div className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-rose-200 inline-block min-w-[250px] shadow-[0_0_15px_rgba(244,63,94,0.1)]">
                 <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Current Try</span>
-                <span className="font-mono text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">{currentTry}</span>
+                <span className="font-mono text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-600">{currentTry}</span>
               </div>
             )}
             
             {progress > 0 && (
               <div className="w-full max-w-md mx-auto mt-8">
                 <div className="bg-gray-200/80 rounded-full h-3 overflow-hidden shadow-inner">
-                  <div className="bg-gradient-to-r from-purple-500 to-indigo-600 h-3 rounded-full transition-all duration-150 relative" style={{ width: `${progress}%` }}>
+                  <div className="bg-gradient-to-r from-rose-400 to-pink-500 h-3 rounded-full transition-all duration-150 relative" style={{ width: `${progress}%` }}>
                      <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                   </div>
                 </div>
-                <p className="text-sm font-semibold text-purple-600 mt-3">{progress}% Checked</p>
+                <p className="text-sm font-semibold text-rose-600 mt-3">{progress}% Checked</p>
               </div>
             )}
           </div>
         )}
 
         {status === 'number_bruteforce' && (
-          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-3xl border border-blue-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
-            <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-6 drop-shadow-md" />
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-orange-50 to-rose-50 rounded-3xl border border-orange-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <Settings className="animate-spin w-16 h-16 text-orange-400 mx-auto mb-6 drop-shadow-md" />
             <h3 className="text-2xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
-            <p className="text-gray-600 mb-4 font-medium">Currently trying: <span className="font-mono font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded-md">{currentTry}</span></p>
+            <p className="text-gray-600 mb-4 font-medium">Currently trying: <span className="font-mono font-bold text-orange-600 bg-orange-100 px-2 py-1 rounded-md">{currentTry}</span></p>
             
             <div className="w-full max-w-md mx-auto bg-gray-200/80 rounded-full h-3 mb-8 shadow-inner overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-300 relative" style={{ width: `${progress}%` }}></div>
+              <div className="bg-gradient-to-r from-orange-400 to-rose-400 h-3 rounded-full transition-all duration-300 relative" style={{ width: `${progress}%` }}></div>
             </div>
             
-            <button onClick={handleStopBruteForce} className="px-8 py-3 bg-white border-2 border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-50 hover:border-red-200 hover:shadow-lg hover:shadow-red-500/20 transition-all duration-300 transform hover:-translate-y-1">
+            <button onClick={handleStopBruteForce} className="px-8 py-3 bg-white border-2 border-red-100 text-red-500 font-bold rounded-xl hover:bg-red-50 hover:border-red-200 hover:shadow-lg hover:shadow-red-500/20 transition-all duration-300 transform hover:-translate-y-1">
                Stop & Switch to Manual Mode
             </button>
           </div>
         )}
 
         {status === 'processing_wasm' && (
-          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl border border-indigo-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-pink-50 to-rose-50 rounded-3xl border border-pink-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
             <div className="relative w-20 h-20 mx-auto mb-6">
-               <div className="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-20"></div>
-               <Cpu className="relative z-10 animate-pulse w-20 h-20 text-indigo-600 drop-shadow-md" />
+               <div className="absolute inset-0 bg-pink-300 rounded-full animate-ping opacity-20"></div>
+               <Cpu className="relative z-10 animate-pulse w-20 h-20 text-pink-500 drop-shadow-md" />
             </div>
             <h3 className="text-2xl font-bold text-gray-800 mb-2">Decrypting with WASM Engine...</h3>
             <p className="text-gray-600 font-medium">Local C++ engine is safely removing the heavy lock.</p>
@@ -597,23 +594,23 @@ export default function UnlockTool() {
         )}
 
         {status === 'smart_cracking' && (
-          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-3xl border border-purple-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
-            <Settings className="animate-spin w-16 h-16 text-fuchsia-600 mx-auto mb-6 drop-shadow-md" />
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-rose-50 to-pink-50 rounded-3xl border border-rose-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <Settings className="animate-spin w-16 h-16 text-rose-400 mx-auto mb-6 drop-shadow-md" />
             <h3 className="text-2xl font-bold text-gray-800 mb-3">Smart Recovery in Progress</h3>
-            <div className="inline-block bg-white/60 px-4 py-2 rounded-lg border border-purple-100 mb-4">
-              <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-fuchsia-700">{isAes256 ? 'WASM (AES-256)' : 'Standard'}</span></p>
+            <div className="inline-block bg-white/60 px-4 py-2 rounded-lg border border-rose-200 mb-4">
+              <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-rose-600">{isAes256 ? 'WASM (AES-256)' : 'Standard'}</span></p>
             </div>
             
-            {currentTry && <p className="text-fuchsia-700 font-mono text-lg mt-2 mb-6 bg-white/80 p-3 rounded-xl shadow-sm inline-block min-w-[200px] border border-fuchsia-100">Trying: {currentTry}</p>}
+            {currentTry && <p className="text-rose-600 font-mono text-lg mt-2 mb-6 bg-white/80 p-3 rounded-xl shadow-sm inline-block min-w-[200px] border border-rose-100">Trying: {currentTry}</p>}
             
             <div className="w-full max-w-md mx-auto">
               <div className="bg-gray-200/80 rounded-full h-3 mb-2 overflow-hidden shadow-inner">
-                <div className="bg-gradient-to-r from-purple-500 to-fuchsia-500 h-3 rounded-full transition-all duration-100 relative" style={{ width: `${progress}%` }}></div>
+                <div className="bg-gradient-to-r from-rose-400 to-pink-500 h-3 rounded-full transition-all duration-100 relative" style={{ width: `${progress}%` }}></div>
               </div>
-              <p className="text-sm font-semibold text-fuchsia-600 mt-2 mb-8">{progress}% Completed</p>
+              <p className="text-sm font-semibold text-rose-500 mt-2 mb-8">{progress}% Completed</p>
             </div>
             
-            <button onClick={handleStopSmartCracking} className="px-8 py-3 bg-white border-2 border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-50 hover:shadow-lg hover:shadow-red-500/20 transition-all duration-300 transform hover:-translate-y-1">
+            <button onClick={handleStopSmartCracking} className="px-8 py-3 bg-white border-2 border-red-100 text-red-500 font-bold rounded-xl hover:bg-red-50 hover:shadow-lg hover:shadow-red-500/20 transition-all duration-300 transform hover:-translate-y-1">
                Stop Recovery
             </button>
           </div>
@@ -623,8 +620,8 @@ export default function UnlockTool() {
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             {/* Alert Banner */}
-            <div className={`flex items-start sm:items-center p-5 rounded-2xl border shadow-sm ${isAes256 ? 'bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-800 border-indigo-200' : 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 border-amber-200'}`}>
-              <AlertCircle className={`w-8 h-8 mr-4 flex-shrink-0 mt-1 sm:mt-0 ${isAes256 ? 'text-indigo-500' : 'text-amber-500'}`} />
+            <div className={`flex items-start sm:items-center p-5 rounded-2xl border shadow-sm ${isAes256 ? 'bg-gradient-to-r from-pink-50 to-rose-50 text-pink-800 border-pink-200' : 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 border-amber-200'}`}>
+              <AlertCircle className={`w-8 h-8 mr-4 flex-shrink-0 mt-1 sm:mt-0 ${isAes256 ? 'text-pink-500' : 'text-amber-500'}`} />
               <div>
                 <span className="font-extrabold text-lg block mb-1">{isAes256 ? "Titanium Lock (AES-256) Detected" : "Password Required"}</span>
                 <span className="text-sm font-medium opacity-90">{isAes256 ? "File is highly secure. Please enter password or use targeted Smart Recovery." : "Auto-check failed. Please enter the password manually."}</span>
@@ -632,21 +629,21 @@ export default function UnlockTool() {
             </div>
 
             {errorMessage && (
-              <div className="p-4 rounded-xl bg-red-50 border-l-4 border-red-500 text-red-700 shadow-sm animate-bounce">
+              <div className="p-4 rounded-xl bg-red-50 border-l-4 border-red-400 text-red-600 shadow-sm animate-bounce">
                 <p className="text-sm font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-2" /> {errorMessage}</p>
               </div>
             )}
 
             {/* Manual Entry Section */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.03)] border border-gray-100 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-purple-500 to-indigo-500"></div>
+            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_0_40px_rgba(244,63,94,0.04)] border border-rose-50 relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-rose-400 to-pink-500"></div>
               <h3 className="text-xl font-bold text-gray-800 mb-5">Manual Password Entry</h3>
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
                    <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                   <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 font-medium" />
+                   <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 transition-all text-gray-800 font-medium" />
                 </div>
-                <button onClick={handleManualUnlock} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:scale-[1.02] transition-all duration-300 whitespace-nowrap flex items-center justify-center">
+                <button onClick={handleManualUnlock} className="bg-gradient-to-r from-rose-500 to-pink-500 text-white px-8 py-4 rounded-2xl font-bold hover:shadow-[0_0_20px_rgba(244,63,94,0.4)] hover:scale-[1.02] transition-all duration-300 whitespace-nowrap flex items-center justify-center">
                   <LockOpen className="w-5 h-5 mr-2" /> Unlock Document
                 </button>
               </div>
@@ -659,24 +656,24 @@ export default function UnlockTool() {
             </div>
 
             {/* Smart Recovery Accordion */}
-            <div className="bg-white rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.03)] border border-gray-100 overflow-hidden">
-              <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-6 sm:p-8 flex justify-between items-center bg-gray-50/50 hover:bg-purple-50/50 transition-colors">
+            <div className="bg-white rounded-3xl shadow-[0_0_40px_rgba(244,63,94,0.04)] border border-rose-50 overflow-hidden">
+              <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-6 sm:p-8 flex justify-between items-center bg-gray-50/50 hover:bg-rose-50/50 transition-colors">
                 <div className="flex items-center text-gray-800 font-bold text-lg text-left">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-4">
-                     <Cpu className="w-5 h-5 text-purple-600" />
+                  <div className="w-10 h-10 bg-rose-100 rounded-full flex items-center justify-center mr-4">
+                     <Cpu className="w-5 h-5 text-rose-500" />
                   </div>
                   Lost Password? (Smart Recovery)
                 </div>
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm border border-gray-100 transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`}>
-                  <ChevronDown className="w-5 h-5 text-purple-600" />
+                  <ChevronDown className="w-5 h-5 text-rose-500" />
                 </div>
               </button>
 
               {showAdvanced && (
-                <div className="p-6 sm:p-8 space-y-8 border-t border-gray-100 bg-white animate-in slide-in-from-top-4 duration-300">
-                  <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-xl">
-                    <p className="text-sm text-purple-800 font-medium leading-relaxed">
-                      Aapki file ke hisaab se engine pehle se set hai <b className="bg-purple-200 px-2 py-0.5 rounded text-purple-900">({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.
+                <div className="p-6 sm:p-8 space-y-8 border-t border-rose-50 bg-white animate-in slide-in-from-top-4 duration-300">
+                  <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-xl">
+                    <p className="text-sm text-rose-800 font-medium leading-relaxed">
+                      Aapki file ke hisaab se engine pehle se set hai <b className="bg-rose-200 px-2 py-0.5 rounded text-rose-900">({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.
                     </p>
                   </div>
 
@@ -687,9 +684,9 @@ export default function UnlockTool() {
                       <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
                         <label className="font-bold text-gray-700 block mb-3">Password Length Range</label>
                         <div className="flex items-center gap-3">
-                           <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="Min" />
+                           <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 outline-none font-medium transition-all" placeholder="Min" />
                            <span className="text-gray-400 font-bold">TO</span>
-                           <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="Max" />
+                           <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 outline-none font-medium transition-all" placeholder="Max" />
                         </div>
                       </div>
 
@@ -697,7 +694,7 @@ export default function UnlockTool() {
                         <label className="font-bold text-gray-700 block mb-3">Included Characters</label>
                         <div className="flex flex-wrap gap-4">
                           {[{label: 'A-Z', state: hasUppercase, set: setHasUppercase}, {label: 'a-z', state: hasLowercase, set: setHasLowercase}, {label: '0-9', state: hasNumbers, set: setHasNumbers}, {label: '@#$', state: hasSymbols, set: setHasSymbols}].map((item, idx) => (
-                            <label key={idx} className={`cursor-pointer flex items-center px-4 py-2 rounded-lg border-2 transition-all font-medium ${item.state ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300'}`}>
+                            <label key={idx} className={`cursor-pointer flex items-center px-4 py-2 rounded-lg border-2 transition-all font-medium ${item.state ? 'bg-rose-50 border-rose-400 text-rose-600 shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:border-rose-200'}`}>
                                <input type="checkbox" checked={item.state} onChange={e => item.set(e.target.checked)} className="hidden"/> 
                                {item.label}
                             </label>
@@ -711,15 +708,15 @@ export default function UnlockTool() {
                       <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4">
                         <div>
                            <label className="font-bold text-gray-700 block mb-2 text-sm">Starting Character?</label>
-                           <input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="e.g. A" />
+                           <input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 outline-none font-medium transition-all" placeholder="e.g. A" />
                         </div>
                         <div>
                            <label className="font-bold text-gray-700 block mb-2 text-sm">Ending Character?</label>
-                           <input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="e.g. 9" />
+                           <input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 outline-none font-medium transition-all" placeholder="e.g. 9" />
                         </div>
                         <div>
                            <label className="font-bold text-gray-700 block mb-2 text-sm">Known string inside?</label>
-                           <input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="e.g. pintu" />
+                           <input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 outline-none font-medium transition-all" placeholder="e.g. pintu" />
                         </div>
                       </div>
                     </div>
@@ -727,7 +724,7 @@ export default function UnlockTool() {
                     {/* Exact Count Hints (Advanced) */}
                     <div className="md:col-span-2 bg-gray-50 p-6 rounded-2xl border border-gray-100">
                       <div className="flex items-center mb-4">
-                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3"><Settings className="w-4 h-4 text-blue-600"/></div>
+                         <div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center mr-3"><Settings className="w-4 h-4 text-rose-500"/></div>
                          <p className="text-gray-800 font-bold">Advanced Constraints (Optional)</p>
                       </div>
                       <p className="text-sm text-gray-500 mb-5 font-medium">Agar exactly yaad hai ki kitne letters ya numbers hain, toh fill karein:</p>
@@ -736,7 +733,7 @@ export default function UnlockTool() {
                         {[{label: 'Kitne Alphabets?', val: exactAlphabets, set: setExactAlphabets, pl: 'e.g. 4'}, {label: 'Kitne Numbers?', val: exactNumbers, set: setExactNumbers, pl: 'e.g. 2'}, {label: 'Kitne Symbols?', val: exactSymbols, set: setExactSymbols, pl: 'e.g. 1'}].map((item, idx) => (
                            <div key={idx}>
                               <label className="font-bold text-gray-700 text-sm block mb-2">{item.label}</label>
-                              <input type="number" min="0" value={item.val} onChange={e => item.set(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium transition-all" placeholder={item.pl} />
+                              <input type="number" min="0" value={item.val} onChange={e => item.set(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-rose-500/20 focus:border-rose-400 outline-none font-medium transition-all" placeholder={item.pl} />
                            </div>
                         ))}
                       </div>
@@ -745,7 +742,7 @@ export default function UnlockTool() {
                   </div>
                   
                   <button onClick={handleSmartUnlock} className="w-full bg-gradient-to-r from-gray-900 to-gray-800 text-white py-4 sm:py-5 rounded-2xl font-extrabold text-lg tracking-wide shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 mt-6 flex items-center justify-center">
-                     <Cpu className="w-6 h-6 mr-3 text-purple-400" /> START TARGETED RECOVERY
+                     <Cpu className="w-6 h-6 mr-3 text-rose-300" /> START TARGETED RECOVERY
                   </button>
                 </div>
               )}
@@ -783,7 +780,7 @@ export default function UnlockTool() {
         {/* Step-by-Step Guide */}
         <div className="mb-14">
            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
-              <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full mr-4 block"></span>
+              <span className="w-2 h-8 bg-gradient-to-b from-rose-400 to-pink-500 rounded-full mr-4 block"></span>
               How to Unlock a PDF File in 3 Steps
            </h2>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
@@ -794,7 +791,7 @@ export default function UnlockTool() {
                 {step: 4, title: 'Download', desc: 'Click save to get your completely unlocked PDF for free.'}
               ].map(item => (
                  <div key={item.step} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow">
-                    <div className="w-10 h-10 bg-purple-100 text-purple-700 font-extrabold rounded-full flex items-center justify-center mb-4 text-lg">{item.step}</div>
+                    <div className="w-10 h-10 bg-rose-100 text-rose-600 font-extrabold rounded-full flex items-center justify-center mb-4 text-lg">{item.step}</div>
                     <h4 className="font-bold text-gray-900 mb-2">{item.title}</h4>
                     <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
                  </div>
@@ -805,12 +802,12 @@ export default function UnlockTool() {
         {/* Advanced Features Description */}
         <div className="mb-14">
            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
-              <span className="w-2 h-8 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full mr-4 block"></span>
+              <span className="w-2 h-8 bg-gradient-to-b from-pink-400 to-rose-500 rounded-full mr-4 block"></span>
               Advanced Features: AES-256
            </h2>
-           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 sm:p-8 rounded-2xl border border-blue-100">
+           <div className="bg-gradient-to-r from-rose-50 to-pink-50 p-6 sm:p-8 rounded-2xl border border-rose-100">
              <p className="text-gray-700 text-base sm:text-lg leading-relaxed font-medium">
-               Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized <b className="text-indigo-700">C++ engine (WASM)</b> directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.
+               Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized <b className="text-rose-600">C++ engine (WASM)</b> directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.
              </p>
            </div>
         </div>
@@ -818,7 +815,7 @@ export default function UnlockTool() {
         {/* FAQ Section */}
         <div className="mb-10">
            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-8 flex items-center">
-              <span className="w-2 h-8 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full mr-4 block"></span>
+              <span className="w-2 h-8 bg-gradient-to-b from-emerald-400 to-teal-500 rounded-full mr-4 block"></span>
               Frequently Asked Questions
            </h2>
            <div className="space-y-6">
@@ -837,15 +834,15 @@ export default function UnlockTool() {
         </div>
 
         {/* Internal Linking for Better SEO Navigation */}
-        <div className="mt-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-8 sm:p-10 text-center shadow-2xl relative overflow-hidden">
+        <div className="mt-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-3xl p-8 sm:p-10 text-center shadow-2xl relative overflow-hidden">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
           <h3 className="font-extrabold text-2xl sm:text-3xl text-white mb-4 relative z-10">Explore More Free Tools</h3>
-          <p className="text-purple-100 text-lg mb-8 relative z-10 font-medium max-w-xl mx-auto">
+          <p className="text-rose-100 text-lg mb-8 relative z-10 font-medium max-w-xl mx-auto">
             Done unlocking? Enhance your documents further with our blazing fast toolkit.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
-             <a href="/compress" className="bg-white text-purple-700 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-purple-50 hover:scale-105 transition-all">Compress PDF</a>
-             <a href="/split" className="bg-purple-800 text-white border border-purple-500 px-8 py-4 rounded-xl font-bold hover:bg-purple-900 hover:scale-105 transition-all shadow-lg">Split PDF</a>
+             <a href="/compress" className="bg-white text-rose-600 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-rose-50 hover:scale-105 transition-all">Compress PDF</a>
+             <a href="/split" className="bg-rose-700 text-white border border-rose-400 px-8 py-4 rounded-xl font-bold hover:bg-rose-800 hover:scale-105 transition-all shadow-lg">Split PDF</a>
           </div>
         </div>
 
