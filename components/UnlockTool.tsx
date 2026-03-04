@@ -115,18 +115,6 @@ export default function UnlockTool() {
     }
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1]);
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
@@ -153,8 +141,8 @@ export default function UnlockTool() {
       setTriedPasswords(currentTriedSet);
 
       let isUnlocked = false;
+      let aesDetected = false;
 
-      // Sabse pehle basic passwords try karo
       for (const pwd of autoTryPasswords) {
         try {
           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
@@ -165,15 +153,10 @@ export default function UnlockTool() {
           break;
         } catch (error: any) {
           const errorMsg = error.message ? error.message.toLowerCase() : '';
-          // FOOLPROOF FIX: Agar error incorrect wala NAHI hai, toh password SAHI hai, WASM se kholo
-          if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong')) {
-            try {
-              const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-              setUnlockedPdfBytes(unlockedBytes);
-              setStatus('unlocked');
-              isUnlocked = true;
-              break;
-            } catch (wasmError) {}
+          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+            aesDetected = true;
+            setIsAes256(true);
+            break;
           }
         }
       }
@@ -237,11 +220,9 @@ export default function UnlockTool() {
                       try {
                         let finalBytes;
                         try {
-                          // Normal tarike se PDF save karne ki koshish (Fast)
                           const pdfDoc = await PDFDocument.load(pdfBytes, { password });
                           finalBytes = await pdfDoc.save();
                         } catch (e) {
-                          // Agar fail hui (kya pata AES ho), toh turant WASM (C++) engine laga do!
                           finalBytes = await unlockWithWasm(password, pdfBytes);
                         }
                         setUnlockedPdfBytes(finalBytes);
@@ -264,6 +245,15 @@ export default function UnlockTool() {
                         resolveBatch();
                       }
                     }
+                    else if (type === 'fatal_error') {
+                      stopBruteForceRef.current = true;
+                      terminateAllWorkers();
+                      aesDetected = true;
+                      setIsAes256(true);
+                      setStatus('needs_password');
+                      setErrorMessage('High-Security AES-256 Lock Detected! Auto-crack runs fast on standard locks. Please use Smart Recovery.');
+                      resolveBatch();
+                    }
                   };
                 }
 
@@ -282,7 +272,7 @@ export default function UnlockTool() {
         }
       }
 
-      if (!isUnlocked) {
+      if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
 
@@ -313,7 +303,14 @@ export default function UnlockTool() {
 
               worker.onmessage = async (msg) => {
                 const { type, password, currentTry: wTry } = msg.data;
-                if (type === 'success') {
+                if (type === 'fatal_error') {
+                  stopBruteForceRef.current = true;
+                  terminateAllWorkers();
+                  setIsAes256(true);
+                  setStatus('needs_password');
+                  setErrorMessage(`High-Security AES-256 Lock Detected! Please enter password manually.`);
+                  resolve();
+                } else if (type === 'success') {
                   isUnlocked = true;
                   stopBruteForceRef.current = true;
                   terminateAllWorkers();
@@ -346,6 +343,7 @@ export default function UnlockTool() {
 
       if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('needs_password');
+        if (aesDetected) setErrorMessage('Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.');
       }
     } catch (err: any) {
       setStatus('error');
@@ -375,7 +373,7 @@ export default function UnlockTool() {
       setStatus('unlocked');
     } catch (error: any) {
       const errorMsg = error.message ? error.message.toLowerCase() : '';
-      if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong')) {
+      if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
         setIsAes256(true);
         try {
           const arrayBuffer = await file.arrayBuffer();
