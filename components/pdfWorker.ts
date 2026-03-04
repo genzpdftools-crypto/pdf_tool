@@ -60,9 +60,9 @@ self.onmessage = async (e: MessageEvent) => {
           if (isValid) {
             attempts++;
 
-            // Har 2000 attempts me UI ko batao taaki user ko lage kaam ho raha hai – saath me chunkSize bhi bhejo
+            // Har 2000 attempts me UI ko batao taaki user ko lage kaam ho raha hai
             if (attempts % 2000 === 0) {
-              self.postMessage({ type: 'progress', workerId, currentTry: str, chunkSize: 2000 });
+              self.postMessage({ type: 'progress', workerId, currentTry: str });
             }
 
             // ---------- UPGRADED TRY/CATCH (with fix for AES-256) ----------
@@ -103,9 +103,8 @@ self.onmessage = async (e: MessageEvent) => {
     for (let i = startNum; i <= endNum; i++) {
       const pwd = i.toString().padStart(length, '0');
 
-      // Har 100 attempts par progress update – chunkSize bhi bhejo
       if (i % 100 === 0) {
-        self.postMessage({ type: 'progress', workerId, currentTry: pwd, chunkSize: 100 });
+        self.postMessage({ type: 'progress', workerId, currentTry: pwd });
       }
 
       try {
