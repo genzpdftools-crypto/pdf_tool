@@ -3,6 +3,34 @@ import { PDFDocument } from 'pdf-lib';
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
+  // ==================== DICTIONARY (API) FAST CHECK ====================
+  if (data.type === 'dictionary') {
+    const { pdfBytes, passwords, workerId } = data;
+    
+    for (let i = 0; i < passwords.length; i++) {
+      const pwd = passwords[i];
+      
+      // Speed ke liye har 20 attempt me UI update
+      if (i % 20 === 0) {
+        self.postMessage({ type: 'progress', workerId, currentTry: pwd });
+      }
+
+      try {
+        await PDFDocument.load(pdfBytes, { password: pwd, updateMetadata: false });
+        self.postMessage({ type: 'success', password: pwd });
+        return;
+      } catch (err: any) {
+        const errorMsg = err.message ? err.message.toLowerCase() : "";
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+          self.postMessage({ type: 'success', password: pwd });
+          return;
+        }
+      }
+    }
+    self.postMessage({ type: 'done', workerId });
+    return;
+  }
+
   // ==================== SMART CRACK WITH ELIMINATION RULES ====================
   if (data.type === 'smart_crack') {
     const {
