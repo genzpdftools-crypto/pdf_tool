@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw } from 'lucide-react';
+import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw, FileText } from 'lucide-react';
 import PdfWorker from './pdfWorker?worker';
 
 // @ts-ignore
 import QPDF from 'qpdf-wasm-esm-embedded';
 
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
-const MAX_SMART_ATTEMPTS = 200000; // Limit thoda badha di hai lambe passwords ke liye
+const MAX_SMART_ATTEMPTS = 200000;
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,7 +21,6 @@ export default function UnlockTool() {
   const [progress, setProgress] = useState(0);
   const [currentTry, setCurrentTry] = useState(''); 
   
-  // Jo passwords check ho chuke hain unko yaad rakhne ke liye Set
   const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
   
   const workersRef = useRef<Worker[]>([]);
@@ -78,7 +77,7 @@ export default function UnlockTool() {
     setErrorMessage("Smart Recovery stopped manually.");
   };
 
-  // NAYA: Page refresh kiye bina reset karne ka function
+  // Reset tool without page refresh
   const resetTool = () => {
     setFile(null);
     setUnlockedPdfBytes(null);
@@ -92,20 +91,16 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
-  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED)
+  // Updated unlockWithWasm with proper error handling
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
     const qpdf = await QPDF();
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
       try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
       
-      // Engine run karo
       qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
-      
-      // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
       
-      // 👇 FIX: Sirf file length check karo (exitCode hata diya gaya hai)
       if (!unlockedBytes || unlockedBytes.length === 0) {
         throw new Error("Wrong password - 0 byte file generated");
       }
@@ -360,7 +355,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // =============== NEW SMART UNLOCK FUNCTION (FULLY OPTIMIZED) ===============
+  // Optimized Smart Unlock with exact counts and early pruning
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -377,7 +372,6 @@ export default function UnlockTool() {
     let attempts = 0;
     let lastYieldTime = Date.now();
 
-    // User ki advance counting hints fetch karna
     const reqAlpha = exactAlphabets !== '' ? parseInt(exactAlphabets) : -1;
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
@@ -385,19 +379,16 @@ export default function UnlockTool() {
     for (let len = lenMin; len <= lenMax; len++) {
       if (unlocked || stopBruteForceRef.current) break;
 
-      // HINT INJECTION METHOD: Middle hint ke liye sirf wahi valid positions nikalna jaha wo fit ho sake
       const startIndices = middleHint ? Array.from({length: Math.max(0, len - middleHint.length + 1)}, (_, i) => i) : [null];
 
       for (const mIdx of startIndices) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        // Pre-Validation: Agar firstChar aur middleHint ka first char clash kare toh path reject karo
         if (middleHint && mIdx !== null) {
             if (firstChar && mIdx === 0 && middleHint[0] !== firstChar) continue;
             if (lastChar && mIdx + middleHint.length === len && middleHint[middleHint.length - 1] !== lastChar) continue;
         }
 
-        // Stack me character counts store karenge taaki track kar sakein
         const stack = [{ str: '', depth: 0, alpha: 0, num: 0, sym: 0 }];
 
         while (stack.length > 0) {
@@ -405,13 +396,11 @@ export default function UnlockTool() {
 
           const { str, depth, alpha, num, sym } = stack.pop()!;
 
-          // 🚀 RULE 1: EARLY COUNT PRUNING (Phaltu branches pehle hi kaat do)
           const remaining = len - depth;
           if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
           if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
           if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
 
-          // 🚀 RULE 2: MIDDLE HINT INJECTION (Sidhe word paste karo, combination mat banao)
           if (middleHint && mIdx !== null && depth === mIdx) {
              let mAlpha=0, mNum=0, mSym=0;
              for(let i=0; i<middleHint.length; i++){
@@ -430,7 +419,6 @@ export default function UnlockTool() {
              continue;
           }
 
-          // 🚀 RULE 3: FIRST CHAR FORCING
           if (depth === 0 && firstChar) {
               let isA=0, isN=0, isS=0;
               const c = firstChar.charCodeAt(0);
@@ -439,7 +427,6 @@ export default function UnlockTool() {
               continue;
           }
 
-          // 🚀 RULE 4: LAST CHAR FORCING
           if (depth === len - 1 && lastChar) {
               let isA=0, isN=0, isS=0;
               const c = lastChar.charCodeAt(0);
@@ -448,20 +435,15 @@ export default function UnlockTool() {
               continue;
           }
 
-          // PASSWORD READY - Final Testing Phase
           if (depth === len) {
-            
-            // 🚀 RULE 5: AVOID DUPLICATES (Jo automatic/DB me check ho gaya use skip karo)
             if (triedPasswords.has(str)) continue;
 
-            // Ek last baar counts verify karo before executing Heavy WASM engine
             if (reqAlpha !== -1 && alpha !== reqAlpha) continue;
             if (reqNum !== -1 && num !== reqNum) continue;
             if (reqSym !== -1 && sym !== reqSym) continue;
 
             attempts++;
 
-            // Yahan text smoothly update hota rahega screen par
             const timeLimit = isAes256 ? 20 : 50; 
             if (Date.now() - lastYieldTime > timeLimit) {
               setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
@@ -470,7 +452,6 @@ export default function UnlockTool() {
               lastYieldTime = Date.now();
             }
 
-            // Engine Try 
             if (isAes256) {
                try {
                  const bytes = await unlockWithWasm(str, pdfBytes);
@@ -490,7 +471,6 @@ export default function UnlockTool() {
                } catch(e) {}
             }
           } else {
-            // Normal character picking (Isme logic optimize kiya gaya hai)
             for (let i = pool.length - 1; i >= 0; i--) {
                 let isA=0, isN=0, isS=0;
                 const c = pool.charCodeAt(i);
@@ -507,7 +487,6 @@ export default function UnlockTool() {
       setErrorMessage(`Smart Cracking Failed. Target ke hisab se ${attempts} combinations check kiye gaye.`);
     }
   };
-  // =============== END OF NEW SMART UNLOCK ===============
 
   const downloadUnlockedPdf = () => {
     if (!unlockedPdfBytes || !file) return;
@@ -521,157 +500,253 @@ export default function UnlockTool() {
   };
 
   return (
-    <div className="w-full">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Free PDF Password Remover & Smart Unlocker</h1>
-          <p className="text-gray-600">Smart constraints aur WASM Engine ka use karke fast unlocking.</p>
+    <div className="w-full min-h-screen pb-12">
+      <div className="max-w-4xl mx-auto p-5 sm:p-8 bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-100 relative overflow-hidden transition-all duration-500">
+        
+        {/* Subtle background glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-40 bg-gradient-to-b from-purple-500/10 to-transparent pointer-events-none rounded-t-3xl"></div>
+
+        <div className="text-center mb-10 relative z-10 mt-4">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 mb-4 tracking-tight">
+            Free PDF Password Remover
+          </h1>
+          <p className="text-gray-500 text-sm sm:text-base font-medium max-w-2xl mx-auto">
+            Smart constraints aur WASM Engine ka use karke fast & secure unlocking.
+          </p>
         </div>
 
+        {/* Selected File Badge */}
+        {file && status !== 'unlocked' && (
+          <div className="mb-8 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
+             <div className="inline-flex items-center p-3 px-5 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200/60 rounded-2xl max-w-full shadow-sm">
+                <FileText className="w-5 h-5 text-purple-600 mr-3 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                   <p className="text-sm font-semibold text-purple-900 break-words text-center">
+                      {file.name}
+                   </p>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {/* Upload Zone */}
         {!file && (
-          <div className="border-2 border-dashed border-purple-300 rounded-xl p-8 sm:p-12 text-center hover:bg-purple-50 transition-colors cursor-pointer">
-            <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" id="file-upload" />
-            <label htmlFor="file-upload" className="flex flex-col items-center cursor-pointer">
-              <Upload className="w-12 h-12 text-purple-600 mb-4" />
-              <span className="text-lg font-medium text-gray-700">Select PDF File</span>
-            </label>
+          <div className="group relative border-2 border-dashed border-purple-300 rounded-3xl p-10 sm:p-20 text-center bg-gradient-to-b from-purple-50/50 to-white hover:bg-purple-50/80 hover:border-purple-500 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-[0_0_30px_rgba(168,85,247,0.15)] overflow-hidden">
+            <input type="file" accept=".pdf" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" id="file-upload" />
+            <div className="flex flex-col items-center pointer-events-none relative z-0">
+              <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-purple-600 transition-all duration-300 shadow-inner">
+                <Upload className="w-10 h-10 text-purple-600 group-hover:text-white transition-colors duration-300" />
+              </div>
+              <span className="text-xl sm:text-2xl font-bold text-gray-800 group-hover:text-purple-700 transition-colors">Tap or Drop PDF Here</span>
+              <span className="text-sm text-gray-500 mt-2">Secure & Private • Auto Recovery</span>
+            </div>
           </div>
         )}
 
         {status === 'auto_cracking' && (
-          <div className="text-center p-6 sm:p-10 bg-purple-50 rounded-xl">
-            <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-800">Checking Database Passwords...</h3>
-            <p className="text-gray-500 mt-2">Trying passwords at turbo speed...</p>
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-3xl border border-purple-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-6 drop-shadow-md" />
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">Checking Database...</h3>
+            <p className="text-gray-500 font-medium">Turbo speed engine is running 🚀</p>
             
             {currentTry && (
-              <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200 inline-block min-w-[200px] shadow-sm">
-                <span className="text-sm text-gray-400 block mb-1">Current Try:</span>
-                <span className="font-mono text-xl font-bold text-purple-700">{currentTry}</span>
+              <div className="mt-6 p-4 bg-white/80 backdrop-blur-sm rounded-2xl border border-purple-200 inline-block min-w-[250px] shadow-[0_0_15px_rgba(168,85,247,0.1)]">
+                <span className="text-xs text-gray-400 font-bold uppercase tracking-wider block mb-1">Current Try</span>
+                <span className="font-mono text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">{currentTry}</span>
               </div>
             )}
             
             {progress > 0 && (
-              <div className="w-full max-w-md mx-auto mt-6">
-                <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                  <div className="bg-purple-600 h-2.5 transition-all duration-75" style={{ width: `${progress}%` }}></div>
+              <div className="w-full max-w-md mx-auto mt-8">
+                <div className="bg-gray-200/80 rounded-full h-3 overflow-hidden shadow-inner">
+                  <div className="bg-gradient-to-r from-purple-500 to-indigo-600 h-3 rounded-full transition-all duration-150 relative" style={{ width: `${progress}%` }}>
+                     <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">{progress}% Checked</p>
+                <p className="text-sm font-semibold text-purple-600 mt-3">{progress}% Checked</p>
               </div>
             )}
           </div>
         )}
 
         {status === 'number_bruteforce' && (
-          <div className="text-center p-6 sm:p-10 bg-blue-50 rounded-xl border border-blue-100">
-            <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
-            <p className="text-gray-600 mb-2">Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
-            <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-6">
-              <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-3xl border border-blue-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-6 drop-shadow-md" />
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
+            <p className="text-gray-600 mb-4 font-medium">Currently trying: <span className="font-mono font-bold text-blue-700 bg-blue-100 px-2 py-1 rounded-md">{currentTry}</span></p>
+            
+            <div className="w-full max-w-md mx-auto bg-gray-200/80 rounded-full h-3 mb-8 shadow-inner overflow-hidden">
+              <div className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-300 relative" style={{ width: `${progress}%` }}></div>
             </div>
-            <button onClick={handleStopBruteForce} className="px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+            
+            <button onClick={handleStopBruteForce} className="px-8 py-3 bg-white border-2 border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-50 hover:border-red-200 hover:shadow-lg hover:shadow-red-500/20 transition-all duration-300 transform hover:-translate-y-1">
                Stop & Switch to Manual Mode
             </button>
           </div>
         )}
 
         {status === 'processing_wasm' && (
-          <div className="text-center p-6 sm:p-10 bg-indigo-50 rounded-xl border border-indigo-100">
-            <Cpu className="animate-pulse w-16 h-16 text-indigo-600 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Decrypting with WASM Engine...</h3>
-            <p className="text-gray-600">Local C++ engine is safely removing the lock.</p>
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-3xl border border-indigo-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <div className="relative w-20 h-20 mx-auto mb-6">
+               <div className="absolute inset-0 bg-indigo-400 rounded-full animate-ping opacity-20"></div>
+               <Cpu className="relative z-10 animate-pulse w-20 h-20 text-indigo-600 drop-shadow-md" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">Decrypting with WASM Engine...</h3>
+            <p className="text-gray-600 font-medium">Local C++ engine is safely removing the heavy lock.</p>
           </div>
         )}
 
         {status === 'smart_cracking' && (
-          <div className="text-center p-6 sm:p-8 bg-purple-50 rounded-xl border border-purple-100">
-            <Settings className="animate-spin w-12 h-12 text-purple-600 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-gray-800 mb-2">Smart Recovery in Progress...</h3>
-            <p className="text-gray-600 mb-2">Checking targeted combinations. Engine: {isAes256 ? 'WASM (AES-256)' : 'Standard'}</p>
-            {currentTry && <p className="text-purple-700 font-mono text-sm mt-2 mb-4">Trying: {currentTry}</p>}
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-              <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
+          <div className="text-center p-8 sm:p-12 bg-gradient-to-br from-purple-50 to-fuchsia-50 rounded-3xl border border-purple-100 shadow-inner animate-in fade-in zoom-in-95 duration-500">
+            <Settings className="animate-spin w-16 h-16 text-fuchsia-600 mx-auto mb-6 drop-shadow-md" />
+            <h3 className="text-2xl font-bold text-gray-800 mb-3">Smart Recovery in Progress</h3>
+            <div className="inline-block bg-white/60 px-4 py-2 rounded-lg border border-purple-100 mb-4">
+              <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-fuchsia-700">{isAes256 ? 'WASM (AES-256)' : 'Standard'}</span></p>
             </div>
-            <p className="text-sm text-gray-500 mt-2">{progress}% Completed</p>
-            <button onClick={handleStopSmartCracking} className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+            
+            {currentTry && <p className="text-fuchsia-700 font-mono text-lg mt-2 mb-6 bg-white/80 p-3 rounded-xl shadow-sm inline-block min-w-[200px] border border-fuchsia-100">Trying: {currentTry}</p>}
+            
+            <div className="w-full max-w-md mx-auto">
+              <div className="bg-gray-200/80 rounded-full h-3 mb-2 overflow-hidden shadow-inner">
+                <div className="bg-gradient-to-r from-purple-500 to-fuchsia-500 h-3 rounded-full transition-all duration-100 relative" style={{ width: `${progress}%` }}></div>
+              </div>
+              <p className="text-sm font-semibold text-fuchsia-600 mt-2 mb-8">{progress}% Completed</p>
+            </div>
+            
+            <button onClick={handleStopSmartCracking} className="px-8 py-3 bg-white border-2 border-red-100 text-red-600 font-bold rounded-xl hover:bg-red-50 hover:shadow-lg hover:shadow-red-500/20 transition-all duration-300 transform hover:-translate-y-1">
                Stop Recovery
             </button>
           </div>
         )}
 
         {status === 'needs_password' && (
-          <div className="space-y-6">
-            <div className={`flex items-center p-4 rounded-lg border ${isAes256 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
-              <AlertCircle className="w-6 h-6 mr-3 flex-shrink-0" />
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            {/* Alert Banner */}
+            <div className={`flex items-start sm:items-center p-5 rounded-2xl border shadow-sm ${isAes256 ? 'bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-800 border-indigo-200' : 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 border-amber-200'}`}>
+              <AlertCircle className={`w-8 h-8 mr-4 flex-shrink-0 mt-1 sm:mt-0 ${isAes256 ? 'text-indigo-500' : 'text-amber-500'}`} />
               <div>
-                <span className="font-bold block">{isAes256 ? "Titanium Lock (AES-256) Detected" : "Password Needed"}</span>
-                <span className="text-sm">{isAes256 ? "File is highly secure. Please enter password or use targeted Smart Recovery." : "Auto-check failed. Please enter the password manually."}</span>
+                <span className="font-extrabold text-lg block mb-1">{isAes256 ? "Titanium Lock (AES-256) Detected" : "Password Required"}</span>
+                <span className="text-sm font-medium opacity-90">{isAes256 ? "File is highly secure. Please enter password or use targeted Smart Recovery." : "Auto-check failed. Please enter the password manually."}</span>
               </div>
             </div>
 
             {errorMessage && (
-              <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
-                <p className="text-sm font-medium">{errorMessage}</p>
+              <div className="p-4 rounded-xl bg-red-50 border-l-4 border-red-500 text-red-700 shadow-sm animate-bounce">
+                <p className="text-sm font-bold flex items-center"><AlertCircle className="w-4 h-4 mr-2" /> {errorMessage}</p>
               </div>
             )}
 
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Manual Password Entry:</h3>
+            {/* Manual Entry Section */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.03)] border border-gray-100 relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-purple-500 to-indigo-500"></div>
+              <h3 className="text-xl font-bold text-gray-800 mb-5">Manual Password Entry</h3>
               <div className="flex flex-col sm:flex-row gap-4">
-                <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
-                <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 whitespace-nowrap">Unlock Document</button>
+                <div className="relative flex-1">
+                   <Key className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                   <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:bg-white focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-gray-800 font-medium" />
+                </div>
+                <button onClick={handleManualUnlock} className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-2xl font-bold hover:shadow-[0_0_20px_rgba(124,58,237,0.4)] hover:scale-[1.02] transition-all duration-300 whitespace-nowrap flex items-center justify-center">
+                  <LockOpen className="w-5 h-5 mr-2" /> Unlock Document
+                </button>
               </div>
             </div>
 
-            <div className="text-center text-gray-400 font-medium">OR</div>
+            <div className="flex items-center justify-center space-x-4">
+               <div className="h-px bg-gray-200 flex-1"></div>
+               <span className="text-gray-400 font-bold uppercase tracking-widest text-sm">OR</span>
+               <div className="h-px bg-gray-200 flex-1"></div>
+            </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
-                <div className="flex items-center text-gray-800 font-semibold text-left">
-                  <Key className="w-5 h-5 mr-2 text-purple-600 flex-shrink-0" /> Lost Password? (Targeted Smart Recovery)
+            {/* Smart Recovery Accordion */}
+            <div className="bg-white rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.03)] border border-gray-100 overflow-hidden">
+              <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-6 sm:p-8 flex justify-between items-center bg-gray-50/50 hover:bg-purple-50/50 transition-colors">
+                <div className="flex items-center text-gray-800 font-bold text-lg text-left">
+                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center mr-4">
+                     <Cpu className="w-5 h-5 text-purple-600" />
+                  </div>
+                  Lost Password? (Smart Recovery)
                 </div>
-                {showAdvanced ? <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />}
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white shadow-sm border border-gray-100 transition-transform duration-300 ${showAdvanced ? 'rotate-180' : ''}`}>
+                  <ChevronDown className="w-5 h-5 text-purple-600" />
+                </div>
               </button>
 
               {showAdvanced && (
-                <div className="p-4 sm:p-6 space-y-6 border-t border-gray-200">
-                  <p className="text-sm text-gray-600 border-b pb-4">Aapki file ke hisaab se engine pehle se set hai <b>({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-6 sm:p-8 space-y-8 border-t border-gray-100 bg-white animate-in slide-in-from-top-4 duration-300">
+                  <div className="bg-purple-50/50 border border-purple-100 p-4 rounded-xl">
+                    <p className="text-sm text-purple-800 font-medium leading-relaxed">
+                      Aapki file ke hisaab se engine pehle se set hai <b className="bg-purple-200 px-2 py-0.5 rounded text-purple-900">({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     
-                    {/* BASIC HINTS */}
-                    <div>
-                      <label className="font-semibold block mb-2">Length Range</label>
-                      <div className="flex gap-2">
-                         <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Min" />
-                         <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Max" />
+                    {/* Basic Hints */}
+                    <div className="space-y-6">
+                      <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                        <label className="font-bold text-gray-700 block mb-3">Password Length Range</label>
+                        <div className="flex items-center gap-3">
+                           <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="Min" />
+                           <span className="text-gray-400 font-bold">TO</span>
+                           <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="Max" />
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                        <label className="font-bold text-gray-700 block mb-3">Included Characters</label>
+                        <div className="flex flex-wrap gap-4">
+                          {[{label: 'A-Z', state: hasUppercase, set: setHasUppercase}, {label: 'a-z', state: hasLowercase, set: setHasLowercase}, {label: '0-9', state: hasNumbers, set: setHasNumbers}, {label: '@#$', state: hasSymbols, set: setHasSymbols}].map((item, idx) => (
+                            <label key={idx} className={`cursor-pointer flex items-center px-4 py-2 rounded-lg border-2 transition-all font-medium ${item.state ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:border-purple-300'}`}>
+                               <input type="checkbox" checked={item.state} onChange={e => item.set(e.target.checked)} className="hidden"/> 
+                               {item.label}
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <label className="font-semibold block mb-2">Included Characters</label>
-                      <div className="flex flex-wrap gap-4 mt-2">
-                        <label className="cursor-pointer"><input type="checkbox" checked={hasUppercase} onChange={e => setHasUppercase(e.target.checked)} className="mr-1 accent-purple-600"/> A-Z</label>
-                        <label className="cursor-pointer"><input type="checkbox" checked={hasLowercase} onChange={e => setHasLowercase(e.target.checked)} className="mr-1 accent-purple-600"/> a-z</label>
-                        <label className="cursor-pointer"><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)} className="mr-1 accent-purple-600"/> 0-9</label>
-                        <label className="cursor-pointer"><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)} className="mr-1 accent-purple-600"/> @#$</label>
-                      </div>
-                    </div>
                     
-                    {/* EXACT COUNT HINTS */}
-                    <div className="md:col-span-2 border-t pt-4 mt-2">
-                      <p className="text-sm text-gray-500 mb-3"><b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div><label className="font-semibold text-sm block mb-2">Kitne Alphabets?</label><input type="number" min="0" value={exactAlphabets} onChange={e => setExactAlphabets(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 4" /></div>
-                        <div><label className="font-semibold text-sm block mb-2">Kitne Numbers?</label><input type="number" min="0" value={exactNumbers} onChange={e => setExactNumbers(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 2" /></div>
-                        <div><label className="font-semibold text-sm block mb-2">Kitne Symbols?</label><input type="number" min="0" value={exactSymbols} onChange={e => setExactSymbols(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 1" /></div>
+                    {/* Position & Middle Hints */}
+                    <div className="space-y-6">
+                      <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4">
+                        <div>
+                           <label className="font-bold text-gray-700 block mb-2 text-sm">Starting Character?</label>
+                           <input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="e.g. A" />
+                        </div>
+                        <div>
+                           <label className="font-bold text-gray-700 block mb-2 text-sm">Ending Character?</label>
+                           <input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="e.g. 9" />
+                        </div>
+                        <div>
+                           <label className="font-bold text-gray-700 block mb-2 text-sm">Known string inside?</label>
+                           <input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 outline-none font-medium transition-all" placeholder="e.g. pintu" />
+                        </div>
                       </div>
                     </div>
 
-                    <div><label className="font-semibold block mb-2">Starting Character?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. A" /></div>
-                    <div><label className="font-semibold block mb-2">Ending Character?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 9" /></div>
-                    <div className="md:col-span-2"><label className="font-semibold block mb-2">Known string inside?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. pintu" /></div>
+                    {/* Exact Count Hints (Advanced) */}
+                    <div className="md:col-span-2 bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                      <div className="flex items-center mb-4">
+                         <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3"><Settings className="w-4 h-4 text-blue-600"/></div>
+                         <p className="text-gray-800 font-bold">Advanced Constraints (Optional)</p>
+                      </div>
+                      <p className="text-sm text-gray-500 mb-5 font-medium">Agar exactly yaad hai ki kitne letters ya numbers hain, toh fill karein:</p>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                        {[{label: 'Kitne Alphabets?', val: exactAlphabets, set: setExactAlphabets, pl: 'e.g. 4'}, {label: 'Kitne Numbers?', val: exactNumbers, set: setExactNumbers, pl: 'e.g. 2'}, {label: 'Kitne Symbols?', val: exactSymbols, set: setExactSymbols, pl: 'e.g. 1'}].map((item, idx) => (
+                           <div key={idx}>
+                              <label className="font-bold text-gray-700 text-sm block mb-2">{item.label}</label>
+                              <input type="number" min="0" value={item.val} onChange={e => item.set(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 outline-none font-medium transition-all" placeholder={item.pl} />
+                           </div>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
-                  <button onClick={handleSmartUnlock} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-4 shadow-md">START TARGETED RECOVERY</button>
+                  
+                  <button onClick={handleSmartUnlock} className="w-full bg-gradient-to-r from-gray-900 to-gray-800 text-white py-4 sm:py-5 rounded-2xl font-extrabold text-lg tracking-wide shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 mt-6 flex items-center justify-center">
+                     <Cpu className="w-6 h-6 mr-3 text-purple-400" /> START TARGETED RECOVERY
+                  </button>
                 </div>
               )}
             </div>
@@ -679,79 +754,99 @@ export default function UnlockTool() {
         )}
 
         {status === 'unlocked' && (
-          <div className="text-center p-6 sm:p-10 bg-green-50 rounded-2xl border border-green-200">
-            <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
-            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Document Unlocked!</h3>
+          <div className="text-center p-8 sm:p-14 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-3xl border border-emerald-200 shadow-[0_0_50px_rgba(16,185,129,0.15)] animate-in zoom-in duration-500 relative overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-teal-400/20 rounded-full blur-3xl"></div>
             
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
-              <button onClick={downloadUnlockedPdf} className="w-full sm:w-auto inline-flex justify-center items-center px-6 sm:px-8 py-3 sm:py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
-                <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
+            <div className="relative z-10 w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-emerald-500/20">
+               <LockOpen className="w-12 h-12 text-emerald-500 drop-shadow-sm" />
+            </div>
+            
+            <h3 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">Document Unlocked!</h3>
+            <p className="text-emerald-700 font-medium mb-8">Your secure PDF is now completely free of restrictions.</p>
+            
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-5">
+              <button onClick={downloadUnlockedPdf} className="w-full sm:w-auto inline-flex justify-center items-center px-8 py-4 bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-extrabold text-lg rounded-2xl hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transition-all duration-300 transform hover:-translate-y-1">
+                <Download className="w-6 h-6 mr-3" /> Download PDF
               </button>
-              <button onClick={resetTool} className="w-full sm:w-auto inline-flex justify-center items-center px-6 sm:px-8 py-3 sm:py-4 bg-white border-2 border-green-600 text-green-700 font-bold rounded-xl hover:bg-green-50 shadow-sm transition-transform hover:-translate-y-1">
-                <RefreshCw className="w-5 h-5 mr-3" /> Unlock Another File
+              <button onClick={resetTool} className="w-full sm:w-auto inline-flex justify-center items-center px-8 py-4 bg-white border-2 border-emerald-200 text-emerald-700 font-extrabold text-lg rounded-2xl hover:bg-emerald-50 hover:border-emerald-300 shadow-sm transition-all duration-300 transform hover:-translate-y-1">
+                <RefreshCw className="w-6 h-6 mr-3" /> Unlock Another
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* SEO Section Optimization below the Application UI */}
-      <div className="max-w-4xl mx-auto mt-12 p-6 sm:p-8 bg-white rounded-2xl shadow-sm border border-gray-100 text-left">
+      {/* Premium SEO Section below the Application UI */}
+      <div className="max-w-4xl mx-auto mt-16 p-6 sm:p-10 bg-white/80 backdrop-blur-md rounded-3xl shadow-lg border border-gray-100 text-left">
         
         {/* Step-by-Step Guide */}
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">How to Unlock a PDF File in 3 Steps</h2>
-        <div className="mb-8">
-          <ol className="list-decimal list-inside space-y-3 text-gray-700 text-base sm:text-lg">
-            <li><strong>Upload your locked PDF:</strong> Click the upload button to select your secure document.</li>
-            <li><strong>Let the engine run:</strong> Our system will instantly test common passwords and database keys.</li>
-            <li><strong>Use Smart Recovery (Optional):</strong> If the file has a heavy AES-256 lock, provide hints like password length or starting letters.</li>
-            <li><strong>Download:</strong> Click save to get your completely unlocked PDF for free.</li>
-          </ol>
+        <div className="mb-14">
+           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
+              <span className="w-2 h-8 bg-gradient-to-b from-purple-500 to-indigo-500 rounded-full mr-4 block"></span>
+              How to Unlock a PDF File in 3 Steps
+           </h2>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+              {[
+                {step: 1, title: 'Upload File', desc: 'Click the upload button to select your secure document.'},
+                {step: 2, title: 'Auto-Engine Runs', desc: 'Our system will instantly test common passwords and database keys.'},
+                {step: 3, title: 'Smart Recovery', desc: 'If AES-256 locked, provide hints to crack it efficiently.'},
+                {step: 4, title: 'Download', desc: 'Click save to get your completely unlocked PDF for free.'}
+              ].map(item => (
+                 <div key={item.step} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 hover:shadow-md transition-shadow">
+                    <div className="w-10 h-10 bg-purple-100 text-purple-700 font-extrabold rounded-full flex items-center justify-center mb-4 text-lg">{item.step}</div>
+                    <h4 className="font-bold text-gray-900 mb-2">{item.title}</h4>
+                    <p className="text-gray-600 text-sm leading-relaxed">{item.desc}</p>
+                 </div>
+              ))}
+           </div>
         </div>
 
         {/* Advanced Features Description */}
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Advanced Features: AES-256 and Smart Recovery</h2>
-        <div className="mb-10 text-gray-700 text-base sm:text-lg leading-relaxed space-y-4">
-          <p>
-            Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized C++ engine (WASM) directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.
-          </p>
+        <div className="mb-14">
+           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
+              <span className="w-2 h-8 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full mr-4 block"></span>
+              Advanced Features: AES-256
+           </h2>
+           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 sm:p-8 rounded-2xl border border-blue-100">
+             <p className="text-gray-700 text-base sm:text-lg leading-relaxed font-medium">
+               Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized <b className="text-indigo-700">C++ engine (WASM)</b> directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.
+             </p>
+           </div>
         </div>
 
         {/* FAQ Section */}
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
-        <div className="space-y-6 mb-10">
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">Q1: Is this PDF unlock tool completely free for students?</h3>
-            <p className="text-gray-700 text-base sm:text-lg">Yes, it is 100% free. We built this specifically for students who need to unlock study materials, admit cards, or university documents without paying expensive software fees. There are no hidden charges and no premium upgrades required.</p>
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">Q2: What happens if I completely forgot my PDF password?</h3>
-            <p className="text-gray-700 text-base sm:text-lg">Our tool features an automated recovery engine. When you upload your file, it instantly tests thousands of common passwords and runs a turbo number check. If your document uses a standard lock, our system will usually open it automatically within seconds.</p>
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">Q3: How does the "Targeted Smart Recovery" work?</h3>
-            <p className="text-gray-700 text-base sm:text-lg">If the automatic check fails, you can use our Smart Recovery mode. Think of it like giving a detective a few clues. You just tell the tool what you vaguely remember. For example, you can tell it the password is between 4 and 6 characters, contains only numbers, or starts with a specific letter. The system uses these exact hints to test only the relevant combinations, making the unlocking process incredibly fast.</p>
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">Q4: Can it unlock high-security files like AES-256?</h3>
-            <p className="text-gray-700 text-base sm:text-lg">Yes. Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized C++ engine (WASM) directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.</p>
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">Q5: Are my private documents safe when I upload them?</h3>
-            <p className="text-gray-700 text-base sm:text-lg">Absolutely. The heavy lifting for password recovery and WASM decryption happens locally on your own device. We do not save your private study materials, financial documents, or unlocked files on our servers. Once you click download, you get your file securely, and you can reset the tool instantly.</p>
-          </div>
-          <div>
-            <h3 className="font-bold text-lg text-gray-800 mb-2">Q6: What types of passwords can the tool auto-crack?</h3>
-            <p className="text-gray-700 text-base sm:text-lg">The automatic database is optimized for common student and Indian user patterns. It instantly checks standard sequences, common names, your file's specific name, and simple number strings.</p>
-          </div>
+        <div className="mb-10">
+           <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-8 flex items-center">
+              <span className="w-2 h-8 bg-gradient-to-b from-emerald-500 to-teal-500 rounded-full mr-4 block"></span>
+              Frequently Asked Questions
+           </h2>
+           <div className="space-y-6">
+             {[
+                {q: "Is this PDF unlock tool completely free for students?", a: "Yes, it is 100% free. We built this specifically for students who need to unlock study materials without paying expensive software fees."},
+                {q: "What happens if I completely forgot my PDF password?", a: "Our tool features an automated recovery engine. When you upload your file, it instantly tests thousands of common passwords and runs a turbo number check."},
+                {q: "How does the Targeted Smart Recovery work?", a: "Think of it like giving a detective a few clues. You just tell the tool what you vaguely remember (length, numbers). The system uses these exact hints to test only relevant combinations."},
+                {q: "Are my private documents safe?", a: "Absolutely. The heavy lifting for password recovery and WASM decryption happens locally on your own device. We do not save your files on our servers."}
+             ].map((faq, idx) => (
+                <div key={idx} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                   <h3 className="font-bold text-lg text-gray-900 mb-3">{faq.q}</h3>
+                   <p className="text-gray-600 font-medium leading-relaxed text-sm sm:text-base">{faq.a}</p>
+                </div>
+             ))}
+           </div>
         </div>
 
         {/* Internal Linking for Better SEO Navigation */}
-        <div className="bg-purple-50 rounded-xl p-6 sm:p-8 border border-purple-100">
-          <h3 className="font-bold text-xl text-purple-900 mb-3">Explore More Free Tools</h3>
-          <p className="text-gray-700 text-base sm:text-lg">
-            Done unlocking? You can also <a href="/compress" className="text-purple-600 font-semibold hover:text-purple-800 underline transition-colors">Compress your PDF</a> to reduce file size or <a href="/split" className="text-purple-600 font-semibold hover:text-purple-800 underline transition-colors">Split your PDF</a> into multiple pages using our free tools.
+        <div className="mt-12 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-3xl p-8 sm:p-10 text-center shadow-2xl relative overflow-hidden">
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
+          <h3 className="font-extrabold text-2xl sm:text-3xl text-white mb-4 relative z-10">Explore More Free Tools</h3>
+          <p className="text-purple-100 text-lg mb-8 relative z-10 font-medium max-w-xl mx-auto">
+            Done unlocking? Enhance your documents further with our blazing fast toolkit.
           </p>
+          <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
+             <a href="/compress" className="bg-white text-purple-700 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-purple-50 hover:scale-105 transition-all">Compress PDF</a>
+             <a href="/split" className="bg-purple-800 text-white border border-purple-500 px-8 py-4 rounded-xl font-bold hover:bg-purple-900 hover:scale-105 transition-all shadow-lg">Split PDF</a>
+          </div>
         </div>
 
       </div>
