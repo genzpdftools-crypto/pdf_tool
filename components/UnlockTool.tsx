@@ -98,9 +98,7 @@ export default function UnlockTool() {
 
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
-      try {
-        qpdf.FS.unlink('output.pdf');
-      } catch (e) {}
+      try { qpdf.FS.unlink('output.pdf'); } catch(e) {}
 
       qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
@@ -109,18 +107,24 @@ export default function UnlockTool() {
         throw new Error('Wrong password - 0 byte file generated');
       }
 
-      try {
-        qpdf.FS.unlink('input.pdf');
-        qpdf.FS.unlink('output.pdf');
-      } catch (e) {}
+      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e) {}
       return unlockedBytes;
     } catch (e) {
-      try {
-        qpdf.FS.unlink('input.pdf');
-        qpdf.FS.unlink('output.pdf');
-      } catch (err) {}
+      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(err) {}
       throw new Error('Wrong password');
     }
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,7 +196,7 @@ export default function UnlockTool() {
             const data = await response.json();
 
             if (response.ok && data.success && data.passwords && data.passwords.length > 0) {
-              let passwordsList = data.passwords;
+              const passwordsList = data.passwords;
 
               hasMoreBatches = data.hasMore;
               currentLastId = data.lastId;
