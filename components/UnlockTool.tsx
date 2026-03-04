@@ -115,6 +115,7 @@ export default function UnlockTool() {
     });
   };
 
+  // ================== UPDATED HANDLE FILE UPLOAD ==================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
@@ -138,9 +139,10 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
+      // Puraane autoTryPasswords loop me updateMetadata: false lagao
       for (const pwd of autoTryPasswords) {
         try {
-          const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+          const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd, updateMetadata: false });
           const savedBytes = await pdfDoc.save();
           setUnlockedPdfBytes(savedBytes);
           setStatus('unlocked');
@@ -175,52 +177,61 @@ export default function UnlockTool() {
             currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
             setTriedPasswords(currentTriedSet);
 
+            const numCores = navigator.hardwareConcurrency || 4;
+            const chunkSize = Math.ceil(passwordsList.length / numCores);
+            let checkedCount = 0;
             const totalPasswords = passwordsList.length;
-            let count = 0;
 
-            for (const pwd of passwordsList) {
-              if (!pwd) continue;
+            await new Promise<void>((resolve) => {
+              let activeWorkers = numCores;
               
-              setCurrentTry(pwd);
-              count++;
-              setProgress(Math.round((count / totalPasswords) * 100));
+              for (let i = 0; i < numCores; i++) {
+                const chunk = passwordsList.slice(i * chunkSize, (i + 1) * chunkSize);
+                if (chunk.length === 0) {
+                  activeWorkers--;
+                  if (activeWorkers <= 0) resolve();
+                  continue;
+                }
 
-              if (count % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-              }
+                const worker = new PdfWorker();
+                workersRef.current.push(worker);
+                worker.postMessage({ type: 'dictionary', pdfBytes, passwords: chunk, workerId: i });
 
-              if (aesDetected) {
-                try {
-                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                  setUnlockedPdfBytes(unlockedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (e) {}
-              } else {
-                try {
-                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                  const savedBytes = await pdfDoc.save();
-                  setUnlockedPdfBytes(savedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (error: any) {
-                  const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
-                    aesDetected = true;
-                    setIsAes256(true);
+                worker.onmessage = async (msg) => {
+                  const { type, password, currentTry: wTry } = msg.data;
+                  
+                  if (type === 'success') {
+                    isUnlocked = true;
+                    stopBruteForceRef.current = true;
+                    terminateAllWorkers();
+                    
                     try {
-                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                      let unlockedBytes;
+                      if (aesDetected || isAes256) {
+                        unlockedBytes = await unlockWithWasm(password, pdfBytes);
+                      } else {
+                        // Success milne ke baad hi slow save() call hoga
+                        const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                        unlockedBytes = await pdfDoc.save();
+                      }
                       setUnlockedPdfBytes(unlockedBytes);
                       setStatus('unlocked');
-                      isUnlocked = true;
-                      break;
                     } catch(e) {}
+                    
+                    resolve();
+                  } 
+                  else if (type === 'progress') {
+                    setCurrentTry(wTry);
+                    checkedCount += 20; 
+                    setProgress(Math.min(100, Math.round((checkedCount / totalPasswords) * 100)));
+                  } 
+                  else if (type === 'done') {
+                    activeWorkers--;
+                    if (activeWorkers <= 0) resolve();
                   }
-                }
+                };
               }
-            }
+            });
           }
         } catch (apiError) {
           console.error("DB Passwords fetch error:", apiError);
@@ -294,6 +305,7 @@ export default function UnlockTool() {
       setErrorMessage("File format error. Please upload a valid PDF.");
     }
   };
+  // ================== END OF UPDATED HANDLE FILE UPLOAD ==================
 
   const handleManualUnlock = async () => {
     if (!file || !manualPassword) return;
