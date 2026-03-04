@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw } from 'lucide-react';
 import PdfWorker from './pdfWorker?worker';
@@ -44,6 +44,21 @@ export default function UnlockTool() {
   const [exactAlphabets, setExactAlphabets] = useState<string>('');
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
+
+  // SEO: Update Title and Meta Description on load
+  useEffect(() => {
+    document.title = "Unlock PDF Free | Smart Password Recovery for Students";
+    
+    let metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', 'Remove PDF passwords for free instantly. Use our smart engine to auto-recover forgotten passwords or bypass secure AES-256 locks securely and fast.');
+    } else {
+      metaDescription = document.createElement('meta');
+      metaDescription.setAttribute('name', 'description');
+      metaDescription.setAttribute('content', 'Remove PDF passwords for free instantly. Use our smart engine to auto-recover forgotten passwords or bypass secure AES-256 locks securely and fast.');
+      document.head.appendChild(metaDescription);
+    }
+  }, []);
 
   const terminateAllWorkers = () => {
     workersRef.current.forEach(worker => worker.terminate());
@@ -506,177 +521,240 @@ export default function UnlockTool() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Pro PDF Unlocker</h2>
-        <p className="text-gray-600">Smart constraints aur WASM Engine ka use karke fast unlocking.</p>
-      </div>
-
-      {!file && (
-        <div className="border-2 border-dashed border-purple-300 rounded-xl p-12 text-center hover:bg-purple-50 transition-colors cursor-pointer">
-          <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" id="file-upload" />
-          <label htmlFor="file-upload" className="flex flex-col items-center">
-            <Upload className="w-12 h-12 text-purple-600 mb-4" />
-            <span className="text-lg font-medium text-gray-700">Select PDF File</span>
-          </label>
+    <div className="w-full">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Free PDF Password Remover & Smart Unlocker</h1>
+          <p className="text-gray-600">Smart constraints aur WASM Engine ka use karke fast unlocking.</p>
         </div>
-      )}
 
-      {status === 'auto_cracking' && (
-        <div className="text-center p-10 bg-purple-50 rounded-xl">
-          <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800">Checking Database Passwords...</h3>
-          <p className="text-gray-500 mt-2">Trying passwords at turbo speed...</p>
-          
-          {currentTry && (
-            <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200 inline-block min-w-[200px] shadow-sm">
-              <span className="text-sm text-gray-400 block mb-1">Current Try:</span>
-              <span className="font-mono text-xl font-bold text-purple-700">{currentTry}</span>
-            </div>
-          )}
-          
-          {progress > 0 && (
-            <div className="w-full max-w-md mx-auto mt-6">
-              <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                <div className="bg-purple-600 h-2.5 transition-all duration-75" style={{ width: `${progress}%` }}></div>
+        {!file && (
+          <div className="border-2 border-dashed border-purple-300 rounded-xl p-8 sm:p-12 text-center hover:bg-purple-50 transition-colors cursor-pointer">
+            <input type="file" accept=".pdf" onChange={handleFileUpload} className="hidden" id="file-upload" />
+            <label htmlFor="file-upload" className="flex flex-col items-center cursor-pointer">
+              <Upload className="w-12 h-12 text-purple-600 mb-4" />
+              <span className="text-lg font-medium text-gray-700">Select PDF File</span>
+            </label>
+          </div>
+        )}
+
+        {status === 'auto_cracking' && (
+          <div className="text-center p-6 sm:p-10 bg-purple-50 rounded-xl">
+            <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800">Checking Database Passwords...</h3>
+            <p className="text-gray-500 mt-2">Trying passwords at turbo speed...</p>
+            
+            {currentTry && (
+              <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200 inline-block min-w-[200px] shadow-sm">
+                <span className="text-sm text-gray-400 block mb-1">Current Try:</span>
+                <span className="font-mono text-xl font-bold text-purple-700">{currentTry}</span>
               </div>
-              <p className="text-xs text-gray-500 mt-2">{progress}% Checked</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {status === 'number_bruteforce' && (
-        <div className="text-center p-10 bg-blue-50 rounded-xl border border-blue-100">
-          <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
-          <p className="text-gray-600 mb-2">Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
-          <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-6">
-            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
-          </div>
-          <button onClick={handleStopBruteForce} className="px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
-             Stop & Switch to Manual Mode
-          </button>
-        </div>
-      )}
-
-      {status === 'processing_wasm' && (
-        <div className="text-center p-10 bg-indigo-50 rounded-xl border border-indigo-100">
-          <Cpu className="animate-pulse w-16 h-16 text-indigo-600 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-800 mb-2">Decrypting with WASM Engine...</h3>
-          <p className="text-gray-600">Local C++ engine is safely removing the lock.</p>
-        </div>
-      )}
-
-      {status === 'smart_cracking' && (
-        <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-100">
-          <Settings className="animate-spin w-12 h-12 text-purple-600 mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-gray-800 mb-2">Smart Recovery in Progress...</h3>
-          <p className="text-gray-600 mb-2">Checking targeted combinations. Engine: {isAes256 ? 'WASM (AES-256)' : 'Standard'}</p>
-          {currentTry && <p className="text-purple-700 font-mono text-sm mt-2 mb-4">Trying: {currentTry}</p>}
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-            <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">{progress}% Completed</p>
-          <button onClick={handleStopSmartCracking} className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
-             Stop Recovery
-          </button>
-        </div>
-      )}
-
-      {status === 'needs_password' && (
-        <div className="space-y-6">
-          <div className={`flex items-center p-4 rounded-lg border ${isAes256 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
-            <AlertCircle className="w-6 h-6 mr-3 flex-shrink-0" />
-            <div>
-              <span className="font-bold block">{isAes256 ? "Titanium Lock (AES-256) Detected" : "Password Needed"}</span>
-              <span className="text-sm">{isAes256 ? "File is highly secure. Please enter password or use targeted Smart Recovery." : "Auto-check failed. Please enter the password manually."}</span>
-            </div>
-          </div>
-
-          {errorMessage && (
-            <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
-              <p className="text-sm font-medium">{errorMessage}</p>
-            </div>
-          )}
-
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Manual Password Entry:</h3>
-            <div className="flex gap-4">
-              <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
-              <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 whitespace-nowrap">Unlock Document</button>
-            </div>
-          </div>
-
-          <div className="text-center text-gray-400 font-medium">OR</div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
-              <div className="flex items-center text-gray-800 font-semibold">
-                <Key className="w-5 h-5 mr-2 text-purple-600" /> Lost Password? (Targeted Smart Recovery)
-              </div>
-              {showAdvanced ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
-            </button>
-
-            {showAdvanced && (
-              <div className="p-6 space-y-6 border-t border-gray-200">
-                <p className="text-sm text-gray-600 border-b pb-4">Aapki file ke hisaab se engine pehle se set hai <b>({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* BASIC HINTS */}
-                  <div>
-                    <label className="font-semibold block mb-2">Length Range</label>
-                    <div className="flex gap-2">
-                       <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Min" />
-                       <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Max" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="font-semibold block mb-2">Included Characters</label>
-                    <div className="flex gap-4 mt-2">
-                      <label className="cursor-pointer"><input type="checkbox" checked={hasUppercase} onChange={e => setHasUppercase(e.target.checked)} className="mr-1 accent-purple-600"/> A-Z</label>
-                      <label className="cursor-pointer"><input type="checkbox" checked={hasLowercase} onChange={e => setHasLowercase(e.target.checked)} className="mr-1 accent-purple-600"/> a-z</label>
-                      <label className="cursor-pointer"><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)} className="mr-1 accent-purple-600"/> 0-9</label>
-                      <label className="cursor-pointer"><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)} className="mr-1 accent-purple-600"/> @#$</label>
-                    </div>
-                  </div>
-                  
-                  {/* EXACT COUNT HINTS */}
-                  <div className="md:col-span-2 border-t pt-4 mt-2">
-                    <p className="text-sm text-gray-500 mb-3"><b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)</p>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div><label className="font-semibold text-sm block mb-2">Kitne Alphabets?</label><input type="number" min="0" value={exactAlphabets} onChange={e => setExactAlphabets(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 4" /></div>
-                      <div><label className="font-semibold text-sm block mb-2">Kitne Numbers?</label><input type="number" min="0" value={exactNumbers} onChange={e => setExactNumbers(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 2" /></div>
-                      <div><label className="font-semibold text-sm block mb-2">Kitne Symbols?</label><input type="number" min="0" value={exactSymbols} onChange={e => setExactSymbols(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 1" /></div>
-                    </div>
-                  </div>
-
-                  <div><label className="font-semibold block mb-2">Starting Character?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. A" /></div>
-                  <div><label className="font-semibold block mb-2">Ending Character?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 9" /></div>
-                  <div className="md:col-span-2"><label className="font-semibold block mb-2">Known string inside?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. pintu" /></div>
+            )}
+            
+            {progress > 0 && (
+              <div className="w-full max-w-md mx-auto mt-6">
+                <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                  <div className="bg-purple-600 h-2.5 transition-all duration-75" style={{ width: `${progress}%` }}></div>
                 </div>
-                <button onClick={handleSmartUnlock} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-4 shadow-md">START TARGETED RECOVERY</button>
+                <p className="text-xs text-gray-500 mt-2">{progress}% Checked</p>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {status === 'unlocked' && (
-        <div className="text-center p-10 bg-green-50 rounded-2xl border border-green-200">
-          <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
-          <h3 className="text-3xl font-bold text-gray-900 mb-3">Document Unlocked!</h3>
-          
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
-            <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
-              <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
-            </button>
-            <button onClick={resetTool} className="inline-flex items-center px-8 py-4 bg-white border-2 border-green-600 text-green-700 font-bold rounded-xl hover:bg-green-50 shadow-sm transition-transform hover:-translate-y-1">
-              <RefreshCw className="w-5 h-5 mr-3" /> Unlock Another File
+        {status === 'number_bruteforce' && (
+          <div className="text-center p-6 sm:p-10 bg-blue-50 rounded-xl border border-blue-100">
+            <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
+            <p className="text-gray-600 mb-2">Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
+            <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-6">
+              <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+            </div>
+            <button onClick={handleStopBruteForce} className="px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+               Stop & Switch to Manual Mode
             </button>
           </div>
+        )}
+
+        {status === 'processing_wasm' && (
+          <div className="text-center p-6 sm:p-10 bg-indigo-50 rounded-xl border border-indigo-100">
+            <Cpu className="animate-pulse w-16 h-16 text-indigo-600 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Decrypting with WASM Engine...</h3>
+            <p className="text-gray-600">Local C++ engine is safely removing the lock.</p>
+          </div>
+        )}
+
+        {status === 'smart_cracking' && (
+          <div className="text-center p-6 sm:p-8 bg-purple-50 rounded-xl border border-purple-100">
+            <Settings className="animate-spin w-12 h-12 text-purple-600 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Smart Recovery in Progress...</h3>
+            <p className="text-gray-600 mb-2">Checking targeted combinations. Engine: {isAes256 ? 'WASM (AES-256)' : 'Standard'}</p>
+            {currentTry && <p className="text-purple-700 font-mono text-sm mt-2 mb-4">Trying: {currentTry}</p>}
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+              <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
+            </div>
+            <p className="text-sm text-gray-500 mt-2">{progress}% Completed</p>
+            <button onClick={handleStopSmartCracking} className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+               Stop Recovery
+            </button>
+          </div>
+        )}
+
+        {status === 'needs_password' && (
+          <div className="space-y-6">
+            <div className={`flex items-center p-4 rounded-lg border ${isAes256 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
+              <AlertCircle className="w-6 h-6 mr-3 flex-shrink-0" />
+              <div>
+                <span className="font-bold block">{isAes256 ? "Titanium Lock (AES-256) Detected" : "Password Needed"}</span>
+                <span className="text-sm">{isAes256 ? "File is highly secure. Please enter password or use targeted Smart Recovery." : "Auto-check failed. Please enter the password manually."}</span>
+              </div>
+            </div>
+
+            {errorMessage && (
+              <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                <p className="text-sm font-medium">{errorMessage}</p>
+              </div>
+            )}
+
+            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Manual Password Entry:</h3>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+                <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 whitespace-nowrap">Unlock Document</button>
+              </div>
+            </div>
+
+            <div className="text-center text-gray-400 font-medium">OR</div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
+                <div className="flex items-center text-gray-800 font-semibold text-left">
+                  <Key className="w-5 h-5 mr-2 text-purple-600 flex-shrink-0" /> Lost Password? (Targeted Smart Recovery)
+                </div>
+                {showAdvanced ? <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0" /> : <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />}
+              </button>
+
+              {showAdvanced && (
+                <div className="p-4 sm:p-6 space-y-6 border-t border-gray-200">
+                  <p className="text-sm text-gray-600 border-b pb-4">Aapki file ke hisaab se engine pehle se set hai <b>({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* BASIC HINTS */}
+                    <div>
+                      <label className="font-semibold block mb-2">Length Range</label>
+                      <div className="flex gap-2">
+                         <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Min" />
+                         <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Max" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="font-semibold block mb-2">Included Characters</label>
+                      <div className="flex flex-wrap gap-4 mt-2">
+                        <label className="cursor-pointer"><input type="checkbox" checked={hasUppercase} onChange={e => setHasUppercase(e.target.checked)} className="mr-1 accent-purple-600"/> A-Z</label>
+                        <label className="cursor-pointer"><input type="checkbox" checked={hasLowercase} onChange={e => setHasLowercase(e.target.checked)} className="mr-1 accent-purple-600"/> a-z</label>
+                        <label className="cursor-pointer"><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)} className="mr-1 accent-purple-600"/> 0-9</label>
+                        <label className="cursor-pointer"><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)} className="mr-1 accent-purple-600"/> @#$</label>
+                      </div>
+                    </div>
+                    
+                    {/* EXACT COUNT HINTS */}
+                    <div className="md:col-span-2 border-t pt-4 mt-2">
+                      <p className="text-sm text-gray-500 mb-3"><b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div><label className="font-semibold text-sm block mb-2">Kitne Alphabets?</label><input type="number" min="0" value={exactAlphabets} onChange={e => setExactAlphabets(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 4" /></div>
+                        <div><label className="font-semibold text-sm block mb-2">Kitne Numbers?</label><input type="number" min="0" value={exactNumbers} onChange={e => setExactNumbers(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 2" /></div>
+                        <div><label className="font-semibold text-sm block mb-2">Kitne Symbols?</label><input type="number" min="0" value={exactSymbols} onChange={e => setExactSymbols(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 1" /></div>
+                      </div>
+                    </div>
+
+                    <div><label className="font-semibold block mb-2">Starting Character?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. A" /></div>
+                    <div><label className="font-semibold block mb-2">Ending Character?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 9" /></div>
+                    <div className="md:col-span-2"><label className="font-semibold block mb-2">Known string inside?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. pintu" /></div>
+                  </div>
+                  <button onClick={handleSmartUnlock} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-4 shadow-md">START TARGETED RECOVERY</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {status === 'unlocked' && (
+          <div className="text-center p-6 sm:p-10 bg-green-50 rounded-2xl border border-green-200">
+            <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Document Unlocked!</h3>
+            
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
+              <button onClick={downloadUnlockedPdf} className="w-full sm:w-auto inline-flex justify-center items-center px-6 sm:px-8 py-3 sm:py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
+                <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
+              </button>
+              <button onClick={resetTool} className="w-full sm:w-auto inline-flex justify-center items-center px-6 sm:px-8 py-3 sm:py-4 bg-white border-2 border-green-600 text-green-700 font-bold rounded-xl hover:bg-green-50 shadow-sm transition-transform hover:-translate-y-1">
+                <RefreshCw className="w-5 h-5 mr-3" /> Unlock Another File
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SEO Section Optimization below the Application UI */}
+      <div className="max-w-4xl mx-auto mt-12 p-6 sm:p-8 bg-white rounded-2xl shadow-sm border border-gray-100 text-left">
+        
+        {/* Step-by-Step Guide */}
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">How to Unlock a PDF File in 3 Steps</h2>
+        <div className="mb-8">
+          <ol className="list-decimal list-inside space-y-3 text-gray-700 text-base sm:text-lg">
+            <li><strong>Upload your locked PDF:</strong> Click the upload button to select your secure document.</li>
+            <li><strong>Let the engine run:</strong> Our system will instantly test common passwords and database keys.</li>
+            <li><strong>Use Smart Recovery (Optional):</strong> If the file has a heavy AES-256 lock, provide hints like password length or starting letters.</li>
+            <li><strong>Download:</strong> Click save to get your completely unlocked PDF for free.</li>
+          </ol>
         </div>
-      )}
+
+        {/* Advanced Features Description */}
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Advanced Features: AES-256 and Smart Recovery</h2>
+        <div className="mb-10 text-gray-700 text-base sm:text-lg leading-relaxed space-y-4">
+          <p>
+            Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized C++ engine (WASM) directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.
+          </p>
+        </div>
+
+        {/* FAQ Section */}
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Frequently Asked Questions</h2>
+        <div className="space-y-6 mb-10">
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Q1: Is this PDF unlock tool completely free for students?</h3>
+            <p className="text-gray-700 text-base sm:text-lg">Yes, it is 100% free. We built this specifically for students who need to unlock study materials, admit cards, or university documents without paying expensive software fees. There are no hidden charges and no premium upgrades required.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Q2: What happens if I completely forgot my PDF password?</h3>
+            <p className="text-gray-700 text-base sm:text-lg">Our tool features an automated recovery engine. When you upload your file, it instantly tests thousands of common passwords and runs a turbo number check. If your document uses a standard lock, our system will usually open it automatically within seconds.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Q3: How does the "Targeted Smart Recovery" work?</h3>
+            <p className="text-gray-700 text-base sm:text-lg">If the automatic check fails, you can use our Smart Recovery mode. Think of it like giving a detective a few clues. You just tell the tool what you vaguely remember. For example, you can tell it the password is between 4 and 6 characters, contains only numbers, or starts with a specific letter. The system uses these exact hints to test only the relevant combinations, making the unlocking process incredibly fast.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Q4: Can it unlock high-security files like AES-256?</h3>
+            <p className="text-gray-700 text-base sm:text-lg">Yes. Most free online tools fail immediately when they encounter high-security "Titanium Locks" like AES-256 encryption. Our platform runs a specialized C++ engine (WASM) directly in your browser. This advanced technology safely and quickly bypasses even the toughest modern security levels.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Q5: Are my private documents safe when I upload them?</h3>
+            <p className="text-gray-700 text-base sm:text-lg">Absolutely. The heavy lifting for password recovery and WASM decryption happens locally on your own device. We do not save your private study materials, financial documents, or unlocked files on our servers. Once you click download, you get your file securely, and you can reset the tool instantly.</p>
+          </div>
+          <div>
+            <h3 className="font-bold text-lg text-gray-800 mb-2">Q6: What types of passwords can the tool auto-crack?</h3>
+            <p className="text-gray-700 text-base sm:text-lg">The automatic database is optimized for common student and Indian user patterns. It instantly checks standard sequences, common names, your file's specific name, and simple number strings.</p>
+          </div>
+        </div>
+
+        {/* Internal Linking for Better SEO Navigation */}
+        <div className="bg-purple-50 rounded-xl p-6 sm:p-8 border border-purple-100">
+          <h3 className="font-bold text-xl text-purple-900 mb-3">Explore More Free Tools</h3>
+          <p className="text-gray-700 text-base sm:text-lg">
+            Done unlocking? You can also <a href="/compress" className="text-purple-600 font-semibold hover:text-purple-800 underline transition-colors">Compress your PDF</a> to reduce file size or <a href="/split" className="text-purple-600 font-semibold hover:text-purple-800 underline transition-colors">Split your PDF</a> into multiple pages using our free tools.
+          </p>
+        </div>
+
+      </div>
     </div>
   );
 }
