@@ -47,7 +47,7 @@ self.onmessage = async (e: MessageEvent) => {
             attempts++;
             if (attempts % 2000 === 0) {
               self.postMessage({ type: 'progress', workerId, currentTry: str });
-              await new Promise(r => setTimeout(r, 1)); // 🚨 FREEZE SE BACHANE KE LIYE
+              await new Promise(r => setTimeout(r, 1)); // Freeze prevention
             }
 
             try {
@@ -57,10 +57,8 @@ self.onmessage = async (e: MessageEvent) => {
               return;
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
-              // 🚨 FOOLPROOF FIX
-              if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
-                self.postMessage({ type: 'success', password: str });
-                unlocked = true;
+              if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+                self.postMessage({ type: 'fatal_error', message: err.message });
                 return;
               }
             }
@@ -80,13 +78,13 @@ self.onmessage = async (e: MessageEvent) => {
     const { pdfBytes, passwordsChunk, workerId } = data;
     
     for (let i = 0; i < passwordsChunk.length; i++) {
-      // 🚨 MAGIC FIX: Database ke hidden space hatane ke liye .trim()
+      // 🚨 THE REAL MAGIC: Database se aane wale password ka space/newline hatao
       const pwd = passwordsChunk[i] ? passwordsChunk[i].trim() : ""; 
       if (!pwd) continue;
 
       if (i % 50 === 0) {
         self.postMessage({ type: 'progress', workerId, currentTry: pwd });
-        await new Promise(r => setTimeout(r, 1)); // 🚨 FREEZE SE BACHANE KE LIYE
+        await new Promise(r => setTimeout(r, 1)); // Freeze prevention
       }
       
       try {
@@ -95,9 +93,8 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-        // 🚨 FOOLPROOF FIX
-        if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
-          self.postMessage({ type: 'success', password: pwd });
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+          self.postMessage({ type: 'fatal_error', message: err.message });
           return;
         }
       }
@@ -114,7 +111,7 @@ self.onmessage = async (e: MessageEvent) => {
 
       if (i % 100 === 0) {
         self.postMessage({ type: 'progress', workerId, currentTry: pwd });
-        await new Promise(r => setTimeout(r, 1)); // 🚨 FREEZE SE BACHANE KE LIYE
+        await new Promise(r => setTimeout(r, 1)); // Freeze prevention
       }
 
       try {
@@ -123,9 +120,8 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-        // 🚨 FOOLPROOF FIX
-        if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
-          self.postMessage({ type: 'success', password: pwd });
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+          self.postMessage({ type: 'fatal_error', message: err.message });
           return;
         }
       }
