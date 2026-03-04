@@ -169,9 +169,9 @@ export default function UnlockTool() {
         setStatus('auto_cracking');
         setErrorMessage('');
         
-        // ========== REPLACED BLOCK START ==========
+        // ========== MODIFIED BLOCK START ==========
         // NAYA: Conveyor Belt ke Variables
-        let skipCount = 0;
+        let currentLastId = null; // Bookmark variable
         let hasMoreBatches = true;
 
         // NAYA: Jab tak aur data hai, aur taala nahi khula, tab tak loop chalne do
@@ -180,8 +180,8 @@ export default function UnlockTool() {
             const response = await fetch('/api/unlock', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              // skipCount bhej rahe hain taaki backend agla dabba (batch) bheje
-              body: JSON.stringify({ fetchPasswordsOnly: true, skip: skipCount }) 
+              // Bookmark bhejo
+              body: JSON.stringify({ fetchPasswordsOnly: true, lastId: currentLastId }) 
             });
             
             const data = await response.json();
@@ -191,8 +191,8 @@ export default function UnlockTool() {
               
               // Backend ne bataya hai ki aur list baaki hai ya nahi
               hasMoreBatches = data.hasMore; 
-              // Agli baar ke liye 5000 aur skip karne ke liye counter badha do
-              skipCount += 5000; 
+              // Backend se aaya naya bookmark save karo
+              currentLastId = data.lastId; 
 
               currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
               setTriedPasswords(currentTriedSet);
@@ -255,7 +255,7 @@ export default function UnlockTool() {
             hasMoreBatches = false; 
           }
         }
-        // ========== REPLACED BLOCK END ==========
+        // ========== MODIFIED BLOCK END ==========
       }
 
       if (!aesDetected && !isUnlocked) {
