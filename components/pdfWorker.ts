@@ -66,9 +66,9 @@ self.onmessage = async (e: MessageEvent) => {
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
 
+              // AES-256 milne par yahan success nahi bhejenge warna galat password par bhi khulne ka error aayega
               if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
-                self.postMessage({ type: 'success', password: str });
-                unlocked = true;
+                self.postMessage({ type: 'fatal_error', message: err.message }); 
                 return;
               }
             }
@@ -97,8 +97,10 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
+        // 🚨 ASLI FIX: Yahan AES detect hone par `password: pwd` nahi bhej rahe hain.
+        // Sirf worker ko bata rahe hain ki ye file high security hai, manual try karo.
         if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
-          self.postMessage({ type: 'fatal_error', message: err.message, password: pwd });
+          self.postMessage({ type: 'fatal_error', message: err.message });
           return;
         }
       }
@@ -124,6 +126,7 @@ self.onmessage = async (e: MessageEvent) => {
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
 
+        // Yahan par bhi same logic
         if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
           self.postMessage({ type: 'fatal_error', message: err.message });
           return;
