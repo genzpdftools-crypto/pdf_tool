@@ -33,6 +33,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "redis": "^4.6.13",
+    "bloom-filters": "^3.0.1",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
