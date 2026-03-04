@@ -1,3 +1,11 @@
+import { Buffer } from 'buffer';
+
+// Browser mein Buffer ko global banana
+if (typeof window !== 'undefined') {
+  window.Buffer = window.Buffer || Buffer;
+}
+
+// ... baaki ka aapka purana index.tsx ka code
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
