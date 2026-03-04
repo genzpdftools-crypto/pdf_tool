@@ -3,39 +3,8 @@ import { PDFDocument } from 'pdf-lib';
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
-  // ==================== 🚀 NAYA: DATABASE BATCH CRACKING (NO LAG) ====================
-  if (data.type === 'db_crack') {
-    const { pdfBytes, passwordsBatch, workerId } = data;
-
-    for (let i = 0; i < passwordsBatch.length; i++) {
-      const pwd = passwordsBatch[i];
-
-      // Har 1000 check par UI ko notify karo taaki progress bar badhe (Bina lag ke)
-      if (i > 0 && i % 1000 === 0) {
-        self.postMessage({ type: 'progress', workerId, currentTry: pwd });
-      }
-
-      try {
-        await PDFDocument.load(pdfBytes, { password: pwd, updateMetadata: false });
-        self.postMessage({ type: 'success', password: pwd });
-        return; // Taala khul gaya!
-      } catch (err: any) {
-        const errorMsg = err.message ? err.message.toLowerCase() : "";
-
-        // Agar AES lock hai aur password sahi hai, toh error aayega par humein pata chal jayega
-        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
-          self.postMessage({ type: 'success_aes', password: pwd });
-          return;
-        }
-      }
-    }
-
-    // Pura batch check ho gaya aur taala nahi khula
-    self.postMessage({ type: 'batch_done', workerId });
-  }
-
-  // ==================== SMART CRACK WITH ELIMINATION RULES (Purana Code) ====================
-  else if (data.type === 'smart_crack') {
+  // ==================== SMART CRACK WITH ELIMINATION RULES ====================
+  if (data.type === 'smart_crack') {
     const {
       pdfBytes, pool, lenMin, lenMax,
       firstChar, lastChar, middleHint,
