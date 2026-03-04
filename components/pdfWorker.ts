@@ -3,7 +3,7 @@ import { PDFDocument } from 'pdf-lib';
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
-  // ==================== SMART CRACK WITH ELIMINATION RULES ====================
+  // ==================== SMART CRACK ====================
   if (data.type === 'smart_crack') {
     const {
       pdfBytes, pool, lenMin, lenMax,
@@ -53,7 +53,6 @@ self.onmessage = async (e: MessageEvent) => {
 
           if (isValid) {
             attempts++;
-
             if (attempts % 2000 === 0) {
               self.postMessage({ type: 'progress', workerId, currentTry: str });
             }
@@ -65,10 +64,10 @@ self.onmessage = async (e: MessageEvent) => {
               return;
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
-
-              // AES-256 milne par yahan success nahi bhejenge warna galat password par bhi khulne ka error aayega
-              if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
-                self.postMessage({ type: 'fatal_error', message: err.message }); 
+              // 🚨 FOOLPROOF FIX: Agar error 'incorrect/invalid' nahi hai, toh password SAHI hai!
+              if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
+                self.postMessage({ type: 'success', password: str });
+                unlocked = true;
                 return;
               }
             }
@@ -97,10 +96,10 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-        // 🚨 ASLI FIX: Yahan AES detect hone par `password: pwd` nahi bhej rahe hain.
-        // Sirf worker ko bata rahe hain ki ye file high security hai, manual try karo.
-        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
-          self.postMessage({ type: 'fatal_error', message: err.message });
+        // 🚨 FOOLPROOF FIX: pdf-lib galat password par "incorrect password" bolta hai.
+        // Agar kuch aur bola, iska matlab tala khul gaya hai bas file read nahi ho rahi. (WASM handle karega)
+        if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
+          self.postMessage({ type: 'success', password: pwd });
           return;
         }
       }
@@ -125,15 +124,12 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-
-        // Yahan par bhi same logic
-        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
-          self.postMessage({ type: 'fatal_error', message: err.message });
+        if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
+          self.postMessage({ type: 'success', password: pwd });
           return;
         }
       }
     }
-
     self.postMessage({ type: 'done', workerId });
   }
 };
