@@ -210,13 +210,25 @@ export default function UnlockTool() {
                       if (aesDetected || isAes256) {
                         unlockedBytes = await unlockWithWasm(password, pdfBytes);
                       } else {
-                        // Success milne ke baad hi slow save() call hoga
-                        const pdfDoc = await PDFDocument.load(pdfBytes, { password });
-                        unlockedBytes = await pdfDoc.save();
+                        // NAYA: Yahan try-catch lagaya hai taaki agar yahan pata chale ki file AES hai, toh direct WASM chala de
+                        try {
+                          const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                          unlockedBytes = await pdfDoc.save();
+                        } catch (innerErr: any) {
+                          const errorMsg = innerErr.message ? innerErr.message.toLowerCase() : "";
+                          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
+                            setIsAes256(true);
+                            unlockedBytes = await unlockWithWasm(password, pdfBytes);
+                          } else {
+                            throw innerErr;
+                          }
+                        }
                       }
                       setUnlockedPdfBytes(unlockedBytes);
                       setStatus('unlocked');
-                    } catch(e) {}
+                    } catch(e) {
+                      console.error("Final unlock error:", e);
+                    }
                     
                     resolve();
                   } 
