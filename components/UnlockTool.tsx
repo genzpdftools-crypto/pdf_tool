@@ -173,7 +173,8 @@ export default function UnlockTool() {
           break;
         } catch (error: any) {
           const errorMsg = error.message ? error.message.toLowerCase() : '';
-          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
+          // 🚨 FIX: 'encrypt' hata diya gaya hai. Ab sirf asli AES hi detect hoga
+          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
             aesDetected = true;
             setIsAes256(true);
             break;
@@ -232,13 +233,13 @@ export default function UnlockTool() {
                   worker.onmessage = async (msg) => {
                     const { type, password, currentTry, workerId } = msg.data;
 
-                    if (type === 'success' || (type === 'fatal_error' && password)) {
+                    if (type === 'success') {
                       isUnlocked = true;
                       stopBruteForceRef.current = true;
                       terminateAllWorkers();
 
                       try {
-                        if (type === 'fatal_error' || aesDetected) {
+                        if (aesDetected) {
                           const unlockedBytes = await unlockWithWasm(password, pdfBytes);
                           setUnlockedPdfBytes(unlockedBytes);
                         } else {
@@ -247,7 +248,9 @@ export default function UnlockTool() {
                           setUnlockedPdfBytes(savedBytes);
                         }
                         setStatus('unlocked');
-                      } catch (err) {}
+                      } catch (err) {
+                        console.error("Unlock save failed:", err);
+                      }
                       
                       resolveBatch();
                     }
@@ -263,12 +266,14 @@ export default function UnlockTool() {
                         resolveBatch();
                       }
                     }
-                    else if (type === 'fatal_error' && !password) {
+                    else if (type === 'fatal_error') {
+                      // Agar wakai AES-256 file hui toh turant rok dega aur manual input mangega
                       stopBruteForceRef.current = true;
                       terminateAllWorkers();
+                      aesDetected = true; // update local variable
                       setIsAes256(true);
                       setStatus('needs_password');
-                      setErrorMessage('High-Security AES-256 Lock Detected! Please enter password manually or use Smart Recovery.');
+                      setErrorMessage('High-Security AES-256 Lock Detected! Auto-crack runs fast on standard locks. Please use Smart Recovery for this file.');
                       resolveBatch();
                     }
                   };
