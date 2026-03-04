@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // NAYA BLOCK: Cursor-based Pagination
     if (fetchPasswordsOnly) {
-      const limitAmount = 50000;
+      const limitAmount = 5000;
       const lastId = req.body.lastId; // Frontend bookmark bhejega
 
       await client.connect();
