@@ -162,6 +162,7 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
+      // Initial Quick Checks
       for (const pwd of autoTryPasswords) {
         try {
           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
@@ -186,8 +187,6 @@ export default function UnlockTool() {
 
         let currentLastId = null;
         let hasMoreBatches = true;
-
-        // NAYA: Global counter for the entire 60 Lakh process
         let globalCheckedSoFar = 0;
 
         while (hasMoreBatches && !isUnlocked && !stopBruteForceRef.current) {
@@ -205,61 +204,81 @@ export default function UnlockTool() {
               hasMoreBatches = data.hasMore;
               currentLastId = data.lastId;
 
-              currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
-              setTriedPasswords(currentTriedSet);
+              // 🚀 VIP Bouncer (Bloom Filter) Check - Super Fast
+              const filteredList = bloomFilter 
+                ? passwordsList.filter((pwd: string) => bloomFilter.has(pwd)) 
+                : passwordsList;
 
-              for (const pwd of passwordsList) {
-                if (!pwd || stopBruteForceRef.current || isUnlocked) continue;
-
-                // Bloom Filter skip (super fast)
-                if (bloomFilter && !bloomFilter.has(pwd)) {
-                  globalCheckedSoFar++;
-                  continue;
-                }
-
-                setCurrentTry(pwd);
-                globalCheckedSoFar++;
-
-                // 🚀 NAYA TURBO FIX: UI sirf har 1000 password me update hoga.
-                if (globalCheckedSoFar % 5000 === 0) {
-                  const perc = Math.min(100, Math.round((globalCheckedSoFar / TOTAL_DB_ESTIMATE) * 100));
-                  setProgress(perc);
-                  setCheckedCount(globalCheckedSoFar);
-                  await new Promise(resolve => setTimeout(resolve, 0));
-                }
-
-                if (aesDetected) {
-                  try {
-                    const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                    setUnlockedPdfBytes(unlockedBytes);
-                    setStatus('unlocked');
-                    isUnlocked = true;
-                    break;
-                  } catch (e) {}
-                } else {
-                  try {
-                    const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                    const savedBytes = await pdfDoc.save();
-                    setUnlockedPdfBytes(savedBytes);
-                    setStatus('unlocked');
-                    isUnlocked = true;
-                    break;
-                  } catch (error: any) {
-                    const errorMsg = error.message ? error.message.toLowerCase() : "";
-                    if (errorMsg.includes('not supported') || errorMsg.includes('aes') || errorMsg.includes('aes-256')) {
-                      aesDetected = true;
-                      setIsAes256(true);
-                      try {
-                        const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                        setUnlockedPdfBytes(unlockedBytes);
-                        setStatus('unlocked');
-                        isUnlocked = true;
-                        break;
-                      } catch(e) {}
-                    }
-                  }
-                }
+              if (filteredList.length === 0) {
+                globalCheckedSoFar += passwordsList.length;
+                continue; 
               }
+
+              // 🚀 WORKER LOGIC: Baant do kaam Cores mein!
+              const numCores = navigator.hardwareConcurrency || 4;
+              const chunkSize = Math.ceil(filteredList.length / numCores);
+              
+              await new Promise<void>((resolve) => {
+                  let activeWorkers = numCores;
+                  
+                  for (let i = 0; i < numCores; i++) {
+                      if (stopBruteForceRef.current || isUnlocked) { resolve(); return; }
+                      
+                      const batch = filteredList.slice(i * chunkSize, (i + 1) * chunkSize);
+                      if (batch.length === 0) { activeWorkers--; continue; }
+
+                      const worker = new PdfWorker();
+                      workersRef.current.push(worker);
+                      worker.postMessage({ type: 'db_crack', pdfBytes, passwordsBatch: batch, workerId: i });
+
+                      worker.onmessage = async (msg) => {
+                          const { type, password, currentTry: wTry } = msg.data;
+                          
+                          if (type === 'success' || type === 'success_aes') {
+                              isUnlocked = true;
+                              stopBruteForceRef.current = true;
+                              terminateAllWorkers(); 
+                              
+                              if (type === 'success_aes' || isAes256) {
+                                  try {
+                                      const unlockedBytes = await unlockWithWasm(password, pdfBytes);
+                                      setUnlockedPdfBytes(unlockedBytes);
+                                      setStatus('unlocked');
+                                  } catch(e) {}
+                              } else {
+                                  try {
+                                      const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                                      const savedBytes = await pdfDoc.save();
+                                      setUnlockedPdfBytes(savedBytes);
+                                      setStatus('unlocked');
+                                  } catch(e) {}
+                              }
+                              resolve();
+                          }
+                          else if (type === 'progress') {
+                              setCurrentTry(wTry);
+                              globalCheckedSoFar += 1000; 
+                              
+                              // Har 5000 check hone par UI progress bar update
+                              if (globalCheckedSoFar % 5000 === 0 || globalCheckedSoFar % 5000 < 1000) {
+                                  const perc = Math.min(100, Math.round((globalCheckedSoFar / TOTAL_DB_ESTIMATE) * 100));
+                                  setProgress(perc);
+                                  setCheckedCount(globalCheckedSoFar);
+                              }
+                          }
+                          else if (type === 'batch_done') {
+                              activeWorkers--;
+                              if (activeWorkers <= 0) resolve(); 
+                          }
+                      };
+                  }
+              });
+
+              if (!isUnlocked) {
+                  globalCheckedSoFar += filteredList.length; 
+                  terminateAllWorkers(); 
+              }
+
             } else {
               hasMoreBatches = false;
             }
@@ -269,13 +288,13 @@ export default function UnlockTool() {
           }
         }
 
-        // Final count update jab loop khatam ho
         if (!isUnlocked && !stopBruteForceRef.current) {
           setCheckedCount(globalCheckedSoFar);
           setProgress(100);
         }
       }
 
+      // Bruteforce
       if (!aesDetected && !isUnlocked && !stopBruteForceRef.current && status !== 'unlocked') {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
@@ -575,7 +594,6 @@ export default function UnlockTool() {
               <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
                 <div className="bg-purple-600 h-2.5 transition-all duration-75" style={{ width: `${progress}%` }}></div>
               </div>
-              {/* NAYA: Yahan exact count dikhega (Jaise: 25,000 / ~6,000,000 Checked) */}
               <p className="text-sm font-semibold text-gray-600 mt-3">
                 {checkedCount.toLocaleString()} / ~{(TOTAL_DB_ESTIMATE).toLocaleString()} Checked ({progress}%)
               </p>
