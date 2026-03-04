@@ -224,6 +224,11 @@ export default function UnlockTool() {
 
                 processedInBatch++; // 👈 Count this password (whether skipped by bloom or not)
 
+                // 👉 ASLI FIX YAHAN HAI: Har 5 password check hone ke baad browser ko 2 millisecond ka break do
+                if (processedInBatch % 5 === 0) {
+                  await new Promise((resolve) => setTimeout(resolve, 2));
+                }
+
                 // VIP Bouncer check
                 if (bloomFilter && !bloomFilter.has(pwd)) {
                   continue;
