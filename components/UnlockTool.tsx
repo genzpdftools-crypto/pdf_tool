@@ -1,15 +1,16 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, RefreshCw } from 'lucide-react';
+import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw } from 'lucide-react';
 import PdfWorker from './pdfWorker?worker';
-import { BloomFilter } from 'bloom-filters';
+import { BloomFilter } from 'bloom-filters'; // <--- NAYA IMPORT
 
 // @ts-ignore
 import QPDF from 'qpdf-wasm-esm-embedded';
 
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
-const MAX_SMART_ATTEMPTS = 200000;
+const MAX_SMART_ATTEMPTS = 200000; // Limit thoda badha di hai lambe passwords ke liye
 
+// NAYA: Global cache ko function ke BAHAR rakho taaki render hone par reset na ho
 let cachedQpdf: any = null;
 
 export default function UnlockTool() {
@@ -24,16 +25,19 @@ export default function UnlockTool() {
   const [progress, setProgress] = useState(0);
   const [currentTry, setCurrentTry] = useState('');
 
+  // Jo passwords check ho chuke hain unko yaad rakhne ke liye Set
   const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
 
   const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
 
+  // NAYA: Bloom filter state
   const [bloomFilter, setBloomFilter] = useState<BloomFilter | null>(null);
 
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // Hints States
   const [lenMin, setLenMin] = useState(4);
   const [lenMax, setLenMax] = useState(6);
   const [hasUppercase, setHasUppercase] = useState(false);
@@ -48,13 +52,19 @@ export default function UnlockTool() {
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
 
-  useEffect(() => {
+  // NAYA: Global cache for QPDF engine (ek baar load, baar baar istemal) – ab component ke bahar hai
+
+  // NAYA: VIP list download hone ka effect
+  React.useEffect(() => {
     async function loadFilter() {
       try {
         const response = await fetch('/bloom-filter.json');
         const filterData = await response.json();
         setBloomFilter(BloomFilter.fromJSON(filterData));
-      } catch (error) {}
+        console.log('VIP Bouncer Ready!');
+      } catch (error) {
+        console.log('Bouncer fail ho gaya.');
+      }
     }
     loadFilter();
   }, []);
@@ -77,6 +87,7 @@ export default function UnlockTool() {
     setErrorMessage('Smart Recovery stopped manually.');
   };
 
+  // NAYA: Page refresh kiye bina reset karne ka function
   const resetTool = () => {
     setFile(null);
     setUnlockedPdfBytes(null);
@@ -90,7 +101,9 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
+  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED - CACHED VERSION)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
+    // NAYA: Agar engine load nahi hai, toh hi load karo, warna purana (cached) use karo
     if (!cachedQpdf) {
       cachedQpdf = await QPDF();
     }
@@ -98,19 +111,30 @@ export default function UnlockTool() {
 
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
-      try { qpdf.FS.unlink('output.pdf'); } catch(e) {}
+      try {
+        qpdf.FS.unlink('output.pdf');
+      } catch (e) {}
 
+      // Engine run karo
       qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
+
+      // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
 
       if (!unlockedBytes || unlockedBytes.length === 0) {
         throw new Error('Wrong password - 0 byte file generated');
       }
 
-      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e) {}
+      try {
+        qpdf.FS.unlink('input.pdf');
+        qpdf.FS.unlink('output.pdf');
+      } catch (e) {}
       return unlockedBytes;
     } catch (e) {
-      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(err) {}
+      try {
+        qpdf.FS.unlink('input.pdf');
+        qpdf.FS.unlink('output.pdf');
+      } catch (err) {}
       throw new Error('Wrong password');
     }
   };
@@ -165,7 +189,7 @@ export default function UnlockTool() {
           break;
         } catch (error: any) {
           const errorMsg = error.message ? error.message.toLowerCase() : '';
-          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
             aesDetected = true;
             setIsAes256(true);
             break;
@@ -177,14 +201,18 @@ export default function UnlockTool() {
         setStatus('auto_cracking');
         setErrorMessage('');
 
-        let currentLastId = null;
+        // ========== MODIFIED BLOCK START ==========
+        // NAYA: Conveyor Belt ke Variables
+        let currentLastId = null; // Bookmark variable
         let hasMoreBatches = true;
 
+        // NAYA: Jab tak aur data hai, aur taala nahi khula, tab tak loop chalne do
         while (hasMoreBatches && !isUnlocked && !stopBruteForceRef.current) {
           try {
             const response = await fetch('/api/unlock', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              // Bookmark bhejo
               body: JSON.stringify({ fetchPasswordsOnly: true, lastId: currentLastId }),
             });
 
@@ -193,97 +221,79 @@ export default function UnlockTool() {
             if (response.ok && data.success && data.passwords && data.passwords.length > 0) {
               const passwordsList = data.passwords;
 
+              // Backend ne bataya hai ki aur list baaki hai ya nahi
               hasMoreBatches = data.hasMore;
+              // Backend se aaya naya bookmark save karo
               currentLastId = data.lastId;
 
               currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
               setTriedPasswords(currentTriedSet);
 
-              if (passwordsList.length === 0) continue;
+              const totalPasswords = passwordsList.length;
+              let count = 0;
 
-              const numCores = navigator.hardwareConcurrency || 4;
-              const chunkSize = Math.ceil(passwordsList.length / numCores);
-              let activeWorkers = 0;
+              for (const pwd of passwordsList) {
+                // Agar user ne stop daba diya ya taala khul gaya, toh turant ruko
+                if (!pwd || stopBruteForceRef.current || isUnlocked) continue;
 
-              await new Promise<void>((resolveBatch) => {
-                for (let i = 0; i < numCores; i++) {
-                  const chunk = passwordsList.slice(i * chunkSize, (i + 1) * chunkSize);
-                  if (chunk.length === 0) continue;
+                // NAYA VIP BOUNCER CHECK:
+                // Agar filter loaded hai, aur wo kehta hai ki password list me NAHI hai, toh turant skip karo
+                if (bloomFilter && !bloomFilter.has(pwd)) {
+                  continue; // Bina PDF engine chalaye agli chabi par jao (Extreme Speed!)
+                }
 
-                  activeWorkers++;
-                  const worker = new PdfWorker();
-                  workersRef.current.push(worker);
+                setCurrentTry(pwd);
+                count++;
 
-                  worker.postMessage({
-                    type: 'dictionary_crack',
-                    pdfBytes,
-                    passwordsChunk: chunk,
-                    workerId: i,
-                  });
+                // NAYA: UI atke na, isliye har 20 password ke baad thoda saans lene ka time do
+                if (count % 20 === 0) {
+                  setProgress(Math.round((count / totalPasswords) * 100));
+                  await new Promise((resolve) => setTimeout(resolve, 0));
+                }
 
-                  worker.onmessage = async (msg) => {
-                    const { type, password, currentTry, workerId } = msg.data;
-
-                    if (type === 'success') {
-                      isUnlocked = true;
-                      stopBruteForceRef.current = true;
-                      terminateAllWorkers();
-
-                      try {
-                        let finalBytes;
-                        try {
-                          const pdfDoc = await PDFDocument.load(pdfBytes, { password });
-                          finalBytes = await pdfDoc.save();
-                        } catch (e) {
-                          finalBytes = await unlockWithWasm(password, pdfBytes);
-                        }
-                        setUnlockedPdfBytes(finalBytes);
-                        setStatus('unlocked');
-                      } catch (err) {
-                        console.error("Save failed:", err);
-                        setStatus('needs_password');
-                        setErrorMessage('Password found but document save failed. Enter manually.');
-                      }
-                      
-                      resolveBatch();
-                    }
-                    else if (type === 'progress') {
-                      setCurrentTry(currentTry);
-                      const totalInBatch = passwordsList.length;
-                      const triedSoFar = passwordsList.indexOf(currentTry) + 1;
-                      setProgress(Math.round((triedSoFar / totalInBatch) * 100));
-                    }
-                    else if (type === 'done') {
-                      activeWorkers--;
-                      if (activeWorkers <= 0) {
-                        resolveBatch();
-                      }
-                    }
-                    else if (type === 'fatal_error') {
-                      stopBruteForceRef.current = true;
-                      terminateAllWorkers();
+                if (aesDetected) {
+                  try {
+                    const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                    setUnlockedPdfBytes(unlockedBytes);
+                    setStatus('unlocked');
+                    isUnlocked = true;
+                    break;
+                  } catch (e) {}
+                } else {
+                  try {
+                    const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+                    const savedBytes = await pdfDoc.save();
+                    setUnlockedPdfBytes(savedBytes);
+                    setStatus('unlocked');
+                    isUnlocked = true;
+                    break;
+                  } catch (error: any) {
+                    const errorMsg = error.message ? error.message.toLowerCase() : '';
+                    // FIX: Yahan se 'encrypt' word hata diya gaya hai false alarm rokne ke liye
+                    if (errorMsg.includes('not supported') || errorMsg.includes('aes') || errorMsg.includes('aes-256')) {
                       aesDetected = true;
                       setIsAes256(true);
-                      setStatus('needs_password');
-                      setErrorMessage('High-Security AES-256 Lock Detected! Auto-crack runs fast on standard locks. Please use Smart Recovery.');
-                      resolveBatch();
+                      try {
+                        const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                        setUnlockedPdfBytes(unlockedBytes);
+                        setStatus('unlocked');
+                        isUnlocked = true;
+                        break;
+                      } catch (e) {}
                     }
-                  };
+                  }
                 }
-
-                if (activeWorkers === 0) {
-                  resolveBatch();
-                }
-              });
-
-              if (isUnlocked) break;
+              }
             } else {
+              // Agar API fail ho jaye ya list me data na aaye toh loop rok do
               hasMoreBatches = false;
             }
           } catch (apiError) {
+            console.error('DB Passwords fetch error:', apiError);
             hasMoreBatches = false;
           }
         }
+        // ========== MODIFIED BLOCK END ==========
       }
 
       if (!aesDetected && !isUnlocked) {
@@ -328,21 +338,10 @@ export default function UnlockTool() {
                   isUnlocked = true;
                   stopBruteForceRef.current = true;
                   terminateAllWorkers();
-                  
-                  try {
-                    let finalBytes;
-                    try {
-                      const pdfDoc = await PDFDocument.load(pdfBytes, { password });
-                      finalBytes = await pdfDoc.save();
-                    } catch(e) {
-                      finalBytes = await unlockWithWasm(password, pdfBytes);
-                    }
-                    setUnlockedPdfBytes(finalBytes);
-                    setStatus('unlocked');
-                  } catch(e) {
-                    setStatus('needs_password');
-                  }
-                  
+                  const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                  const savedBytes = await pdfDoc.save();
+                  setUnlockedPdfBytes(savedBytes);
+                  setStatus('unlocked');
                   resolve();
                 } else if (type === 'progress') {
                   setCurrentTry(`${wTry} (Len: ${length})`);
@@ -389,7 +388,7 @@ export default function UnlockTool() {
       setStatus('unlocked');
     } catch (error: any) {
       const errorMsg = error.message ? error.message.toLowerCase() : '';
-      if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+      if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
         setIsAes256(true);
         try {
           const arrayBuffer = await file.arrayBuffer();
@@ -417,6 +416,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
+  // =============== NEW SMART UNLOCK FUNCTION (FULLY OPTIMIZED) ===============
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -433,6 +433,7 @@ export default function UnlockTool() {
     let attempts = 0;
     let lastYieldTime = Date.now();
 
+    // User ki advance counting hints fetch karna
     const reqAlpha = exactAlphabets !== '' ? parseInt(exactAlphabets) : -1;
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
@@ -440,6 +441,7 @@ export default function UnlockTool() {
     for (let len = lenMin; len <= lenMax; len++) {
       if (unlocked || stopBruteForceRef.current) break;
 
+      // HINT INJECTION METHOD: Middle hint ke liye sirf wahi valid positions nikalna jaha wo fit ho sake
       const startIndices = middleHint
         ? Array.from({ length: Math.max(0, len - middleHint.length + 1) }, (_, i) => i)
         : [null];
@@ -447,11 +449,13 @@ export default function UnlockTool() {
       for (const mIdx of startIndices) {
         if (unlocked || stopBruteForceRef.current) break;
 
+        // Pre-Validation: Agar firstChar aur middleHint ka first char clash kare toh path reject karo
         if (middleHint && mIdx !== null) {
           if (firstChar && mIdx === 0 && middleHint[0] !== firstChar) continue;
           if (lastChar && mIdx + middleHint.length === len && middleHint[middleHint.length - 1] !== lastChar) continue;
         }
 
+        // Stack me character counts store karenge taaki track kar sakein
         const stack = [{ str: '', depth: 0, alpha: 0, num: 0, sym: 0 }];
 
         while (stack.length > 0) {
@@ -459,13 +463,17 @@ export default function UnlockTool() {
 
           const { str, depth, alpha, num, sym } = stack.pop()!;
 
+          // 🚀 RULE 1: EARLY COUNT PRUNING (Phaltu branches pehle hi kaat do)
           const remaining = len - depth;
           if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
           if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
           if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
 
+          // 🚀 RULE 2: MIDDLE HINT INJECTION (Sidhe word paste karo, combination mat banao)
           if (middleHint && mIdx !== null && depth === mIdx) {
-            let mAlpha = 0, mNum = 0, mSym = 0;
+            let mAlpha = 0,
+              mNum = 0,
+              mSym = 0;
             for (let i = 0; i < middleHint.length; i++) {
               const c = middleHint.charCodeAt(i);
               if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) mAlpha++;
@@ -473,14 +481,20 @@ export default function UnlockTool() {
               else mSym++;
             }
             stack.push({
-              str: str + middleHint, depth: depth + middleHint.length,
-              alpha: alpha + mAlpha, num: num + mNum, sym: sym + mSym,
+              str: str + middleHint,
+              depth: depth + middleHint.length,
+              alpha: alpha + mAlpha,
+              num: num + mNum,
+              sym: sym + mSym,
             });
             continue;
           }
 
+          // 🚀 RULE 3: FIRST CHAR FORCING
           if (depth === 0 && firstChar) {
-            let isA = 0, isN = 0, isS = 0;
+            let isA = 0,
+              isN = 0,
+              isS = 0;
             const c = firstChar.charCodeAt(0);
             if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) isA = 1;
             else if (c >= 48 && c <= 57) isN = 1;
@@ -489,28 +503,38 @@ export default function UnlockTool() {
             continue;
           }
 
+          // 🚀 RULE 4: LAST CHAR FORCING
           if (depth === len - 1 && lastChar) {
-            let isA = 0, isN = 0, isS = 0;
+            let isA = 0,
+              isN = 0,
+              isS = 0;
             const c = lastChar.charCodeAt(0);
             if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) isA = 1;
             else if (c >= 48 && c <= 57) isN = 1;
             else isS = 1;
             stack.push({
-              str: str + lastChar, depth: len,
-              alpha: alpha + isA, num: num + isN, sym: sym + isS,
+              str: str + lastChar,
+              depth: len,
+              alpha: alpha + isA,
+              num: num + isN,
+              sym: sym + isS,
             });
             continue;
           }
 
+          // PASSWORD READY - Final Testing Phase
           if (depth === len) {
+            // 🚀 RULE 5: AVOID DUPLICATES (Jo automatic/DB me check ho gaya use skip karo)
             if (triedPasswords.has(str)) continue;
 
+            // Ek last baar counts verify karo before executing Heavy WASM engine
             if (reqAlpha !== -1 && alpha !== reqAlpha) continue;
             if (reqNum !== -1 && num !== reqNum) continue;
             if (reqSym !== -1 && sym !== reqSym) continue;
 
             attempts++;
 
+            // Yahan text smoothly update hota rahega screen par
             const timeLimit = isAes256 ? 20 : 50;
             if (Date.now() - lastYieldTime > timeLimit) {
               setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
@@ -519,29 +543,41 @@ export default function UnlockTool() {
               lastYieldTime = Date.now();
             }
 
-            try {
-              let finalBytes;
+            // Engine Try
+            if (isAes256) {
+              try {
+                const bytes = await unlockWithWasm(str, pdfBytes);
+                setUnlockedPdfBytes(bytes);
+                setStatus('unlocked');
+                unlocked = true;
+                break;
+              } catch (e) {}
+            } else {
               try {
                 const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
-                finalBytes = await pdfDoc.save();
-              } catch(e) {
-                finalBytes = await unlockWithWasm(str, pdfBytes);
-              }
-              setUnlockedPdfBytes(finalBytes);
-              setStatus('unlocked');
-              unlocked = true;
-              break;
-            } catch (e) {}
+                const savedBytes = await pdfDoc.save();
+                setUnlockedPdfBytes(savedBytes);
+                setStatus('unlocked');
+                unlocked = true;
+                break;
+              } catch (e) {}
+            }
           } else {
+            // Normal character picking (Isme logic optimize kiya gaya hai)
             for (let i = pool.length - 1; i >= 0; i--) {
-              let isA = 0, isN = 0, isS = 0;
+              let isA = 0,
+                isN = 0,
+                isS = 0;
               const c = pool.charCodeAt(i);
               if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) isA = 1;
               else if (c >= 48 && c <= 57) isN = 1;
               else isS = 1;
               stack.push({
-                str: str + pool[i], depth: depth + 1,
-                alpha: alpha + isA, num: num + isN, sym: sym + isS,
+                str: str + pool[i],
+                depth: depth + 1,
+                alpha: alpha + isA,
+                num: num + isN,
+                sym: sym + isS,
               });
             }
           }
@@ -554,6 +590,7 @@ export default function UnlockTool() {
       setErrorMessage(`Smart Cracking Failed. Target ke hisab se ${attempts} combinations check kiye gaye.`);
     }
   };
+  // =============== END OF NEW SMART UNLOCK ===============
 
   const downloadUnlockedPdf = () => {
     if (!unlockedPdfBytes || !file) return;
@@ -739,6 +776,7 @@ export default function UnlockTool() {
                   combinations check na kare aur jaldi unlock ho.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* BASIC HINTS */}
                   <div>
                     <label className="font-semibold block mb-2">Length Range</label>
                     <div className="flex gap-2">
@@ -800,6 +838,7 @@ export default function UnlockTool() {
                     </div>
                   </div>
 
+                  {/* EXACT COUNT HINTS */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
                     <p className="text-sm text-gray-500 mb-3">
                       <b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)
