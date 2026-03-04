@@ -23,19 +23,11 @@ self.onmessage = async (e: MessageEvent) => {
 
         const { str, depth } = stack.pop()!;
 
-        if (depth === 0 && firstChar) {
-          stack.push({ str: firstChar, depth: 1 });
-          continue;
-        }
-
-        if (depth === len - 1 && lastChar) {
-          stack.push({ str: str + lastChar, depth: len });
-          continue;
-        }
+        if (depth === 0 && firstChar) { stack.push({ str: firstChar, depth: 1 }); continue; }
+        if (depth === len - 1 && lastChar) { stack.push({ str: str + lastChar, depth: len }); continue; }
 
         if (depth === len) {
           let isValid = true;
-
           if (middleHint && !str.includes(middleHint)) isValid = false;
 
           if (isValid && (exactAlphabets || exactNumbers || exactSymbols)) {
@@ -55,6 +47,7 @@ self.onmessage = async (e: MessageEvent) => {
             attempts++;
             if (attempts % 2000 === 0) {
               self.postMessage({ type: 'progress', workerId, currentTry: str });
+              await new Promise(r => setTimeout(r, 1)); // Freeze se bachane ke liye
             }
 
             try {
@@ -64,10 +57,8 @@ self.onmessage = async (e: MessageEvent) => {
               return;
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
-              // 🚨 FOOLPROOF FIX: Agar error 'incorrect/invalid' nahi hai, toh password SAHI hai!
-              if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
-                self.postMessage({ type: 'success', password: str });
-                unlocked = true;
+              if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+                self.postMessage({ type: 'fatal_error', message: err.message }); 
                 return;
               }
             }
@@ -82,13 +73,20 @@ self.onmessage = async (e: MessageEvent) => {
     if (!unlocked) self.postMessage({ type: 'done', workerId, totalChecked: attempts });
   }
 
-  // ==================== NEW: DICTIONARY / DB PASSWORDS CRACKING ====================
+  // ==================== DICTIONARY / DB CRACKING ====================
   else if (data.type === 'dictionary_crack') {
     const { pdfBytes, passwordsChunk, workerId } = data;
     
     for (let i = 0; i < passwordsChunk.length; i++) {
-      const pwd = passwordsChunk[i];
-      if (i % 50 === 0) self.postMessage({ type: 'progress', workerId, currentTry: pwd });
+      // 🚨 MAGIC FIX: Database ke space aur newline hatane ke liye .trim() lagaya
+      const pwd = passwordsChunk[i] ? passwordsChunk[i].trim() : "";
+      if (!pwd) continue;
+
+      if (i % 50 === 0) {
+        self.postMessage({ type: 'progress', workerId, currentTry: pwd });
+        // 🚨 FIX 2: UI ko atakne (freeze) se rokne ke liye breathing time
+        await new Promise(r => setTimeout(r, 1));
+      }
       
       try {
         await PDFDocument.load(pdfBytes, { password: pwd, updateMetadata: false });
@@ -96,10 +94,8 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-        // 🚨 FOOLPROOF FIX: pdf-lib galat password par "incorrect password" bolta hai.
-        // Agar kuch aur bola, iska matlab tala khul gaya hai bas file read nahi ho rahi. (WASM handle karega)
-        if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
-          self.postMessage({ type: 'success', password: pwd });
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+          self.postMessage({ type: 'fatal_error', message: err.message });
           return;
         }
       }
@@ -116,6 +112,7 @@ self.onmessage = async (e: MessageEvent) => {
 
       if (i % 100 === 0) {
         self.postMessage({ type: 'progress', workerId, currentTry: pwd });
+        await new Promise(r => setTimeout(r, 1));
       }
 
       try {
@@ -124,8 +121,8 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-        if (!errorMsg.includes('incorrect') && !errorMsg.includes('invalid') && !errorMsg.includes('wrong') && !errorMsg.includes('bad')) {
-          self.postMessage({ type: 'success', password: pwd });
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
+          self.postMessage({ type: 'fatal_error', message: err.message });
           return;
         }
       }
