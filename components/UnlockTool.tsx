@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw } from 'lucide-react';
 import PdfWorker from './pdfWorker?worker';
+import { BloomFilter } from 'bloom-filters';   // <--- NAYA IMPORT
 
 // @ts-ignore
 import QPDF from 'qpdf-wasm-esm-embedded';
@@ -30,6 +31,9 @@ export default function UnlockTool() {
   const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
 
+  // NAYA: Bloom filter state
+  const [bloomFilter, setBloomFilter] = useState<BloomFilter | null>(null);
+
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   
@@ -49,6 +53,21 @@ export default function UnlockTool() {
   const [exactSymbols, setExactSymbols] = useState<string>('');
 
   // NAYA: Global cache for QPDF engine (ek baar load, baar baar istemal) – ab component ke bahar hai
+
+  // NAYA: VIP list download hone ka effect
+  React.useEffect(() => {
+    async function loadFilter() {
+      try {
+        const response = await fetch('/bloom-filter.json');
+        const filterData = await response.json();
+        setBloomFilter(BloomFilter.fromJSON(filterData));
+        console.log("VIP Bouncer Ready!");
+      } catch (error) {
+        console.log("Bouncer fail ho gaya.");
+      }
+    }
+    loadFilter();
+  }, []);
 
   const terminateAllWorkers = () => {
     workersRef.current.forEach(worker => worker.terminate());
@@ -203,6 +222,12 @@ export default function UnlockTool() {
               for (const pwd of passwordsList) {
                 // Agar user ne stop daba diya ya taala khul gaya, toh turant ruko
                 if (!pwd || stopBruteForceRef.current || isUnlocked) continue;
+
+                // NAYA VIP BOUNCER CHECK:
+                // Agar filter loaded hai, aur wo kehta hai ki password list me NAHI hai, toh turant skip karo
+                if (bloomFilter && !bloomFilter.has(pwd)) {
+                  continue; // Bina PDF engine chalaye agli chabi par jao (Extreme Speed!)
+                }
                 
                 setCurrentTry(pwd);
                 count++;
