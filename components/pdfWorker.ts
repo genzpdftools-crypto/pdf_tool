@@ -73,7 +73,7 @@ self.onmessage = async (e: MessageEvent) => {
               return;
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
-
+              
               // THE FIX: If pdf-lib recognizes the lock type after checking the password, 
               // it means our password was 100% CORRECT!
               if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
