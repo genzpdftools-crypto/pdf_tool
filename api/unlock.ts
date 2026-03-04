@@ -17,9 +17,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { fileBase64, password, fetchPasswordsOnly } = req.body;
 
-    // NAYA BLOCK: Cursor-based Pagination
+    // NAYA BLOCK: Cursor-based Pagination (with increased batch limit for speed)
+    // Batch limit ko 5000 se 25000 kar diya gaya hai (Speed boost)
     if (fetchPasswordsOnly) {
-      const limitAmount = 5000;
+      const limitAmount = 50000; 
       const lastId = req.body.lastId; // Frontend bookmark bhejega
 
       await client.connect();
