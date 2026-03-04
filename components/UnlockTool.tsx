@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { Upload, LockOpen, AlertCircle, Download, Key, Settings, Loader2, ChevronDown, ChevronUp, Cpu, StopCircle, RefreshCw } from 'lucide-react';
 import PdfWorker from './pdfWorker?worker';
-import { BloomFilter } from 'bloom-filters'; // <--- NAYA IMPORT
 
 // @ts-ignore
 import QPDF from 'qpdf-wasm-esm-embedded';
@@ -10,33 +9,27 @@ import QPDF from 'qpdf-wasm-esm-embedded';
 const COMMON_PASSWORDS = ['', '123', '1234', '12345', '123456', '12345678', 'password', 'admin', '0000', '1111', '123123'];
 const MAX_SMART_ATTEMPTS = 200000; // Limit thoda badha di hai lambe passwords ke liye
 
-// NAYA: Global cache ko function ke BAHAR rakho taaki render hone par reset na ho
-let cachedQpdf: any = null;
-
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
-
+  
   const [isAes256, setIsAes256] = useState(false);
   const [status, setStatus] = useState<'idle' | 'auto_cracking' | 'number_bruteforce' | 'needs_password' | 'smart_cracking' | 'processing_wasm' | 'unlocked' | 'error'>('idle');
-
+  
   const [unlockedPdfBytes, setUnlockedPdfBytes] = useState<Uint8Array | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-
+  
   const [progress, setProgress] = useState(0);
-  const [currentTry, setCurrentTry] = useState('');
-
+  const [currentTry, setCurrentTry] = useState(''); 
+  
   // Jo passwords check ho chuke hain unko yaad rakhne ke liye Set
   const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
-
+  
   const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
 
-  // NAYA: Bloom filter state
-  const [bloomFilter, setBloomFilter] = useState<BloomFilter | null>(null);
-
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
-
+  
   // Hints States
   const [lenMin, setLenMin] = useState(4);
   const [lenMax, setLenMax] = useState(6);
@@ -47,30 +40,13 @@ export default function UnlockTool() {
   const [firstChar, setFirstChar] = useState('');
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
-
+  
   const [exactAlphabets, setExactAlphabets] = useState<string>('');
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
 
-  // NAYA: Global cache for QPDF engine (ek baar load, baar baar istemal) – ab component ke bahar hai
-
-  // NAYA: VIP list download hone ka effect
-  React.useEffect(() => {
-    async function loadFilter() {
-      try {
-        const response = await fetch('/bloom-filter.json');
-        const filterData = await response.json();
-        setBloomFilter(BloomFilter.fromJSON(filterData));
-        console.log('VIP Bouncer Ready!');
-      } catch (error) {
-        console.log('Bouncer fail ho gaya.');
-      }
-    }
-    loadFilter();
-  }, []);
-
   const terminateAllWorkers = () => {
-    workersRef.current.forEach((worker) => worker.terminate());
+    workersRef.current.forEach(worker => worker.terminate());
     workersRef.current = [];
   };
 
@@ -78,13 +54,13 @@ export default function UnlockTool() {
     stopBruteForceRef.current = true;
     terminateAllWorkers();
     setStatus('needs_password');
-    setErrorMessage('Auto-Cracking stopped. Please enter details manually.');
+    setErrorMessage("Auto-Cracking stopped. Please enter details manually.");
   };
 
   const handleStopSmartCracking = () => {
     stopBruteForceRef.current = true;
     setStatus('needs_password');
-    setErrorMessage('Smart Recovery stopped manually.');
+    setErrorMessage("Smart Recovery stopped manually.");
   };
 
   // NAYA: Page refresh kiye bina reset karne ka function
@@ -101,41 +77,29 @@ export default function UnlockTool() {
     stopBruteForceRef.current = false;
   };
 
-  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED - CACHED VERSION)
+  // 🔁 NEW UNLOCKWITHWASM FUNCTION (REPLACED)
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
-    // NAYA: Agar engine load nahi hai, toh hi load karo, warna purana (cached) use karo
-    if (!cachedQpdf) {
-      cachedQpdf = await QPDF();
-    }
-    const qpdf = cachedQpdf;
-
+    const qpdf = await QPDF();
     try {
       qpdf.FS.writeFile('input.pdf', pdfBytes);
-      try {
-        qpdf.FS.unlink('output.pdf');
-      } catch (e) {}
-
+      try { qpdf.FS.unlink('output.pdf'); } catch(e){} 
+      
       // Engine run karo
       qpdf.callMain(['--password=' + passwordToTry, '--decrypt', 'input.pdf', 'output.pdf']);
-
+      
       // Result file read karo
       const unlockedBytes = qpdf.FS.readFile('output.pdf');
-
+      
+      // 👇 FIX: Sirf file length check karo (exitCode hata diya gaya hai)
       if (!unlockedBytes || unlockedBytes.length === 0) {
-        throw new Error('Wrong password - 0 byte file generated');
+        throw new Error("Wrong password - 0 byte file generated");
       }
-
-      try {
-        qpdf.FS.unlink('input.pdf');
-        qpdf.FS.unlink('output.pdf');
-      } catch (e) {}
+      
+      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(e){}
       return unlockedBytes;
     } catch (e) {
-      try {
-        qpdf.FS.unlink('input.pdf');
-        qpdf.FS.unlink('output.pdf');
-      } catch (err) {}
-      throw new Error('Wrong password');
+      try { qpdf.FS.unlink('input.pdf'); qpdf.FS.unlink('output.pdf'); } catch(err){}
+      throw new Error("Wrong password");
     }
   };
 
@@ -145,9 +109,9 @@ export default function UnlockTool() {
       reader.readAsDataURL(file);
       reader.onload = () => {
         const result = reader.result as string;
-        resolve(result.split(',')[1]);
+        resolve(result.split(',')[1]); 
       };
-      reader.onerror = (error) => reject(error);
+      reader.onerror = error => reject(error);
     });
   };
 
@@ -165,14 +129,9 @@ export default function UnlockTool() {
       const arrayBuffer = await uploadedFile.arrayBuffer();
       const pdfBytes = new Uint8Array(arrayBuffer);
       const fileNameWithoutExt = uploadedFile.name.replace('.pdf', '');
-
-      const autoTryPasswords = [
-        ...COMMON_PASSWORDS,
-        fileNameWithoutExt,
-        fileNameWithoutExt.toLowerCase(),
-        fileNameWithoutExt.toUpperCase(),
-      ];
-
+      
+      const autoTryPasswords = [...COMMON_PASSWORDS, fileNameWithoutExt, fileNameWithoutExt.toLowerCase(), fileNameWithoutExt.toUpperCase()];
+      
       let currentTriedSet = new Set<string>(autoTryPasswords);
       setTriedPasswords(currentTriedSet);
 
@@ -188,11 +147,11 @@ export default function UnlockTool() {
           isUnlocked = true;
           break;
         } catch (error: any) {
-          const errorMsg = error.message ? error.message.toLowerCase() : '';
+          const errorMsg = error.message ? error.message.toLowerCase() : "";
           if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
             aesDetected = true;
             setIsAes256(true);
-            break;
+            break; 
           }
         }
       }
@@ -200,126 +159,92 @@ export default function UnlockTool() {
       if (!isUnlocked) {
         setStatus('auto_cracking');
         setErrorMessage('');
+        
+        try {
+          const response = await fetch('/api/unlock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fetchPasswordsOnly: true })
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.success && data.passwords) {
+            const passwordsList = data.passwords;
+            
+            currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
+            setTriedPasswords(currentTriedSet);
 
-        // ========== MODIFIED BLOCK START ==========
-        // NAYA: Conveyor Belt ke Variables
-        let currentLastId = null; // Bookmark variable
-        let hasMoreBatches = true;
+            const totalPasswords = passwordsList.length;
+            let count = 0;
 
-        // NAYA: Jab tak aur data hai, aur taala nahi khula, tab tak loop chalne do
-        while (hasMoreBatches && !isUnlocked && !stopBruteForceRef.current) {
-          try {
-            const response = await fetch('/api/unlock', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              // Bookmark bhejo
-              body: JSON.stringify({ fetchPasswordsOnly: true, lastId: currentLastId }),
-            });
+            for (const pwd of passwordsList) {
+              if (!pwd) continue;
+              
+              setCurrentTry(pwd);
+              count++;
+              setProgress(Math.round((count / totalPasswords) * 100));
 
-            const data = await response.json();
+              if (count % 5 === 0) {
+                await new Promise(resolve => setTimeout(resolve, 0));
+              }
 
-            if (response.ok && data.success && data.passwords && data.passwords.length > 0) {
-              const passwordsList = data.passwords;
-
-              // Backend ne bataya hai ki aur list baaki hai ya nahi
-              hasMoreBatches = data.hasMore;
-              // Backend se aaya naya bookmark save karo
-              currentLastId = data.lastId;
-
-              currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
-              setTriedPasswords(currentTriedSet);
-
-              const totalPasswords = passwordsList.length;
-              let count = 0;
-
-              for (const pwd of passwordsList) {
-                // Agar user ne stop daba diya ya taala khul gaya, toh turant ruko
-                if (!pwd || stopBruteForceRef.current || isUnlocked) continue;
-
-                // NAYA VIP BOUNCER CHECK:
-                // Agar filter loaded hai, aur wo kehta hai ki password list me NAHI hai, toh turant skip karo
-                if (bloomFilter && !bloomFilter.has(pwd)) {
-                  continue; // Bina PDF engine chalaye agli chabi par jao (Extreme Speed!)
-                }
-
-                setCurrentTry(pwd);
-                count++;
-
-                // NAYA: UI atke na, isliye har 20 password ke baad thoda saans lene ka time do
-                if (count % 20 === 0) {
-                  setProgress(Math.round((count / totalPasswords) * 100));
-                  await new Promise((resolve) => setTimeout(resolve, 0));
-                }
-
-                if (aesDetected) {
-                  try {
-                    const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                    setUnlockedPdfBytes(unlockedBytes);
-                    setStatus('unlocked');
-                    isUnlocked = true;
-                    break;
-                  } catch (e) {}
-                } else {
-                  try {
-                    const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                    const savedBytes = await pdfDoc.save();
-                    setUnlockedPdfBytes(savedBytes);
-                    setStatus('unlocked');
-                    isUnlocked = true;
-                    break;
-                  } catch (error: any) {
-                    const errorMsg = error.message ? error.message.toLowerCase() : '';
-                    // FIX: Yahan se 'encrypt' word hata diya gaya hai false alarm rokne ke liye
-                    if (errorMsg.includes('not supported') || errorMsg.includes('aes') || errorMsg.includes('aes-256')) {
-                      aesDetected = true;
-                      setIsAes256(true);
-                      try {
-                        const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                        setUnlockedPdfBytes(unlockedBytes);
-                        setStatus('unlocked');
-                        isUnlocked = true;
-                        break;
-                      } catch (e) {}
-                    }
+              if (aesDetected) {
+                try {
+                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                  setUnlockedPdfBytes(unlockedBytes);
+                  setStatus('unlocked');
+                  isUnlocked = true;
+                  break;
+                } catch (e) {}
+              } else {
+                try {
+                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+                  const savedBytes = await pdfDoc.save();
+                  setUnlockedPdfBytes(savedBytes);
+                  setStatus('unlocked');
+                  isUnlocked = true;
+                  break;
+                } catch (error: any) {
+                  const errorMsg = error.message ? error.message.toLowerCase() : "";
+                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
+                    aesDetected = true;
+                    setIsAes256(true);
+                    try {
+                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                      setUnlockedPdfBytes(unlockedBytes);
+                      setStatus('unlocked');
+                      isUnlocked = true;
+                      break;
+                    } catch(e) {}
                   }
                 }
               }
-            } else {
-              // Agar API fail ho jaye ya list me data na aaye toh loop rok do
-              hasMoreBatches = false;
             }
-          } catch (apiError) {
-            console.error('DB Passwords fetch error:', apiError);
-            hasMoreBatches = false;
           }
+        } catch (apiError) {
+          console.error("DB Passwords fetch error:", apiError);
         }
-        // ========== MODIFIED BLOCK END ==========
       }
 
       if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
-
+        
         for (let length = 1; length <= 9; length++) {
           if (isUnlocked || stopBruteForceRef.current) break;
           let maxNum = Math.pow(10, length) - 1;
-
+          
           await new Promise<void>((resolve) => {
             let activeWorkers = numCores;
             const chunkSize = Math.ceil((maxNum + 1) / numCores);
 
             for (let i = 0; i < numCores; i++) {
-              if (stopBruteForceRef.current) {
-                resolve();
-                return;
-              }
+              if (stopBruteForceRef.current) { resolve(); return; }
               const startNum = i * chunkSize;
               let endNum = startNum + chunkSize - 1;
               if (endNum > maxNum) endNum = maxNum;
-              if (startNum > maxNum) {
-                activeWorkers--;
-                continue;
-              }
+              if (startNum > maxNum) { activeWorkers--; continue; }
 
               const worker = new PdfWorker();
               workersRef.current.push(worker);
@@ -334,7 +259,8 @@ export default function UnlockTool() {
                   setStatus('needs_password');
                   setErrorMessage(`High-Security AES-256 Lock Detected! Please enter password manually.`);
                   resolve();
-                } else if (type === 'success') {
+                }
+                else if (type === 'success') {
                   isUnlocked = true;
                   stopBruteForceRef.current = true;
                   terminateAllWorkers();
@@ -343,12 +269,14 @@ export default function UnlockTool() {
                   setUnlockedPdfBytes(savedBytes);
                   setStatus('unlocked');
                   resolve();
-                } else if (type === 'progress') {
+                } 
+                else if (type === 'progress') {
                   setCurrentTry(`${wTry} (Len: ${length})`);
-                  setProgress(Math.round((parseInt(wTry) / maxNum) * 100));
-                } else if (type === 'done') {
+                  setProgress(Math.round(((parseInt(wTry) / maxNum) * 100)));
+                } 
+                else if (type === 'done') {
                   activeWorkers--;
-                  if (activeWorkers <= 0) resolve();
+                  if (activeWorkers <= 0) resolve(); 
                 }
               };
             }
@@ -358,18 +286,19 @@ export default function UnlockTool() {
 
       if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('needs_password');
-        if (aesDetected) setErrorMessage('Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.');
+        if (aesDetected) setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
       }
+
     } catch (err: any) {
       setStatus('error');
-      setErrorMessage('File format error. Please upload a valid PDF.');
+      setErrorMessage("File format error. Please upload a valid PDF.");
     }
   };
 
   const handleManualUnlock = async () => {
     if (!file || !manualPassword) return;
     setErrorMessage('');
-    setStatus('processing_wasm');
+    setStatus('processing_wasm'); 
 
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -387,18 +316,18 @@ export default function UnlockTool() {
       setUnlockedPdfBytes(savedBytes);
       setStatus('unlocked');
     } catch (error: any) {
-      const errorMsg = error.message ? error.message.toLowerCase() : '';
+      const errorMsg = error.message ? error.message.toLowerCase() : "";
       if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
-        setIsAes256(true);
+        setIsAes256(true); 
         try {
-          const arrayBuffer = await file.arrayBuffer();
-          const pdfBytes = new Uint8Array(arrayBuffer);
-          const bytes = await unlockWithWasm(manualPassword, pdfBytes);
-          setUnlockedPdfBytes(bytes);
-          setStatus('unlocked');
+           const arrayBuffer = await file.arrayBuffer();
+           const pdfBytes = new Uint8Array(arrayBuffer);
+           const bytes = await unlockWithWasm(manualPassword, pdfBytes);
+           setUnlockedPdfBytes(bytes);
+           setStatus('unlocked');
         } catch (wasmError) {
-          setStatus('needs_password');
-          setErrorMessage('❌ Galat password! Kripya dobara try karein.');
+           setStatus('needs_password');
+           setErrorMessage('❌ Galat password! Kripya dobara try karein.');
         }
       } else {
         setStatus('needs_password');
@@ -422,7 +351,7 @@ export default function UnlockTool() {
     setStatus('smart_cracking');
     setErrorMessage('');
     setProgress(0);
-    setCurrentTry('Starting Engine...');
+    setCurrentTry('Starting Engine...'); 
     stopBruteForceRef.current = false;
 
     const pool = getCharPool();
@@ -442,17 +371,15 @@ export default function UnlockTool() {
       if (unlocked || stopBruteForceRef.current) break;
 
       // HINT INJECTION METHOD: Middle hint ke liye sirf wahi valid positions nikalna jaha wo fit ho sake
-      const startIndices = middleHint
-        ? Array.from({ length: Math.max(0, len - middleHint.length + 1) }, (_, i) => i)
-        : [null];
+      const startIndices = middleHint ? Array.from({length: Math.max(0, len - middleHint.length + 1)}, (_, i) => i) : [null];
 
       for (const mIdx of startIndices) {
         if (unlocked || stopBruteForceRef.current) break;
 
         // Pre-Validation: Agar firstChar aur middleHint ka first char clash kare toh path reject karo
         if (middleHint && mIdx !== null) {
-          if (firstChar && mIdx === 0 && middleHint[0] !== firstChar) continue;
-          if (lastChar && mIdx + middleHint.length === len && middleHint[middleHint.length - 1] !== lastChar) continue;
+            if (firstChar && mIdx === 0 && middleHint[0] !== firstChar) continue;
+            if (lastChar && mIdx + middleHint.length === len && middleHint[middleHint.length - 1] !== lastChar) continue;
         }
 
         // Stack me character counts store karenge taaki track kar sakein
@@ -471,59 +398,44 @@ export default function UnlockTool() {
 
           // 🚀 RULE 2: MIDDLE HINT INJECTION (Sidhe word paste karo, combination mat banao)
           if (middleHint && mIdx !== null && depth === mIdx) {
-            let mAlpha = 0,
-              mNum = 0,
-              mSym = 0;
-            for (let i = 0; i < middleHint.length; i++) {
-              const c = middleHint.charCodeAt(i);
-              if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) mAlpha++;
-              else if (c >= 48 && c <= 57) mNum++;
-              else mSym++;
-            }
-            stack.push({
-              str: str + middleHint,
-              depth: depth + middleHint.length,
-              alpha: alpha + mAlpha,
-              num: num + mNum,
-              sym: sym + mSym,
-            });
-            continue;
+             let mAlpha=0, mNum=0, mSym=0;
+             for(let i=0; i<middleHint.length; i++){
+                 const c = middleHint.charCodeAt(i);
+                 if ((c>=65 && c<=90)||(c>=97 && c<=122)) mAlpha++;
+                 else if(c>=48 && c<=57) mNum++;
+                 else mSym++;
+             }
+             stack.push({
+                 str: str + middleHint,
+                 depth: depth + middleHint.length,
+                 alpha: alpha + mAlpha,
+                 num: num + mNum,
+                 sym: sym + mSym
+             });
+             continue;
           }
 
           // 🚀 RULE 3: FIRST CHAR FORCING
           if (depth === 0 && firstChar) {
-            let isA = 0,
-              isN = 0,
-              isS = 0;
-            const c = firstChar.charCodeAt(0);
-            if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) isA = 1;
-            else if (c >= 48 && c <= 57) isN = 1;
-            else isS = 1;
-            stack.push({ str: firstChar, depth: 1, alpha: isA, num: isN, sym: isS });
-            continue;
+              let isA=0, isN=0, isS=0;
+              const c = firstChar.charCodeAt(0);
+              if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+              stack.push({ str: firstChar, depth: 1, alpha: isA, num: isN, sym: isS });
+              continue;
           }
 
           // 🚀 RULE 4: LAST CHAR FORCING
           if (depth === len - 1 && lastChar) {
-            let isA = 0,
-              isN = 0,
-              isS = 0;
-            const c = lastChar.charCodeAt(0);
-            if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) isA = 1;
-            else if (c >= 48 && c <= 57) isN = 1;
-            else isS = 1;
-            stack.push({
-              str: str + lastChar,
-              depth: len,
-              alpha: alpha + isA,
-              num: num + isN,
-              sym: sym + isS,
-            });
-            continue;
+              let isA=0, isN=0, isS=0;
+              const c = lastChar.charCodeAt(0);
+              if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+              stack.push({ str: str + lastChar, depth: len, alpha: alpha+isA, num: num+isN, sym: sym+isS });
+              continue;
           }
 
           // PASSWORD READY - Final Testing Phase
           if (depth === len) {
+            
             // 🚀 RULE 5: AVOID DUPLICATES (Jo automatic/DB me check ho gaya use skip karo)
             if (triedPasswords.has(str)) continue;
 
@@ -535,50 +447,40 @@ export default function UnlockTool() {
             attempts++;
 
             // Yahan text smoothly update hota rahega screen par
-            const timeLimit = isAes256 ? 20 : 50;
+            const timeLimit = isAes256 ? 20 : 50; 
             if (Date.now() - lastYieldTime > timeLimit) {
               setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-              setCurrentTry(str);
-              await new Promise((resolve) => setTimeout(resolve, isAes256 ? 5 : 0));
+              setCurrentTry(str); 
+              await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
               lastYieldTime = Date.now();
             }
 
-            // Engine Try
+            // Engine Try 
             if (isAes256) {
-              try {
-                const bytes = await unlockWithWasm(str, pdfBytes);
-                setUnlockedPdfBytes(bytes);
-                setStatus('unlocked');
-                unlocked = true;
-                break;
-              } catch (e) {}
+               try {
+                 const bytes = await unlockWithWasm(str, pdfBytes);
+                 setUnlockedPdfBytes(bytes);
+                 setStatus('unlocked');
+                 unlocked = true;
+                 break;
+               } catch(e) {}
             } else {
-              try {
-                const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
-                const savedBytes = await pdfDoc.save();
-                setUnlockedPdfBytes(savedBytes);
-                setStatus('unlocked');
-                unlocked = true;
-                break;
-              } catch (e) {}
+               try {
+                 const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
+                 const savedBytes = await pdfDoc.save();
+                 setUnlockedPdfBytes(savedBytes);
+                 setStatus('unlocked');
+                 unlocked = true;
+                 break;
+               } catch(e) {}
             }
           } else {
             // Normal character picking (Isme logic optimize kiya gaya hai)
             for (let i = pool.length - 1; i >= 0; i--) {
-              let isA = 0,
-                isN = 0,
-                isS = 0;
-              const c = pool.charCodeAt(i);
-              if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) isA = 1;
-              else if (c >= 48 && c <= 57) isN = 1;
-              else isS = 1;
-              stack.push({
-                str: str + pool[i],
-                depth: depth + 1,
-                alpha: alpha + isA,
-                num: num + isN,
-                sym: sym + isS,
-              });
+                let isA=0, isN=0, isS=0;
+                const c = pool.charCodeAt(i);
+                if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+                stack.push({ str: str + pool[i], depth: depth + 1, alpha: alpha+isA, num: num+isN, sym: sym+isS });
             }
           }
         }
@@ -625,21 +527,18 @@ export default function UnlockTool() {
           <Loader2 className="animate-spin w-16 h-16 text-purple-600 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800">Checking Database Passwords...</h3>
           <p className="text-gray-500 mt-2">Trying passwords at turbo speed...</p>
-
+          
           {currentTry && (
             <div className="mt-4 p-3 bg-white rounded-lg border border-purple-200 inline-block min-w-[200px] shadow-sm">
               <span className="text-sm text-gray-400 block mb-1">Current Try:</span>
               <span className="font-mono text-xl font-bold text-purple-700">{currentTry}</span>
             </div>
           )}
-
+          
           {progress > 0 && (
             <div className="w-full max-w-md mx-auto mt-6">
               <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                <div
-                  className="bg-purple-600 h-2.5 transition-all duration-75"
-                  style={{ width: `${progress}%` }}
-                ></div>
+                <div className="bg-purple-600 h-2.5 transition-all duration-75" style={{ width: `${progress}%` }}></div>
               </div>
               <p className="text-xs text-gray-500 mt-2">{progress}% Checked</p>
             </div>
@@ -651,20 +550,12 @@ export default function UnlockTool() {
         <div className="text-center p-10 bg-blue-50 rounded-xl border border-blue-100">
           <Settings className="animate-spin w-16 h-16 text-blue-600 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-gray-800 mb-2">Turbo Cracking Running...</h3>
-          <p className="text-gray-600 mb-2">
-            Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span>
-          </p>
+          <p className="text-gray-600 mb-2">Currently trying: <span className="font-mono font-bold text-blue-700">{currentTry}</span></p>
           <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-6">
-            <div
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            ></div>
+            <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
           </div>
-          <button
-            onClick={handleStopBruteForce}
-            className="px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200"
-          >
-            Stop & Switch to Manual Mode
+          <button onClick={handleStopBruteForce} className="px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+             Stop & Switch to Manual Mode
           </button>
         </div>
       )}
@@ -681,47 +572,25 @@ export default function UnlockTool() {
         <div className="text-center p-8 bg-purple-50 rounded-xl border border-purple-100">
           <Settings className="animate-spin w-12 h-12 text-purple-600 mx-auto mb-4" />
           <h3 className="text-lg font-bold text-gray-800 mb-2">Smart Recovery in Progress...</h3>
-          <p className="text-gray-600 mb-2">
-            Checking targeted combinations. Engine: {isAes256 ? 'WASM (AES-256)' : 'Standard'}
-          </p>
-          {currentTry && (
-            <p className="text-purple-700 font-mono text-sm mt-2 mb-4">Trying: {currentTry}</p>
-          )}
+          <p className="text-gray-600 mb-2">Checking targeted combinations. Engine: {isAes256 ? 'WASM (AES-256)' : 'Standard'}</p>
+          {currentTry && <p className="text-purple-700 font-mono text-sm mt-2 mb-4">Trying: {currentTry}</p>}
           <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-            <div
-              className="bg-purple-600 h-2.5 rounded-full transition-all duration-100"
-              style={{ width: `${progress}%` }}
-            ></div>
+            <div className="bg-purple-600 h-2.5 rounded-full transition-all duration-100" style={{ width: `${progress}%` }}></div>
           </div>
           <p className="text-sm text-gray-500 mt-2">{progress}% Completed</p>
-          <button
-            onClick={handleStopSmartCracking}
-            className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200"
-          >
-            Stop Recovery
+          <button onClick={handleStopSmartCracking} className="mt-4 px-6 py-2 bg-red-100 text-red-700 font-semibold rounded-lg hover:bg-red-200">
+             Stop Recovery
           </button>
         </div>
       )}
 
       {status === 'needs_password' && (
         <div className="space-y-6">
-          <div
-            className={`flex items-center p-4 rounded-lg border ${
-              isAes256
-                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                : 'bg-amber-50 text-amber-600 border-amber-200'
-            }`}
-          >
+          <div className={`flex items-center p-4 rounded-lg border ${isAes256 ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-amber-50 text-amber-600 border-amber-200'}`}>
             <AlertCircle className="w-6 h-6 mr-3 flex-shrink-0" />
             <div>
-              <span className="font-bold block">
-                {isAes256 ? 'Titanium Lock (AES-256) Detected' : 'Password Needed'}
-              </span>
-              <span className="text-sm">
-                {isAes256
-                  ? 'File is highly secure. Please enter password or use targeted Smart Recovery.'
-                  : 'Auto-check failed. Please enter the password manually.'}
-              </span>
+              <span className="font-bold block">{isAes256 ? "Titanium Lock (AES-256) Detected" : "Password Needed"}</span>
+              <span className="text-sm">{isAes256 ? "File is highly secure. Please enter password or use targeted Smart Recovery." : "Auto-check failed. Please enter the password manually."}</span>
             </div>
           </div>
 
@@ -734,191 +603,59 @@ export default function UnlockTool() {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Manual Password Entry:</h3>
             <div className="flex gap-4">
-              <input
-                type="password"
-                value={manualPassword}
-                onChange={(e) => setManualPassword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()}
-                placeholder="Enter exact password..."
-                className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <button
-                onClick={handleManualUnlock}
-                className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 whitespace-nowrap"
-              >
-                Unlock Document
-              </button>
+              <input type="password" value={manualPassword} onChange={(e) => setManualPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleManualUnlock()} placeholder="Enter exact password..." className="flex-1 px-4 py-3 border rounded-lg outline-none focus:ring-2 focus:ring-purple-500" />
+              <button onClick={handleManualUnlock} className="bg-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-purple-700 whitespace-nowrap">Unlock Document</button>
             </div>
           </div>
 
           <div className="text-center text-gray-400 font-medium">OR</div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <button
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100"
-            >
+            <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-4 flex justify-between items-center bg-gray-50 hover:bg-gray-100">
               <div className="flex items-center text-gray-800 font-semibold">
                 <Key className="w-5 h-5 mr-2 text-purple-600" /> Lost Password? (Targeted Smart Recovery)
               </div>
-              {showAdvanced ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
+              {showAdvanced ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
             </button>
 
             {showAdvanced && (
               <div className="p-6 space-y-6 border-t border-gray-200">
-                <p className="text-sm text-gray-600 border-b pb-4">
-                  Aapki file ke hisaab se engine pehle se set hai{' '}
-                  <b>({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu
-                  combinations check na kare aur jaldi unlock ho.
-                </p>
+                <p className="text-sm text-gray-600 border-b pb-4">Aapki file ke hisaab se engine pehle se set hai <b>({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
                   {/* BASIC HINTS */}
                   <div>
                     <label className="font-semibold block mb-2">Length Range</label>
                     <div className="flex gap-2">
-                      <input
-                        type="number"
-                        value={lenMin}
-                        onChange={(e) => setLenMin(Number(e.target.value))}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                        placeholder="Min"
-                      />
-                      <input
-                        type="number"
-                        value={lenMax}
-                        onChange={(e) => setLenMax(Number(e.target.value))}
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                        placeholder="Max"
-                      />
+                       <input type="number" value={lenMin} onChange={e => setLenMin(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Min" />
+                       <input type="number" value={lenMax} onChange={e => setLenMax(Number(e.target.value))} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="Max" />
                     </div>
                   </div>
                   <div>
                     <label className="font-semibold block mb-2">Included Characters</label>
                     <div className="flex gap-4 mt-2">
-                      <label className="cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={hasUppercase}
-                          onChange={(e) => setHasUppercase(e.target.checked)}
-                          className="mr-1 accent-purple-600"
-                        />{' '}
-                        A-Z
-                      </label>
-                      <label className="cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={hasLowercase}
-                          onChange={(e) => setHasLowercase(e.target.checked)}
-                          className="mr-1 accent-purple-600"
-                        />{' '}
-                        a-z
-                      </label>
-                      <label className="cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={hasNumbers}
-                          onChange={(e) => setHasNumbers(e.target.checked)}
-                          className="mr-1 accent-purple-600"
-                        />{' '}
-                        0-9
-                      </label>
-                      <label className="cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={hasSymbols}
-                          onChange={(e) => setHasSymbols(e.target.checked)}
-                          className="mr-1 accent-purple-600"
-                        />{' '}
-                        @#$
-                      </label>
+                      <label className="cursor-pointer"><input type="checkbox" checked={hasUppercase} onChange={e => setHasUppercase(e.target.checked)} className="mr-1 accent-purple-600"/> A-Z</label>
+                      <label className="cursor-pointer"><input type="checkbox" checked={hasLowercase} onChange={e => setHasLowercase(e.target.checked)} className="mr-1 accent-purple-600"/> a-z</label>
+                      <label className="cursor-pointer"><input type="checkbox" checked={hasNumbers} onChange={e => setHasNumbers(e.target.checked)} className="mr-1 accent-purple-600"/> 0-9</label>
+                      <label className="cursor-pointer"><input type="checkbox" checked={hasSymbols} onChange={e => setHasSymbols(e.target.checked)} className="mr-1 accent-purple-600"/> @#$</label>
                     </div>
                   </div>
-
+                  
                   {/* EXACT COUNT HINTS */}
                   <div className="md:col-span-2 border-t pt-4 mt-2">
-                    <p className="text-sm text-gray-500 mb-3">
-                      <b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)
-                    </p>
+                    <p className="text-sm text-gray-500 mb-3"><b>Advanced Constraints:</b> Agar exactly yaad hai ki kitne letters ya numbers hain (Optional)</p>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="font-semibold text-sm block mb-2">Kitne Alphabets?</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={exactAlphabets}
-                          onChange={(e) => setExactAlphabets(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                          placeholder="e.g. 4"
-                        />
-                      </div>
-                      <div>
-                        <label className="font-semibold text-sm block mb-2">Kitne Numbers?</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={exactNumbers}
-                          onChange={(e) => setExactNumbers(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                          placeholder="e.g. 2"
-                        />
-                      </div>
-                      <div>
-                        <label className="font-semibold text-sm block mb-2">Kitne Symbols?</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={exactSymbols}
-                          onChange={(e) => setExactSymbols(e.target.value)}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                          placeholder="e.g. 1"
-                        />
-                      </div>
+                      <div><label className="font-semibold text-sm block mb-2">Kitne Alphabets?</label><input type="number" min="0" value={exactAlphabets} onChange={e => setExactAlphabets(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 4" /></div>
+                      <div><label className="font-semibold text-sm block mb-2">Kitne Numbers?</label><input type="number" min="0" value={exactNumbers} onChange={e => setExactNumbers(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 2" /></div>
+                      <div><label className="font-semibold text-sm block mb-2">Kitne Symbols?</label><input type="number" min="0" value={exactSymbols} onChange={e => setExactSymbols(e.target.value)} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 1" /></div>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="font-semibold block mb-2">Starting Character?</label>
-                    <input
-                      type="text"
-                      maxLength={1}
-                      value={firstChar}
-                      onChange={(e) => setFirstChar(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                      placeholder="e.g. A"
-                    />
-                  </div>
-                  <div>
-                    <label className="font-semibold block mb-2">Ending Character?</label>
-                    <input
-                      type="text"
-                      maxLength={1}
-                      value={lastChar}
-                      onChange={(e) => setLastChar(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                      placeholder="e.g. 9"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="font-semibold block mb-2">Known string inside?</label>
-                    <input
-                      type="text"
-                      value={middleHint}
-                      onChange={(e) => setMiddleHint(e.target.value)}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                      placeholder="e.g. pintu"
-                    />
-                  </div>
+                  <div><label className="font-semibold block mb-2">Starting Character?</label><input type="text" maxLength={1} value={firstChar} onChange={e => setFirstChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. A" /></div>
+                  <div><label className="font-semibold block mb-2">Ending Character?</label><input type="text" maxLength={1} value={lastChar} onChange={e => setLastChar(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. 9" /></div>
+                  <div className="md:col-span-2"><label className="font-semibold block mb-2">Known string inside?</label><input type="text" value={middleHint} onChange={e => setMiddleHint(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none" placeholder="e.g. pintu" /></div>
                 </div>
-                <button
-                  onClick={handleSmartUnlock}
-                  className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-4 shadow-md"
-                >
-                  START TARGETED RECOVERY
-                </button>
+                <button onClick={handleSmartUnlock} className="w-full bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 transition-colors mt-4 shadow-md">START TARGETED RECOVERY</button>
               </div>
             )}
           </div>
@@ -929,18 +666,12 @@ export default function UnlockTool() {
         <div className="text-center p-10 bg-green-50 rounded-2xl border border-green-200">
           <LockOpen className="w-20 h-20 text-green-500 mx-auto mb-4" />
           <h3 className="text-3xl font-bold text-gray-900 mb-3">Document Unlocked!</h3>
-
+          
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-6">
-            <button
-              onClick={downloadUnlockedPdf}
-              className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1"
-            >
+            <button onClick={downloadUnlockedPdf} className="inline-flex items-center px-8 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg transition-transform hover:-translate-y-1">
               <Download className="w-6 h-6 mr-3" /> Download Unlocked PDF
             </button>
-            <button
-              onClick={resetTool}
-              className="inline-flex items-center px-8 py-4 bg-white border-2 border-green-600 text-green-700 font-bold rounded-xl hover:bg-green-50 shadow-sm transition-transform hover:-translate-y-1"
-            >
+            <button onClick={resetTool} className="inline-flex items-center px-8 py-4 bg-white border-2 border-green-600 text-green-700 font-bold rounded-xl hover:bg-green-50 shadow-sm transition-transform hover:-translate-y-1">
               <RefreshCw className="w-5 h-5 mr-3" /> Unlock Another File
             </button>
           </div>
