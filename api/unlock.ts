@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { PDFDocument } from 'pdf-lib';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const uri = "mongodb+srv://pintu_admin:pintu123@cluster0.ykbmgld.mongodb.net/";
 const client = new MongoClient(uri);
@@ -17,32 +17,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { fileBase64, password, fetchPasswordsOnly } = req.body;
 
-    // NAYA BLOCK: Agar frontend sirf DB se passwords list maang raha hai
+    // NAYA BLOCK: Cursor-based Pagination
     if (fetchPasswordsOnly) {
-      // 1. Check karo kitne passwords chhodne (skip) hain. Agar nahi bheja toh 0 maano.
-      const skipAmount = req.body.skip || 0; 
       const limitAmount = 5000;
+      const lastId = req.body.lastId; // Frontend bookmark bhejega
 
       await client.connect();
       const database = client.db('pdf_tool');
       
-      // 2. .skip() ka use karke purane passwords chhod do, aur uske aage ke 5000 uthao
+      // Query banate hain. Agar bookmark hai, toh uske aage ka data dhoondho
+      let query = {};
+      if (lastId) {
+        query = { _id: { $gt: new ObjectId(lastId) } };
+      }
+      
       const passwordDocs = await database.collection('passwords')
-        .find({})
-        .skip(skipAmount)
+        .find(query)
+        .sort({ _id: 1 }) // Data ko line me lagana zaroori hai bookmark ke liye
         .limit(limitAmount)
         .toArray();
         
       const passwordsList = passwordDocs.map(doc => doc.password);
       await client.close();
 
-      // 3. Ek signal bhejo ki Godown mein aur maal (data) bacha hai ya nahi
-      const hasMoreData = passwordsList.length === limitAmount;
+      const hasMoreData = passwordDocs.length === limitAmount;
+      // Aakhri document ka ID nikal lo taaki agli baar yahan se shuru kar sakein
+      const newLastId = passwordDocs.length > 0 ? passwordDocs[passwordDocs.length - 1]._id : null;
 
       return res.status(200).json({ 
         success: true, 
         passwords: passwordsList, 
-        hasMore: hasMoreData // Frontend ko isse pata chalega ki kab rukna hai
+        hasMore: hasMoreData,
+        lastId: newLastId // Naya bookmark frontend ko bhejo
       });
     }
 
