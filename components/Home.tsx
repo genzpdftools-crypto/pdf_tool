@@ -304,7 +304,7 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
       shadow: 'hover:shadow-teal-500/20',
       border: 'hover:border-teal-500/50',
       gradient: 'from-teal-500 to-emerald-600',
-      badge: 'Premium'
+      badge: 'New'
     },
     // 🔓 UNLOCK PDF TOOL (New tool)
     {
