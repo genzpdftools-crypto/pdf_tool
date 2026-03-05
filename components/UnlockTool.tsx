@@ -130,6 +130,7 @@ export default function UnlockTool() {
     });
   };
 
+  // ================== UPDATED handleFileUpload FUNCTION ==================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
@@ -156,6 +157,7 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
+      // 1. Shuru me basic/common passwords check honge
       for (const pwd of autoTryPasswords) {
         try {
           const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
@@ -174,6 +176,7 @@ export default function UnlockTool() {
         }
       }
 
+      // 2. Agar basic se nahi khula toh Database se check karega
       if (!isUnlocked) {
         setStatus('auto_cracking');
         setErrorMessage('');
@@ -188,10 +191,11 @@ export default function UnlockTool() {
           const data = await response.json();
           
           if (response.ok && data.success && data.passwords) {
-            const passwordsList = data.passwords.slice(0, 5000);
+            // 👇 YAHAN PE 5000 WALI LIMIT LAGAYI HAI
+            const passwordsList = data.passwords.slice(0, 5000); 
             const totalPasswords = passwordsList.length;
             
-            // ✅ Set total passwords from DB
+            // ✅ Set total passwords from DB for UI
             setTotalDbPasswords(totalPasswords);
             
             currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
@@ -204,7 +208,6 @@ export default function UnlockTool() {
             await new Promise<void>((resolve) => {
               let activeWorkers = numCores;
               let overallCount = 0;
-              const totalPasswords = passwordsList.length;
 
               for (let i = 0; i < numCores; i++) {
                 if (stopBruteForceRef.current) { resolve(); return; }
@@ -235,6 +238,7 @@ export default function UnlockTool() {
                     
                     setCurrentTry(password);
                     setProgress(100);
+                    setCheckedCount(totalPasswords); // Success milte hi poora count dikha dega
 
                     try {
                       setStatus('processing_wasm');
@@ -261,7 +265,7 @@ export default function UnlockTool() {
                   else if (type === 'progress') {
                     setCurrentTry(wTry);
                     overallCount += 50; 
-                    // ✅ Update checked count
+                    // ✅ Update checked count for UI
                     setCheckedCount(overallCount);
                     setProgress(Math.min(99, Math.round((overallCount / totalPasswords) * 100)));
                   } 
@@ -279,6 +283,7 @@ export default function UnlockTool() {
         }
       }
 
+      // 3. Agar DB me nahi mila toh Number Bruteforce par jayega
       if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
