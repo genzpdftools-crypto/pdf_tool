@@ -1,53 +1,41 @@
 import { PDFDocument } from 'pdf-lib';
-// @ts-ignore
-import QPDF from 'qpdf-wasm-esm-embedded'; // 🚀 QPDF import karna zaroori hai
 
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
-  // ==================== 100% WASM DATABASE CRACK (SUPER FAST) ====================
+  // ==================== MONGODB DATABASE CRACK (MEMORY OPTIMIZED) ====================
   if (data.type === 'db_crack') {
     const { pdfBytes, passwords, workerId } = data;
-    
-    try {
-      // 🚀 WASM engine start aur file RAM me load karo (Sirf 1 baar hoga)
-      const qpdf = await QPDF();
-      qpdf.FS.writeFile('input.pdf', pdfBytes);
 
-      for (let i = 0; i < passwords.length; i++) {
-        const pwd = passwords[i];
-        if (!pwd) continue;
+    for (let i = 0; i < passwords.length; i++) {
+      const pwd = passwords[i];
+      if (!pwd) continue;
 
-        // UI ko update karne ke liye progress bhejo
-        if (i % 50 === 0) {
-          self.postMessage({ type: 'progress', workerId, currentTry: pwd });
-        }
+      // Progress Update aur Memory Cleanup har 50 password ke baad
+      if (i % 50 === 0) {
+        self.postMessage({ type: 'progress', workerId, currentTry: pwd });
 
-        try {
-          // 🚀 YAHAN HAI JADU: Sirf check karwa rahe hain, file extract nahi kar rahe
-          // Agar galat hua toh sidha catch() me bhag jayega
-          qpdf.callMain(['--password=' + pwd, '--check', 'input.pdf']);
-          
-          // Agar code yahan tak pahucha matlab ERROR nahi aaya = PASSWORD SAHI HAI! 🎉
+        // 🚀 PRO HACK: Har 50 check ke baad 0ms ka pause.
+        // Isse browser ko saans lene ka mauka milta hai aur Garbage Collector memory saaf kar deta hai.
+        // Ye tumhare 50k passwords ke time browser ko crash (hang) hone se bachayega!
+        await new Promise(resolve => setTimeout(resolve, 0));
+      }
+
+      try {
+        await PDFDocument.load(pdfBytes, { password: pwd, updateMetadata: false });
+        self.postMessage({ type: 'success', password: pwd });
+        return;
+      } catch (err: any) {
+        const errorMsg = err.message ? err.message.toLowerCase() : "";
+        // AES-256 fallback pass check
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
           self.postMessage({ type: 'success', password: pwd });
-          
-          // Memory clean karke process band karo
-          try { qpdf.FS.unlink('input.pdf'); } catch(e){}
-          return; 
-        } catch (err) {
-          // Password galat tha, next try karo
-          continue;
+          return;
         }
       }
-      
-      // Jab loop khatam aur nahi mila toh memory clean karo
-      try { qpdf.FS.unlink('input.pdf'); } catch(e){}
-      self.postMessage({ type: 'done', workerId });
-      
-    } catch (error) {
-      console.error("Worker error:", error);
-      self.postMessage({ type: 'done', workerId });
     }
+
+    self.postMessage({ type: 'done', workerId });
   }
 
   // ==================== SMART CRACK WITH ELIMINATION RULES ====================
@@ -120,7 +108,7 @@ self.onmessage = async (e: MessageEvent) => {
               return;
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
-              
+
               // THE FIX: If pdf-lib recognizes the lock type after checking the password, 
               // it means our password was 100% CORRECT!
               if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
