@@ -1,5 +1,5 @@
 // components/CompressTool.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import {
   Minimize2,
@@ -27,6 +27,7 @@ import { clsx } from 'clsx';
  * - Rich schema.org / OpenGraph / Twitter meta tags
  * - High‑end UI with animations, trust badges, FAQ, and features grid
  * - Fully responsive with mobile optimizations
+ * - **Real‑time size estimation** while sliding the compression strength
  */
 export const CompressTool: React.FC = () => {
   // ---------- CONFIGURATION (SEO & branding) ----------
@@ -44,6 +45,13 @@ export const CompressTool: React.FC = () => {
   const [downloadName, setDownloadName] = useState<string>('');
   const [compressedSize, setCompressedSize] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // ---------- REAL‑TIME ESTIMATION STATES ----------
+  const [estimatedSize, setEstimatedSize] = useState<number | null>(null);
+  const [isEstimating, setIsEstimating] = useState<boolean>(false);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const estimationRequestId = useRef<number>(0);
 
   // ---------- ✅ PDF WORKER (dynamic, version‑aware, Vite‑safe) ----------
   useEffect(() => {
@@ -63,10 +71,8 @@ export const CompressTool: React.FC = () => {
 
   // ---------- ✅ COMPLETE SEO META TAGS (dynamic title + static) ----------
   useEffect(() => {
-    // Dynamic title
     document.title = file ? `Compress ${file.name} - ${TOOL_NAME}` : TOOL_NAME;
 
-    // Meta description
     let metaDesc = document.querySelector('meta[name="description"]');
     if (!metaDesc) {
       metaDesc = document.createElement('meta');
@@ -75,7 +81,6 @@ export const CompressTool: React.FC = () => {
     }
     metaDesc.setAttribute('content', TOOL_DESCRIPTION);
 
-    // Helper to set or create meta tags
     const setOrCreateMeta = (selector: string, attributes: Record<string, string>) => {
       let meta = document.querySelector(selector);
       if (!meta) {
@@ -85,7 +90,6 @@ export const CompressTool: React.FC = () => {
       Object.entries(attributes).forEach(([key, val]) => meta!.setAttribute(key, val));
     };
 
-    // Open Graph
     setOrCreateMeta('meta[property="og:title"]', { property: 'og:title', content: TOOL_NAME });
     setOrCreateMeta('meta[property="og:description"]', {
       property: 'og:description',
@@ -98,7 +102,6 @@ export const CompressTool: React.FC = () => {
       content: 'https://yourdomain.com/og-image.jpg', // 🔁
     });
 
-    // Twitter
     setOrCreateMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
     setOrCreateMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: TOOL_NAME });
     setOrCreateMeta('meta[name="twitter:description"]', {
@@ -110,7 +113,6 @@ export const CompressTool: React.FC = () => {
       content: 'https://yourdomain.com/twitter-image.jpg', // 🔁
     });
 
-    // Canonical link
     let canonical = document.querySelector('link[rel="canonical"]');
     if (!canonical) {
       canonical = document.createElement('link');
@@ -119,7 +121,6 @@ export const CompressTool: React.FC = () => {
     }
     canonical.setAttribute('href', CANONICAL_URL);
 
-    // Robots
     let robots = document.querySelector('meta[name="robots"]');
     if (!robots) {
       robots = document.createElement('meta');
@@ -128,15 +129,14 @@ export const CompressTool: React.FC = () => {
     }
     robots.setAttribute('content', 'index, follow');
 
-    // Theme colour (matches gradient)
     let themeColor = document.querySelector('meta[name="theme-color"]');
     if (!themeColor) {
       themeColor = document.createElement('meta');
       themeColor.setAttribute('name', 'theme-color');
       document.head.appendChild(themeColor);
     }
-    themeColor.setAttribute('content', '#f97316'); // orange-600
-  }, [file]); // Re‑run when file changes → dynamic title
+    themeColor.setAttribute('content', '#f97316');
+  }, [file]);
 
   // ---------- ✅ STRUCTURED DATA (JSON‑LD) – FAQ + SoftwareApplication ----------
   useEffect(() => {
@@ -225,20 +225,9 @@ export const CompressTool: React.FC = () => {
     };
 
     scriptTag.textContent = JSON.stringify(schema);
-  }, []); // run once on mount
-
-  // ---------- HANDLERS ----------
-  const handleFileSelected = useCallback((files: File[]) => {
-    if (files.length > 0) {
-      setFile(files[0]);
-      setDownloadUrl(null);
-      setCompressedSize(null);
-      setError(null);
-      setQuality(0.6);
-    }
   }, []);
 
-  // Image compression – with smart resizing (max width 2500)
+  // ---------- IMAGE COMPRESSION ----------
   const compressImage = async (file: File, q: number): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -286,7 +275,7 @@ export const CompressTool: React.FC = () => {
     });
   };
 
-  // PDF compression – uses pdf-lib + pdfjs-dist (dynamic import)
+  // ---------- PDF COMPRESSION ----------
   const compressPdf = async (file: File, q: number) => {
     try {
       const arrayBuffer = await file.arrayBuffer();
@@ -297,7 +286,7 @@ export const CompressTool: React.FC = () => {
 
       for (let i = 1; i <= originalPdf.numPages; i++) {
         const page = await originalPdf.getPage(i);
-        const scale = q < 0.4 ? 1.0 : 1.5; // lower quality → less scaling
+        const scale = q < 0.4 ? 1.0 : 1.5;
         const viewport = page.getViewport({ scale });
 
         const canvas = document.createElement('canvas');
@@ -322,7 +311,6 @@ export const CompressTool: React.FC = () => {
           height: embeddedImage.height,
         });
 
-        // Cleanup
         canvas.width = 0;
         canvas.height = 0;
       }
@@ -334,6 +322,33 @@ export const CompressTool: React.FC = () => {
     }
   };
 
+  // ---------- HELPER: EXECUTE COMPRESSION (RETURNS BLOB) ----------
+  const executeCompression = async (f: File, q: number): Promise<Blob> => {
+    if (f.type === 'application/pdf') {
+      const bytes = await compressPdf(f, q);
+      return new Blob([bytes], { type: 'application/pdf' });
+    } else if (f.type.startsWith('image/')) {
+      return await compressImage(f, q);
+    } else {
+      throw new Error('Unsupported file format. Please use PDF, JPG, PNG, or WebP.');
+    }
+  };
+
+  // ---------- HANDLERS ----------
+  const handleFileSelected = useCallback((files: File[]) => {
+    if (files.length > 0) {
+      setFile(files[0]);
+      setDownloadUrl(null);
+      setCompressedSize(null);
+      setError(null);
+      setQuality(0.6);
+      // Reset estimation states
+      setEstimatedSize(null);
+      setPreviewBlob(null);
+      setIsEstimating(false);
+    }
+  }, []);
+
   const handleCompress = async () => {
     if (!file) return;
     setIsProcessing(true);
@@ -343,15 +358,14 @@ export const CompressTool: React.FC = () => {
     await new Promise((r) => setTimeout(r, 300));
 
     try {
-      let resultBlob: Blob | Uint8Array;
+      let resultBlob: Blob;
 
-      if (file.type === 'application/pdf') {
-        const bytes = await compressPdf(file, quality);
-        resultBlob = new Blob([bytes], { type: 'application/pdf' });
-      } else if (file.type.startsWith('image/')) {
-        resultBlob = await compressImage(file, quality);
+      // Use previewBlob if it exists (already compressed in background)
+      if (previewBlob) {
+        resultBlob = previewBlob;
       } else {
-        throw new Error('Unsupported file format. Please use PDF, JPG, PNG, or WebP.');
+        // Fallback if user clicked before estimation finished
+        resultBlob = await executeCompression(file, quality);
       }
 
       const url = URL.createObjectURL(resultBlob);
@@ -370,8 +384,42 @@ export const CompressTool: React.FC = () => {
     setFile(null);
     setDownloadUrl(null);
     setCompressedSize(null);
+    setEstimatedSize(null);
+    setPreviewBlob(null);
     setError(null);
   };
+
+  // ---------- BACKGROUND REAL‑TIME ESTIMATION ----------
+  useEffect(() => {
+    if (!file) return;
+
+    setIsEstimating(true);
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    debounceTimer.current = setTimeout(async () => {
+      const reqId = ++estimationRequestId.current;
+      try {
+        const blob = await executeCompression(file, quality);
+        if (reqId === estimationRequestId.current) {
+          setPreviewBlob(blob);
+          setEstimatedSize(blob.size);
+          setIsEstimating(false);
+        }
+      } catch (err) {
+        if (reqId === estimationRequestId.current) {
+          console.error('Estimation failed:', err);
+          setIsEstimating(false);
+        }
+      }
+    }, 600);
+
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, [file, quality]);
 
   // ---------- RICH UI (redesigned, mobile‑optimized) ----------
   return (
@@ -525,11 +573,27 @@ export const CompressTool: React.FC = () => {
                         <span>Smallest Size</span>
                         <span>Best Quality</span>
                       </div>
+
+                      {/* ---------- REAL TIME ESTIMATED SIZE UI ---------- */}
+                      <div className="mt-6 flex items-center justify-between bg-white border border-slate-200 rounded-lg p-3 md:p-4 shadow-sm">
+                        <span className="text-xs md:text-sm font-semibold text-slate-600">Estimated New Size:</span>
+                        {isEstimating ? (
+                          <span className="flex items-center gap-2 text-orange-600 font-bold text-xs md:text-sm">
+                            <Loader2 size={16} className="animate-spin" /> Calculating...
+                          </span>
+                        ) : estimatedSize ? (
+                          <span className="text-emerald-600 font-extrabold text-sm md:text-lg bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100">
+                            {(estimatedSize / 1024 / 1024).toFixed(2)} MB
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Waiting...</span>
+                        )}
+                      </div>
                     </div>
 
                     <button
                       onClick={handleCompress}
-                      disabled={isProcessing}
+                      disabled={isProcessing || isEstimating}
                       className="w-full bg-gradient-to-r from-orange-600 to-rose-600 hover:from-orange-700 hover:to-rose-700 text-white text-base md:text-lg font-bold py-3 md:py-4 rounded-xl shadow-lg shadow-orange-200 transform transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait flex justify-center items-center gap-2 md:gap-3"
                     >
                       {isProcessing ? (
