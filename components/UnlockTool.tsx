@@ -22,6 +22,10 @@ export default function UnlockTool() {
   const [currentTry, setCurrentTry] = useState(''); 
   
   const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
+
+  // ✅ New states for tracking password checking progress
+  const [checkedCount, setCheckedCount] = useState(0);
+  const [totalDbPasswords, setTotalDbPasswords] = useState(0);
   
   const workersRef = useRef<Worker[]>([]);
   const stopBruteForceRef = useRef(false);
@@ -88,6 +92,9 @@ export default function UnlockTool() {
     setManualPassword('');
     setTriedPasswords(new Set());
     stopBruteForceRef.current = false;
+    // ✅ Reset new states
+    setCheckedCount(0);
+    setTotalDbPasswords(0);
   };
 
   const unlockWithWasm = async (passwordToTry: string, pdfBytes: Uint8Array): Promise<Uint8Array> => {
@@ -132,6 +139,9 @@ export default function UnlockTool() {
     setProgress(0);
     setIsAes256(false);
     stopBruteForceRef.current = false;
+    // ✅ Reset new states at the start of a new upload
+    setCheckedCount(0);
+    setTotalDbPasswords(0);
 
     try {
       const arrayBuffer = await uploadedFile.arrayBuffer();
@@ -179,6 +189,10 @@ export default function UnlockTool() {
           
           if (response.ok && data.success && data.passwords) {
             const passwordsList = data.passwords;
+            const totalPasswords = passwordsList.length;
+            
+            // ✅ Set total passwords from DB
+            setTotalDbPasswords(totalPasswords);
             
             currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
             setTriedPasswords(currentTriedSet);
@@ -247,6 +261,8 @@ export default function UnlockTool() {
                   else if (type === 'progress') {
                     setCurrentTry(wTry);
                     overallCount += 50; 
+                    // ✅ Update checked count
+                    setCheckedCount(overallCount);
                     setProgress(Math.min(99, Math.round((overallCount / totalPasswords) * 100)));
                   } 
                   else if (type === 'done') {
@@ -509,7 +525,7 @@ export default function UnlockTool() {
 
     if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Target ke hisab se ${attempts} combinations check kiye gaye.`);
+      setErrorMessage(`Smart Cracking Failed. Target ke hisaab se ${attempts} combinations check kiye gaye.`);
     }
   };
 
@@ -608,6 +624,7 @@ export default function UnlockTool() {
               
               {progress > 0 && (
                 <div className="w-full max-w-md mx-auto mt-8">
+                  {/* Progress Bar */}
                   <div className="bg-gray-200/80 rounded-full h-3 overflow-hidden shadow-inner">
                     <div 
                       className="bg-gradient-to-r from-rose-400 to-pink-500 h-3 rounded-full transition-all duration-300 ease-out relative shadow-[0_0_15px_rgba(244,63,94,0.5)]" 
@@ -616,7 +633,20 @@ export default function UnlockTool() {
                       <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                     </div>
                   </div>
-                  <p className="text-sm font-semibold text-rose-600 mt-3">{progress}% Checked</p>
+                  
+                  {/* ✅ New: Progress Text + Password Counter Pill */}
+                  <div className="flex justify-between items-center mt-4 px-2">
+                    <p className="text-sm font-bold text-rose-600">{progress}% Checked</p>
+                    
+                    {totalDbPasswords > 0 && (
+                      <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <p className="text-xs font-bold text-slate-600">
+                          <span className="text-rose-600">{checkedCount.toLocaleString()}</span> / {totalDbPasswords.toLocaleString()} Passwords
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
