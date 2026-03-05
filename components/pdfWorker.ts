@@ -1,10 +1,57 @@
 import { PDFDocument } from 'pdf-lib';
+// @ts-ignore
+import QPDF from 'qpdf-wasm-esm-embedded'; // 🚀 QPDF import karna zaroori hai
 
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
+  // ==================== 100% WASM DATABASE CRACK (SUPER FAST) ====================
+  if (data.type === 'db_crack') {
+    const { pdfBytes, passwords, workerId } = data;
+    
+    try {
+      // 🚀 WASM engine start aur file RAM me load karo (Sirf 1 baar hoga)
+      const qpdf = await QPDF();
+      qpdf.FS.writeFile('input.pdf', pdfBytes);
+
+      for (let i = 0; i < passwords.length; i++) {
+        const pwd = passwords[i];
+        if (!pwd) continue;
+
+        // UI ko update karne ke liye progress bhejo
+        if (i % 50 === 0) {
+          self.postMessage({ type: 'progress', workerId, currentTry: pwd });
+        }
+
+        try {
+          // 🚀 YAHAN HAI JADU: Sirf check karwa rahe hain, file extract nahi kar rahe
+          // Agar galat hua toh sidha catch() me bhag jayega
+          qpdf.callMain(['--password=' + pwd, '--check', 'input.pdf']);
+          
+          // Agar code yahan tak pahucha matlab ERROR nahi aaya = PASSWORD SAHI HAI! 🎉
+          self.postMessage({ type: 'success', password: pwd });
+          
+          // Memory clean karke process band karo
+          try { qpdf.FS.unlink('input.pdf'); } catch(e){}
+          return; 
+        } catch (err) {
+          // Password galat tha, next try karo
+          continue;
+        }
+      }
+      
+      // Jab loop khatam aur nahi mila toh memory clean karo
+      try { qpdf.FS.unlink('input.pdf'); } catch(e){}
+      self.postMessage({ type: 'done', workerId });
+      
+    } catch (error) {
+      console.error("Worker error:", error);
+      self.postMessage({ type: 'done', workerId });
+    }
+  }
+
   // ==================== SMART CRACK WITH ELIMINATION RULES ====================
-  if (data.type === 'smart_crack') {
+  else if (data.type === 'smart_crack') {
     const {
       pdfBytes, pool, lenMin, lenMax,
       firstChar, lastChar, middleHint,
