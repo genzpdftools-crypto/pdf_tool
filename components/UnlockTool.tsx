@@ -183,52 +183,80 @@ export default function UnlockTool() {
             currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
             setTriedPasswords(currentTriedSet);
 
-            const totalPasswords = passwordsList.length;
-            let count = 0;
+            // ================= 🚀 WORKER PARALLEL PROCESSING START =================
+            const numCores = navigator.hardwareConcurrency || 4;
+            const passwordsPerWorker = Math.ceil(passwordsList.length / numCores);
 
-            for (const pwd of passwordsList) {
-              if (!pwd) continue;
-              
-              setCurrentTry(pwd);
-              count++;
-              setProgress(Math.round((count / totalPasswords) * 100));
+            await new Promise<void>((resolve) => {
+              let activeWorkers = numCores;
+              let overallCount = 0;
+              const totalPasswords = passwordsList.length;
 
-              if (count % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-              }
-
-              if (aesDetected) {
-                try {
-                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                  setUnlockedPdfBytes(unlockedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (e) {}
-              } else {
-                try {
-                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                  const savedBytes = await pdfDoc.save();
-                  setUnlockedPdfBytes(savedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (error: any) {
-                  const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
-                    aesDetected = true;
-                    setIsAes256(true);
-                    try {
-                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                      setUnlockedPdfBytes(unlockedBytes);
-                      setStatus('unlocked');
-                      isUnlocked = true;
-                      break;
-                    } catch(e) {}
-                  }
+              for (let i = 0; i < numCores; i++) {
+                if (stopBruteForceRef.current) { resolve(); return; }
+                
+                const workerPasswords = passwordsList.slice(i * passwordsPerWorker, (i + 1) * passwordsPerWorker);
+                if (workerPasswords.length === 0) {
+                  activeWorkers--;
+                  continue;
                 }
+
+                const worker = new PdfWorker();
+                workersRef.current.push(worker);
+                
+                worker.postMessage({ 
+                  type: 'db_crack', 
+                  pdfBytes, 
+                  passwords: workerPasswords, 
+                  workerId: i 
+                });
+
+                worker.onmessage = async (msg) => {
+                  const { type, password, currentTry: wTry } = msg.data;
+                  
+                  if (type === 'success') {
+                    isUnlocked = true;
+                    stopBruteForceRef.current = true;
+                    terminateAllWorkers();
+                    
+                    setCurrentTry(password);
+                    setProgress(100);
+
+                    try {
+                      setStatus('processing_wasm');
+                      
+                      if (aesDetected) {
+                        const bytes = await unlockWithWasm(password, pdfBytes);
+                        setUnlockedPdfBytes(bytes);
+                      } else {
+                        try {
+                          const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                          const savedBytes = await pdfDoc.save();
+                          setUnlockedPdfBytes(savedBytes);
+                        } catch(e) {
+                          const bytes = await unlockWithWasm(password, pdfBytes);
+                          setUnlockedPdfBytes(bytes);
+                        }
+                      }
+                      setStatus('unlocked');
+                    } catch (err) {
+                      setErrorMessage("Final PDF generate karne me error aayi.");
+                    }
+                    resolve();
+                  } 
+                  else if (type === 'progress') {
+                    setCurrentTry(wTry);
+                    overallCount += 50; 
+                    setProgress(Math.min(99, Math.round((overallCount / totalPasswords) * 100)));
+                  } 
+                  else if (type === 'done') {
+                    activeWorkers--;
+                    if (activeWorkers <= 0) resolve(); 
+                  }
+                };
               }
-            }
+            });
+            // ================= 🚀 WORKER PARALLEL PROCESSING END =================
           }
         } catch (apiError) {
           console.error("DB Passwords fetch error:", apiError);
