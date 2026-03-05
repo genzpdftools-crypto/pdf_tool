@@ -11,19 +11,14 @@ const MAX_SMART_ATTEMPTS = 200000;
 
 export default function UnlockTool() {
   const [file, setFile] = useState<File | null>(null);
-  
   const [isAes256, setIsAes256] = useState(false);
   const [status, setStatus] = useState<'idle' | 'auto_cracking' | 'number_bruteforce' | 'needs_password' | 'smart_cracking' | 'processing_wasm' | 'unlocked' | 'error'>('idle');
-  
   const [unlockedPdfBytes, setUnlockedPdfBytes] = useState<Uint8Array | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  
   const [progress, setProgress] = useState(0);
   const [currentTry, setCurrentTry] = useState(''); 
-  
   const [triedPasswords, setTriedPasswords] = useState<Set<string>>(new Set());
 
-  // ✅ New states for tracking password checking progress
   const [checkedCount, setCheckedCount] = useState(0);
   const [totalDbPasswords, setTotalDbPasswords] = useState(0);
   
@@ -33,7 +28,6 @@ export default function UnlockTool() {
   const [manualPassword, setManualPassword] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   
-  // Hints States
   const [lenMin, setLenMin] = useState(4);
   const [lenMax, setLenMax] = useState(6);
   const [hasUppercase, setHasUppercase] = useState(false);
@@ -43,15 +37,12 @@ export default function UnlockTool() {
   const [firstChar, setFirstChar] = useState('');
   const [lastChar, setLastChar] = useState('');
   const [middleHint, setMiddleHint] = useState('');
-  
   const [exactAlphabets, setExactAlphabets] = useState<string>('');
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
 
-  // SEO: Update Title and Meta Description on load
   useEffect(() => {
     document.title = "Unlock PDF Free | Smart Password Recovery for Students";
-    
     let metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
       metaDescription.setAttribute('content', 'Remove PDF passwords for free instantly. Use our smart engine to auto-recover forgotten passwords or bypass secure AES-256 locks securely and fast.');
@@ -92,7 +83,6 @@ export default function UnlockTool() {
     setManualPassword('');
     setTriedPasswords(new Set());
     stopBruteForceRef.current = false;
-    // ✅ Reset new states
     setCheckedCount(0);
     setTotalDbPasswords(0);
   };
@@ -118,19 +108,6 @@ export default function UnlockTool() {
     }
   };
 
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1]); 
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
-
-  // ================== UPDATED handleFileUpload FUNCTION ==================
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
@@ -140,7 +117,6 @@ export default function UnlockTool() {
     setProgress(0);
     setIsAes256(false);
     stopBruteForceRef.current = false;
-    // ✅ Reset new states at the start of a new upload
     setCheckedCount(0);
     setTotalDbPasswords(0);
 
@@ -157,26 +133,38 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
-      // 1. Shuru me basic/common passwords check honge
       for (const pwd of autoTryPasswords) {
         try {
-          const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-          const savedBytes = await pdfDoc.save();
-          setUnlockedPdfBytes(savedBytes);
-          setStatus('unlocked');
-          isUnlocked = true;
-          break;
+          if (aesDetected) {
+            const bytes = await unlockWithWasm(pwd, pdfBytes);
+            setUnlockedPdfBytes(bytes);
+            setStatus('unlocked');
+            isUnlocked = true;
+            break;
+          } else {
+            const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+            const savedBytes = await pdfDoc.save();
+            setUnlockedPdfBytes(savedBytes);
+            setStatus('unlocked');
+            isUnlocked = true;
+            break;
+          }
         } catch (error: any) {
           const errorMsg = error.message ? error.message.toLowerCase() : "";
-          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
+          if (!aesDetected && (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt'))) {
             aesDetected = true;
             setIsAes256(true);
-            break; 
+            try {
+              const bytes = await unlockWithWasm(pwd, pdfBytes);
+              setUnlockedPdfBytes(bytes);
+              setStatus('unlocked');
+              isUnlocked = true;
+              break;
+            } catch(e) {}
           }
         }
       }
 
-      // 2. Agar basic se nahi khula toh Database se check karega
       if (!isUnlocked) {
         setStatus('auto_cracking');
         setErrorMessage('');
@@ -191,17 +179,14 @@ export default function UnlockTool() {
           const data = await response.json();
           
           if (response.ok && data.success && data.passwords) {
-            // 👇 YAHAN PE 5000 WALI LIMIT LAGAYI HAI
+            // 🚀 FAST LIMIT: Sirf top 5000 check honge
             const passwordsList = data.passwords.slice(0, 5000); 
             const totalPasswords = passwordsList.length;
-            
-            // ✅ Set total passwords from DB for UI
             setTotalDbPasswords(totalPasswords);
             
             currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
             setTriedPasswords(currentTriedSet);
 
-            // ================= 🚀 WORKER PARALLEL PROCESSING START =================
             const numCores = navigator.hardwareConcurrency || 4;
             const passwordsPerWorker = Math.ceil(passwordsList.length / numCores);
 
@@ -221,11 +206,13 @@ export default function UnlockTool() {
                 const worker = new PdfWorker();
                 workersRef.current.push(worker);
                 
+                // 🚀 PASSING isAes256 FLAG TO WORKER
                 worker.postMessage({ 
                   type: 'db_crack', 
                   pdfBytes, 
                   passwords: workerPasswords, 
-                  workerId: i 
+                  workerId: i,
+                  isAes256: aesDetected
                 });
 
                 worker.onmessage = async (msg) => {
@@ -238,52 +225,56 @@ export default function UnlockTool() {
                     
                     setCurrentTry(password);
                     setProgress(100);
-                    setCheckedCount(totalPasswords); // Success milte hi poora count dikha dega
+                    setCheckedCount(totalPasswords);
 
-                    try {
-                      setStatus('processing_wasm');
-                      
-                      if (aesDetected) {
-                        const bytes = await unlockWithWasm(password, pdfBytes);
-                        setUnlockedPdfBytes(bytes);
-                      } else {
-                        try {
-                          const pdfDoc = await PDFDocument.load(pdfBytes, { password });
-                          const savedBytes = await pdfDoc.save();
-                          setUnlockedPdfBytes(savedBytes);
-                        } catch(e) {
+                    // 1.5s delay taaki progress bar 100% dikhe
+                    setTimeout(async () => {
+                      try {
+                        setStatus('processing_wasm');
+                        if (aesDetected) {
                           const bytes = await unlockWithWasm(password, pdfBytes);
                           setUnlockedPdfBytes(bytes);
+                        } else {
+                          try {
+                            const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                            const savedBytes = await pdfDoc.save();
+                            setUnlockedPdfBytes(savedBytes);
+                          } catch(e) {
+                            const bytes = await unlockWithWasm(password, pdfBytes);
+                            setUnlockedPdfBytes(bytes);
+                          }
                         }
+                        setStatus('unlocked');
+                      } catch (err) {
+                        setErrorMessage("Final PDF generate karne me error aayi.");
                       }
-                      setStatus('unlocked');
-                    } catch (err) {
-                      setErrorMessage("Final PDF generate karne me error aayi.");
-                    }
-                    resolve();
+                      resolve();
+                    }, 1500);
+
                   } 
                   else if (type === 'progress') {
                     setCurrentTry(wTry);
                     overallCount += 50; 
-                    // ✅ Update checked count for UI
                     setCheckedCount(overallCount);
                     setProgress(Math.min(99, Math.round((overallCount / totalPasswords) * 100)));
                   } 
                   else if (type === 'done') {
                     activeWorkers--;
-                    if (activeWorkers <= 0) resolve(); 
+                    if (activeWorkers <= 0) {
+                      setProgress(100);
+                      setCheckedCount(totalPasswords);
+                      setTimeout(() => resolve(), 1500); 
+                    }
                   }
                 };
               }
             });
-            // ================= 🚀 WORKER PARALLEL PROCESSING END =================
           }
         } catch (apiError) {
           console.error("DB Passwords fetch error:", apiError);
         }
       }
 
-      // 3. Agar DB me nahi mila toh Number Bruteforce par jayega
       if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
@@ -305,7 +296,8 @@ export default function UnlockTool() {
 
               const worker = new PdfWorker();
               workersRef.current.push(worker);
-              worker.postMessage({ pdfBytes, startNum, endNum, length, workerId: i });
+              // 🚀 PASSING isAes256 FLAG
+              worker.postMessage({ type: 'number_bruteforce', pdfBytes, startNum, endNum, length, workerId: i, isAes256: aesDetected });
 
               worker.onmessage = async (msg) => {
                 const { type, password, currentTry: wTry } = msg.data;
@@ -422,6 +414,14 @@ export default function UnlockTool() {
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
 
+    // 🚀 FIX: SMART RECOVERY MEMORY & SPEED OPTIMIZATION
+    let qpdfInstance: any = null;
+    if (isAes256) {
+       setCurrentTry('Loading AES Engine...');
+       qpdfInstance = await QPDF();
+       qpdfInstance.FS.writeFile('smart.pdf', pdfBytes);
+    }
+
     for (let len = lenMin; len <= lenMax; len++) {
       if (unlocked || stopBruteForceRef.current) break;
 
@@ -500,12 +500,18 @@ export default function UnlockTool() {
 
             if (isAes256) {
                try {
+                 // 🚀 PRE-LOADED QPDF USE KIYA (Ab freeze nahi hoga!)
+                 qpdfInstance.callMain(['--password=' + str, '--check', 'smart.pdf']);
+                 
+                 // Agar success hua toh real extraction karo
                  const bytes = await unlockWithWasm(str, pdfBytes);
                  setUnlockedPdfBytes(bytes);
                  setStatus('unlocked');
                  unlocked = true;
                  break;
-               } catch(e) {}
+               } catch(e) {
+                 // Ignore wrong password
+               }
             } else {
                try {
                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
@@ -526,6 +532,11 @@ export default function UnlockTool() {
           }
         }
       }
+    }
+    
+    // Memory clean karo
+    if (qpdfInstance) {
+      try { qpdfInstance.FS.unlink('smart.pdf'); } catch(e){}
     }
 
     if (!unlocked && !stopBruteForceRef.current) {
@@ -555,7 +566,6 @@ export default function UnlockTool() {
       </div>
 
       <div className="relative z-10 w-full max-w-4xl mx-auto px-3 sm:px-6 py-4 md:py-12">
-        {/* Trust Badge */}
         <div className="flex justify-center mb-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-xs font-bold uppercase tracking-widest">
             <ShieldCheck size={12} /> Local WASM Engine
@@ -563,8 +573,6 @@ export default function UnlockTool() {
         </div>
 
         <div className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl shadow-rose-500/10 border border-rose-50 relative overflow-hidden transition-all duration-500">
-          
-          {/* Subtle background glow */}
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] h-40 bg-gradient-to-b from-rose-400/10 to-transparent pointer-events-none rounded-t-3xl"></div>
 
           <div className="text-center mb-10 relative z-10 mt-4">
@@ -576,7 +584,6 @@ export default function UnlockTool() {
             </p>
           </div>
 
-          {/* Selected File Badge (Text Wrapping Fix Included) */}
           {file && status !== 'unlocked' && (
             <div className="mb-8 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
                <div className="inline-flex items-center p-3 px-5 bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/60 rounded-2xl max-w-full shadow-sm">
@@ -590,14 +597,10 @@ export default function UnlockTool() {
             </div>
           )}
 
-          {/* Upload Zone - New Style */}
           {!file && (
             <div className="px-4 py-8 md:px-12 md:py-20 flex flex-col items-center justify-center h-full min-h-[400px] animate-in fade-in zoom-in-95 duration-500">
               <div className="w-full max-w-[280px] md:max-w-[380px] aspect-square relative group mx-auto cursor-pointer">
-                {/* Glowing background */}
                 <div className="absolute -inset-2 bg-gradient-to-tr from-rose-400 to-pink-400 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-60 animate-pulse transition duration-700"></div>
-                
-                {/* Actual Upload Box */}
                 <div className="relative h-full bg-white rounded-[1.8rem] md:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/50 flex flex-col items-center justify-center hover:bg-rose-50/50 transition-colors">
                   <input type="file" accept=".pdf" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                   <div className="w-16 h-16 md:w-20 md:h-20 bg-rose-100 rounded-full flex items-center justify-center mb-4 md:mb-6 group-hover:scale-110 group-hover:bg-rose-500 transition-all duration-300 shadow-inner">
@@ -627,20 +630,17 @@ export default function UnlockTool() {
                 </div>
               )}
               
-              {/* ✅ Replaced block: condition changed to totalDbPasswords > 0, added animate-in and min width */}
               {totalDbPasswords > 0 && (
                 <div className="w-full max-w-md mx-auto mt-8 animate-in fade-in duration-500">
-                  {/* Progress Bar */}
                   <div className="bg-gray-200/80 rounded-full h-3 overflow-hidden shadow-inner">
                     <div 
                       className="bg-gradient-to-r from-rose-400 to-pink-500 h-3 rounded-full transition-all duration-300 ease-out relative shadow-[0_0_15px_rgba(244,63,94,0.5)]" 
-                      style={{ width: `${Math.max(progress, 1)}%` }} // Taki 0% pe bhi thoda sa color dikhe
+                      style={{ width: `${Math.max(progress, 1)}%` }}
                     >
                       <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                     </div>
                   </div>
                   
-                  {/* ✅ New: Progress Text + Password Counter Pill */}
                   <div className="flex justify-between items-center mt-4 px-2">
                     <p className="text-sm font-bold text-rose-600">{progress}% Checked</p>
                     
@@ -723,8 +723,6 @@ export default function UnlockTool() {
 
           {status === 'needs_password' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              
-              {/* Alert Banner */}
               <div className={`flex items-start sm:items-center p-5 rounded-2xl border shadow-sm ${isAes256 ? 'bg-gradient-to-r from-pink-50 to-rose-50 text-pink-800 border-pink-200' : 'bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 border-amber-200'}`}>
                 <AlertCircle className={`w-8 h-8 mr-4 flex-shrink-0 mt-1 sm:mt-0 ${isAes256 ? 'text-pink-500' : 'text-amber-500'}`} />
                 <div>
@@ -739,7 +737,6 @@ export default function UnlockTool() {
                 </div>
               )}
 
-              {/* Manual Entry Section with updated button and input styles */}
               <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_0_40px_rgba(244,63,94,0.04)] border border-rose-50 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-rose-400 to-pink-500"></div>
                 <h3 className="text-xl font-bold text-gray-800 mb-5">Manual Password Entry</h3>
@@ -770,7 +767,6 @@ export default function UnlockTool() {
                  <div className="h-px bg-gray-200 flex-1"></div>
               </div>
 
-              {/* Smart Recovery Accordion */}
               <div className="bg-white rounded-3xl shadow-[0_0_40px_rgba(244,63,94,0.04)] border border-rose-50 overflow-hidden">
                 <button onClick={() => setShowAdvanced(!showAdvanced)} className="w-full p-6 sm:p-8 flex justify-between items-center bg-gray-50/50 hover:bg-rose-50/50 transition-colors">
                   <div className="flex items-center text-gray-800 font-bold text-lg text-left">
@@ -793,8 +789,6 @@ export default function UnlockTool() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      
-                      {/* Basic Hints */}
                       <div className="space-y-6">
                         <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
                           <label className="font-bold text-gray-700 block mb-3">Password Length Range</label>
@@ -818,7 +812,6 @@ export default function UnlockTool() {
                         </div>
                       </div>
                       
-                      {/* Position & Middle Hints */}
                       <div className="space-y-6">
                         <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 space-y-4">
                           <div>
@@ -836,7 +829,6 @@ export default function UnlockTool() {
                         </div>
                       </div>
 
-                      {/* Exact Count Hints (Advanced) */}
                       <div className="md:col-span-2 bg-gray-50 p-6 rounded-2xl border border-gray-100">
                         <div className="flex items-center mb-4">
                            <div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center mr-3"><Settings className="w-4 h-4 text-rose-500"/></div>
@@ -853,7 +845,6 @@ export default function UnlockTool() {
                           ))}
                         </div>
                       </div>
-
                     </div>
                     
                     <button onClick={handleSmartUnlock} className="w-full bg-gradient-to-r from-gray-900 to-gray-800 text-white py-4 sm:py-5 rounded-2xl font-extrabold text-lg tracking-wide shadow-xl hover:shadow-2xl hover:scale-[1.01] transition-all duration-300 mt-6 flex items-center justify-center">
@@ -889,10 +880,8 @@ export default function UnlockTool() {
           )}
         </div>
 
-        {/* Premium SEO Section below the Application UI */}
         <div className="max-w-4xl mx-auto mt-16 p-6 sm:p-10 bg-white/80 backdrop-blur-md rounded-3xl shadow-lg border border-gray-100 text-left">
           
-          {/* Step-by-Step Guide */}
           <div className="mb-14">
              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
                 <span className="w-2 h-8 bg-gradient-to-b from-rose-400 to-pink-500 rounded-full mr-4 block"></span>
@@ -914,7 +903,6 @@ export default function UnlockTool() {
              </div>
           </div>
 
-          {/* Advanced Features Description */}
           <div className="mb-14">
              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6 flex items-center">
                 <span className="w-2 h-8 bg-gradient-to-b from-pink-400 to-rose-500 rounded-full mr-4 block"></span>
@@ -927,7 +915,6 @@ export default function UnlockTool() {
              </div>
           </div>
 
-          {/* FAQ Section */}
           <div className="mb-10">
              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-8 flex items-center">
                 <span className="w-2 h-8 bg-gradient-to-b from-emerald-400 to-teal-500 rounded-full mr-4 block"></span>
@@ -948,7 +935,6 @@ export default function UnlockTool() {
              </div>
           </div>
 
-          {/* Internal Linking for Better SEO Navigation */}
           <div className="mt-12 bg-gradient-to-br from-rose-500 to-pink-600 rounded-3xl p-8 sm:p-10 text-center shadow-2xl relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay"></div>
             <h3 className="font-extrabold text-2xl sm:text-3xl text-white mb-4 relative z-10">Explore More Free Tools</h3>
@@ -960,7 +946,6 @@ export default function UnlockTool() {
                <a href="/split" className="bg-rose-700 text-white border border-rose-400 px-8 py-4 rounded-xl font-bold hover:bg-rose-800 hover:scale-105 transition-all shadow-lg">Split PDF</a>
             </div>
           </div>
-
         </div>
       </div>
     </div>
