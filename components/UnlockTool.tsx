@@ -188,7 +188,7 @@ export default function UnlockTool() {
           const data = await response.json();
           
           if (response.ok && data.success && data.passwords) {
-            const passwordsList = data.passwords;
+            const passwordsList = data.passwords.slice(0, 5000);
             const totalPasswords = passwordsList.length;
             
             // ✅ Set total passwords from DB
@@ -622,13 +622,14 @@ export default function UnlockTool() {
                 </div>
               )}
               
-              {progress > 0 && (
-                <div className="w-full max-w-md mx-auto mt-8">
+              {/* ✅ Replaced block: condition changed to totalDbPasswords > 0, added animate-in and min width */}
+              {totalDbPasswords > 0 && (
+                <div className="w-full max-w-md mx-auto mt-8 animate-in fade-in duration-500">
                   {/* Progress Bar */}
                   <div className="bg-gray-200/80 rounded-full h-3 overflow-hidden shadow-inner">
                     <div 
                       className="bg-gradient-to-r from-rose-400 to-pink-500 h-3 rounded-full transition-all duration-300 ease-out relative shadow-[0_0_15px_rgba(244,63,94,0.5)]" 
-                      style={{ width: `${progress}%` }}
+                      style={{ width: `${Math.max(progress, 1)}%` }} // Taki 0% pe bhi thoda sa color dikhe
                     >
                       <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                     </div>
@@ -638,14 +639,12 @@ export default function UnlockTool() {
                   <div className="flex justify-between items-center mt-4 px-2">
                     <p className="text-sm font-bold text-rose-600">{progress}% Checked</p>
                     
-                    {totalDbPasswords > 0 && (
-                      <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <p className="text-xs font-bold text-slate-600">
-                          <span className="text-rose-600">{checkedCount.toLocaleString()}</span> / {totalDbPasswords.toLocaleString()} Passwords
-                        </p>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-lg border border-rose-100 shadow-sm">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <p className="text-xs font-bold text-slate-600">
+                        <span className="text-rose-600">{checkedCount.toLocaleString()}</span> / {totalDbPasswords.toLocaleString()} Passwords
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
