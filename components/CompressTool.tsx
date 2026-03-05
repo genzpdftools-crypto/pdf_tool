@@ -53,6 +53,26 @@ export const CompressTool: React.FC = () => {
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const estimationRequestId = useRef<number>(0);
 
+  // ---------- UI HELPER: Calculate Percentage Change (with color and sign) ----------
+  const getPercentChangeUI = (oldSize: number, newSize: number) => {
+    const diff = newSize - oldSize;
+    const pChange = Math.round((Math.abs(diff) / oldSize) * 100);
+    const isIncreased = diff > 0;
+
+    return (
+      <span
+        className={clsx(
+          "px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-bold border",
+          isIncreased
+            ? "bg-rose-50 text-rose-700 border-rose-200"
+            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+        )}
+      >
+        {isIncreased ? '+' : '-'}{pChange}%
+      </span>
+    );
+  };
+
   // ---------- ✅ PDF WORKER (dynamic, version‑aware, Vite‑safe) ----------
   useEffect(() => {
     const initPdfWorker = async () => {
@@ -582,9 +602,15 @@ export const CompressTool: React.FC = () => {
                             <Loader2 size={16} className="animate-spin" /> Calculating...
                           </span>
                         ) : estimatedSize ? (
-                          <span className="text-emerald-600 font-extrabold text-sm md:text-lg bg-emerald-50 px-3 py-1 rounded-md border border-emerald-100">
-                            {(estimatedSize / 1024 / 1024).toFixed(2)} MB
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={clsx(
+                              "font-extrabold text-sm md:text-lg px-3 py-1 rounded-md border",
+                              estimatedSize > file.size ? "text-rose-600 bg-rose-50 border-rose-100" : "text-emerald-600 bg-emerald-50 border-emerald-100"
+                            )}>
+                              {(estimatedSize / 1024 / 1024).toFixed(2)} MB
+                            </span>
+                            {getPercentChangeUI(file.size, estimatedSize)}
+                          </div>
                         ) : (
                           <span className="text-slate-400 text-xs">Waiting...</span>
                         )}
@@ -628,12 +654,13 @@ export const CompressTool: React.FC = () => {
                         {(file.size / 1024 / 1024).toFixed(2)} MB
                       </div>
                       <div className="text-slate-300">→</div>
-                      <div className="text-emerald-600 font-bold text-sm md:text-lg">
+                      <div className={clsx(
+                        "font-bold text-sm md:text-lg",
+                        (compressedSize && compressedSize > file.size) ? "text-rose-600" : "text-emerald-600"
+                      )}>
                         {compressedSize ? (compressedSize / 1024 / 1024).toFixed(2) : '?'} MB
                       </div>
-                      <div className="bg-emerald-100 text-emerald-700 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-bold">
-                        -{Math.round(((file.size - (compressedSize || 0)) / file.size) * 100)}%
-                      </div>
+                      {compressedSize && getPercentChangeUI(file.size, compressedSize)}
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 justify-center">
