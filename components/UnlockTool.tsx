@@ -146,31 +146,32 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
-      // ===== NEW AUTO LOOP STARTS HERE =====
+      // ===== FAST AUTO LOOP (common + filename) =====
       let autoCount = 0;
       const totalAutoPasswords = autoTryPasswords.length;
 
       for (const pwd of autoTryPasswords) {
+        if (stopBruteForceRef.current) break;
         autoCount++;
         
-        // UI ko update karte raho taaki user ko lage tool chal raha hai
         setCurrentTry(pwd || "Empty Password");
         setProgress(Math.round((autoCount / totalAutoPasswords) * 100));
 
-        // Sabse important line: Har 5 attempt ke baad browser ko thoda free karo taaki wo hang na ho
         if (autoCount % 5 === 0) {
           await new Promise(resolve => setTimeout(resolve, 0));
         }
 
         if (aesDetected) {
-          // Agar pehle hi pata chal gaya hai ki file AES-256 hai, toh seedha WASM se try karo
+          // Once AES is known, try directly with WASM
           try {
             const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
             setUnlockedPdfBytes(unlockedBytes);
             setStatus('unlocked');
             isUnlocked = true;
             break;
-          } catch(e) {}
+          } catch(e) {
+            // Wrong password – continue
+          }
         } else {
           try {
             const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
@@ -181,31 +182,26 @@ export default function UnlockTool() {
             break;
           } catch (error: any) {
             const errorMsg = error.message ? error.message.toLowerCase() : "";
-            // Removed 'encrypt' from condition as requested
             if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
               aesDetected = true;
               setIsAes256(true);
-              
-              // Try WASM with the same password
+              // Immediately try WASM with the same password
               try {
                 const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
                 setUnlockedPdfBytes(unlockedBytes);
                 setStatus('unlocked');
                 isUnlocked = true;
                 break;
-              } catch(e) {
-                // If WASM fails, stop the entire auto-cracking process and ask for manual password
-                setStatus('needs_password');
-                setErrorMessage("High-Security AES-256 Lock Detected! Auto-cracking stopped. Please enter password manually.");
-                return; // Stop the whole function
+              } catch (e) {
+                // WASM also fails – continue the loop with aesDetected = true
               }
             }
           }
         }
       }
-      // ===== NEW AUTO LOOP ENDS HERE =====
 
-      if (!isUnlocked) {
+      // ===== DATABASE API CHECK =====
+      if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('auto_cracking');
         setErrorMessage('');
         
@@ -228,6 +224,7 @@ export default function UnlockTool() {
             let count = 0;
 
             for (const pwd of passwordsList) {
+              if (stopBruteForceRef.current || isUnlocked) break;
               if (!pwd) continue;
               
               setCurrentTry(pwd);
@@ -256,7 +253,6 @@ export default function UnlockTool() {
                   break;
                 } catch (error: any) {
                   const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  // Removed 'encrypt' from condition as requested
                   if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
                     aesDetected = true;
                     setIsAes256(true);
@@ -267,10 +263,7 @@ export default function UnlockTool() {
                       isUnlocked = true;
                       break;
                     } catch(e) {
-                      // If WASM fails, stop the entire process
-                      setStatus('needs_password');
-                      setErrorMessage("High-Security AES-256 Lock Detected! Auto-cracking stopped. Please enter password manually.");
-                      return; // Stop the whole function
+                      // WASM also fails – continue
                     }
                   }
                 }
@@ -282,7 +275,8 @@ export default function UnlockTool() {
         }
       }
 
-      if (!aesDetected && !isUnlocked) {
+      // ===== NUMBER BRUTEFORCE (only if not AES and not unlocked) =====
+      if (!aesDetected && !isUnlocked && !stopBruteForceRef.current) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
         
@@ -341,7 +335,9 @@ export default function UnlockTool() {
 
       if (!isUnlocked && !stopBruteForceRef.current) {
         setStatus('needs_password');
-        if (aesDetected) setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
+        if (aesDetected) {
+          setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
+        }
       }
 
     } catch (err: any) {
@@ -574,7 +570,7 @@ export default function UnlockTool() {
             </p>
           </div>
 
-          {/* Selected File Badge (Text Wrapping Fix Included) */}
+          {/* Selected File Badge */}
           {file && status !== 'unlocked' && (
             <div className="mb-8 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
                <div className="inline-flex items-center p-3 px-5 bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/60 rounded-2xl max-w-full shadow-sm">
@@ -588,7 +584,7 @@ export default function UnlockTool() {
             </div>
           )}
 
-          {/* Upload Zone - New Style */}
+          {/* Upload Zone */}
           {!file && (
             <div className="px-4 py-8 md:px-12 md:py-20 flex flex-col items-center justify-center h-full min-h-[400px] animate-in fade-in zoom-in-95 duration-500">
               <div className="w-full max-w-[280px] md:max-w-[380px] aspect-square relative group mx-auto cursor-pointer">
@@ -724,7 +720,7 @@ export default function UnlockTool() {
                 </div>
               )}
 
-              {/* Manual Entry Section with updated button and input styles */}
+              {/* Manual Entry Section */}
               <div className="bg-white p-6 sm:p-8 rounded-3xl shadow-[0_0_40px_rgba(244,63,94,0.04)] border border-rose-50 relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-rose-400 to-pink-500"></div>
                 <h3 className="text-xl font-bold text-gray-800 mb-5">Manual Password Entry</h3>
