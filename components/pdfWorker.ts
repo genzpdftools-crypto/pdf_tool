@@ -3,8 +3,40 @@ import { PDFDocument } from 'pdf-lib';
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
-  // ==================== SMART CRACK WITH ELIMINATION RULES ====================
-  if (data.type === 'smart_crack') {
+  // ==================== FAST MULTI-CORE DICTIONARY ATTACK ====================
+  if (data.type === 'dictionary_attack') {
+    const { pdfBytes, passwords, workerId } = data;
+    let count = 0;
+
+    for (const pwd of passwords) {
+      count++;
+      
+      // Har 50 password pe progress bhejo taaki UI smoothly update ho
+      if (count % 50 === 0) {
+        self.postMessage({ type: 'progress', workerId, currentTry: pwd });
+      }
+
+      try {
+        await PDFDocument.load(pdfBytes, { password: pwd, updateMetadata: false });
+        // Password mil gaya! Main thread ko batao
+        self.postMessage({ type: 'success', password: pwd });
+        return;
+      } catch (err: any) {
+        const errorMsg = err.message ? err.message.toLowerCase() : "";
+        
+        // Agar high security AES lock hai, toh ruk jao aur main thread ko batao
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
+          self.postMessage({ type: 'fatal_error', message: err.message, password: pwd });
+          return;
+        }
+      }
+    }
+    // List khatam
+    self.postMessage({ type: 'done', workerId });
+  }
+
+  // ==================== SMART CRACK WITH ELIMINATION RULES (IMPROVED) ====================
+  else if (data.type === 'smart_crack') {
     const {
       pdfBytes, pool, lenMin, lenMax,
       firstChar, lastChar, middleHint,
@@ -96,7 +128,7 @@ self.onmessage = async (e: MessageEvent) => {
     if (!unlocked) self.postMessage({ type: 'done', workerId, totalChecked: attempts });
   }
 
-  // ==================== NUMERIC BRUTE‑FORCE (ORIGINAL WORKER) ====================
+  // ==================== NUMERIC BRUTE‑FORCE (IMPROVED) ====================
   else if (data.startNum !== undefined && data.endNum !== undefined) {
     const { pdfBytes, startNum, endNum, length, workerId } = data;
 
