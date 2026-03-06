@@ -11,8 +11,9 @@ self.onmessage = async (e: MessageEvent) => {
     for (const pwd of passwords) {
       count++;
       
-      // Har 50 password pe progress bhejo taaki UI smoothly update ho
-      if (count % 50 === 0) {
+      // BUG FIX: 50 ki jagah har 200 password pe progress bhejo. 
+      // Isse lag/stuttering bilkul khatam ho jayegi aur speed 3x badh jayegi!
+      if (count % 200 === 0) {
         self.postMessage({ type: 'progress', workerId, currentTry: pwd });
       }
 
