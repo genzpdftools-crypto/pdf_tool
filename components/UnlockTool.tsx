@@ -146,7 +146,7 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
-      // ===== REPLACED LOOP STARTS HERE =====
+      // ===== NEW AUTO LOOP STARTS HERE =====
       let autoCount = 0;
       const totalAutoPasswords = autoTryPasswords.length;
 
@@ -181,11 +181,12 @@ export default function UnlockTool() {
             break;
           } catch (error: any) {
             const errorMsg = error.message ? error.message.toLowerCase() : "";
-            if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
+            // Removed 'encrypt' from condition as requested
+            if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
               aesDetected = true;
               setIsAes256(true);
               
-              // Break lagane ki jagah, is password ko turant WASM se try karke dekho
+              // Try WASM with the same password
               try {
                 const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
                 setUnlockedPdfBytes(unlockedBytes);
@@ -193,13 +194,16 @@ export default function UnlockTool() {
                 isUnlocked = true;
                 break;
               } catch(e) {
-                // Yahan loop chalte rehna chahiye agle password ke liye
+                // If WASM fails, stop the entire auto-cracking process and ask for manual password
+                setStatus('needs_password');
+                setErrorMessage("High-Security AES-256 Lock Detected! Auto-cracking stopped. Please enter password manually.");
+                return; // Stop the whole function
               }
             }
           }
         }
       }
-      // ===== REPLACED LOOP ENDS HERE =====
+      // ===== NEW AUTO LOOP ENDS HERE =====
 
       if (!isUnlocked) {
         setStatus('auto_cracking');
@@ -252,7 +256,8 @@ export default function UnlockTool() {
                   break;
                 } catch (error: any) {
                   const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
+                  // Removed 'encrypt' from condition as requested
+                  if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
                     aesDetected = true;
                     setIsAes256(true);
                     try {
@@ -261,7 +266,12 @@ export default function UnlockTool() {
                       setStatus('unlocked');
                       isUnlocked = true;
                       break;
-                    } catch(e) {}
+                    } catch(e) {
+                      // If WASM fails, stop the entire process
+                      setStatus('needs_password');
+                      setErrorMessage("High-Security AES-256 Lock Detected! Auto-cracking stopped. Please enter password manually.");
+                      return; // Stop the whole function
+                    }
                   }
                 }
               }
@@ -518,7 +528,7 @@ export default function UnlockTool() {
 
     if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Target ke hisab se ${attempts} combinations check kiye gaye.`);
+      setErrorMessage(`Smart Cracking Failed. Target ke hisaab se ${attempts} combinations check kiye gaye.`);
     }
   };
 
