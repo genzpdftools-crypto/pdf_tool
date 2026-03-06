@@ -133,36 +133,32 @@ export default function UnlockTool() {
 
         worker.postMessage({ type: 'dictionary_attack', pdfBytes, passwords: chunk, workerId: i });
 
-        worker.onmessage = async (msg) => {
+        worker.onmessage = (msg) => {
           const { type, password, currentTry: wTry } = msg.data;
 
           if (type === 'fatal_error') {
+            // Encryption not supported by pdf-lib -> AES‑256 detected
             stopBruteForceRef.current = true;
             terminateAllWorkers();
             setIsAes256(true);
-            // Immediately try WASM with the password that triggered the error
-            try {
-              const unlockedBytes = await unlockWithWasm(password, pdfBytes);
-              setUnlockedPdfBytes(unlockedBytes);
-              setStatus('unlocked');
-            } catch(e) {
-              setStatus('needs_password');
-              setErrorMessage("High-Security AES-256 Lock Detected! Please enter password manually or use Smart Recovery.");
-            }
-            resolve();
+            setStatus('needs_password');
+            setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
+            resolve(); // stop the attack
           }
           else if (type === 'success') {
             stopBruteForceRef.current = true;
             terminateAllWorkers();
             // Unlock the PDF and save bytes
-            try {
-              const pdfDoc = await PDFDocument.load(pdfBytes, { password });
-              const savedBytes = await pdfDoc.save();
-              setUnlockedPdfBytes(savedBytes);
-              setStatus('unlocked');
-            } catch(err) {
-              // fallback
-            }
+            (async () => {
+              try {
+                const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+                const savedBytes = await pdfDoc.save();
+                setUnlockedPdfBytes(savedBytes);
+                setStatus('unlocked');
+              } catch(err) {
+                // fallback – should not happen
+              }
+            })();
             resolve();
           }
           else if (type === 'progress') {
