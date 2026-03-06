@@ -123,6 +123,70 @@ export default function UnlockTool() {
     });
   };
 
+  // Worker-based dictionary attack (from first version)
+  const runDictionaryAttack = (passwordsToTry: string[], pdfBytes: Uint8Array): Promise<void> => {
+    return new Promise((resolve) => {
+      const numCores = navigator.hardwareConcurrency || 4;
+      const chunkSize = Math.ceil(passwordsToTry.length / numCores);
+      let activeWorkers = 0;
+
+      for (let i = 0; i < numCores; i++) {
+        const chunk = passwordsToTry.slice(i * chunkSize, (i + 1) * chunkSize);
+        if (chunk.length === 0) continue;
+
+        activeWorkers++;
+        const worker = new PdfWorker();
+        workersRef.current.push(worker);
+
+        worker.postMessage({ type: 'dictionary_attack', pdfBytes, passwords: chunk, workerId: i });
+
+        worker.onmessage = async (msg) => {
+          const { type, password, currentTry: wTry } = msg.data;
+
+          if (type === 'fatal_error') {
+            stopBruteForceRef.current = true;
+            terminateAllWorkers();
+            setIsAes256(true);
+            // Immediately try WASM with the password that triggered the error
+            try {
+              const unlockedBytes = await unlockWithWasm(password, pdfBytes);
+              setUnlockedPdfBytes(unlockedBytes);
+              setStatus('unlocked');
+              // isUnlocked flag is handled outside; we rely on status change to break loops
+            } catch(e) {
+              setStatus('needs_password');
+              setErrorMessage("High-Security AES-256 Lock Detected! Please enter password manually or use Smart Recovery.");
+            }
+            resolve();
+          }
+          else if (type === 'success') {
+            stopBruteForceRef.current = true;
+            terminateAllWorkers();
+            // Unlock the PDF and save bytes
+            try {
+              const pdfDoc = await PDFDocument.load(pdfBytes, { password });
+              const savedBytes = await pdfDoc.save();
+              setUnlockedPdfBytes(savedBytes);
+              setStatus('unlocked');
+            } catch(err) {
+              // fallback
+            }
+            resolve();
+          }
+          else if (type === 'progress') {
+            setCurrentTry(wTry);
+          }
+          else if (type === 'done') {
+            activeWorkers--;
+            if (activeWorkers <= 0) resolve();
+          }
+        };
+      }
+      // Fallback if no chunks were created
+      if (activeWorkers === 0) resolve();
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const uploadedFile = e.target.files[0];
@@ -146,65 +210,17 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
-      // ===== FAST AUTO LOOP (common + filename) =====
-      let autoCount = 0;
-      const totalAutoPasswords = autoTryPasswords.length;
-
-      for (const pwd of autoTryPasswords) {
-        if (stopBruteForceRef.current) break;
-        autoCount++;
-        
-        setCurrentTry(pwd || "Empty Password");
-        setProgress(Math.round((autoCount / totalAutoPasswords) * 100));
-
-        if (autoCount % 5 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0));
-        }
-
-        if (aesDetected) {
-          // Once AES is known, try directly with WASM
-          try {
-            const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-            setUnlockedPdfBytes(unlockedBytes);
-            setStatus('unlocked');
-            isUnlocked = true;
-            break;
-          } catch(e) {
-            // Wrong password – continue
-          }
-        } else {
-          try {
-            const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-            const savedBytes = await pdfDoc.save();
-            setUnlockedPdfBytes(savedBytes);
-            setStatus('unlocked');
-            isUnlocked = true;
-            break;
-          } catch (error: any) {
-            const errorMsg = error.message ? error.message.toLowerCase() : "";
-            if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
-              aesDetected = true;
-              setIsAes256(true);
-              // Immediately try WASM with the same password
-              try {
-                const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                setUnlockedPdfBytes(unlockedBytes);
-                setStatus('unlocked');
-                isUnlocked = true;
-                break;
-              } catch (e) {
-                // WASM also fails – continue the loop with aesDetected = true
-              }
-            }
-          }
-        }
+      // 1. Worker-based dictionary attack on common + filename passwords
+      setStatus('auto_cracking');
+      await runDictionaryAttack(autoTryPasswords, pdfBytes);
+      
+      // If unlocked or AES detected during the attack, stop further processing
+      if (status === 'unlocked' || stopBruteForceRef.current) {
+        return;
       }
 
-      // ===== DATABASE API CHECK =====
-      if (!isUnlocked && !stopBruteForceRef.current) {
-        setStatus('auto_cracking');
-        setErrorMessage('');
-        
+      // 2. Fetch database passwords and attack
+      if (!stopBruteForceRef.current) {
         try {
           const response = await fetch('/api/unlock', {
             method: 'POST',
@@ -215,59 +231,13 @@ export default function UnlockTool() {
           const data = await response.json();
           
           if (response.ok && data.success && data.passwords) {
-            const passwordsList = data.passwords;
+            const dbPasswords = data.passwords.filter((p: string) => p && !currentTriedSet.has(p));
             
-            currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
+            dbPasswords.forEach((p: string) => currentTriedSet.add(p));
             setTriedPasswords(currentTriedSet);
 
-            const totalPasswords = passwordsList.length;
-            let count = 0;
-
-            for (const pwd of passwordsList) {
-              if (stopBruteForceRef.current || isUnlocked) break;
-              if (!pwd) continue;
-              
-              setCurrentTry(pwd);
-              count++;
-              setProgress(Math.round((count / totalPasswords) * 100));
-
-              if (count % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-              }
-
-              if (aesDetected) {
-                try {
-                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                  setUnlockedPdfBytes(unlockedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (e) {}
-              } else {
-                try {
-                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                  const savedBytes = await pdfDoc.save();
-                  setUnlockedPdfBytes(savedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (error: any) {
-                  const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
-                    aesDetected = true;
-                    setIsAes256(true);
-                    try {
-                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                      setUnlockedPdfBytes(unlockedBytes);
-                      setStatus('unlocked');
-                      isUnlocked = true;
-                      break;
-                    } catch(e) {
-                      // WASM also fails – continue
-                    }
-                  }
-                }
-              }
+            if (dbPasswords.length > 0) {
+              await runDictionaryAttack(dbPasswords, pdfBytes);
             }
           }
         } catch (apiError) {
@@ -275,13 +245,17 @@ export default function UnlockTool() {
         }
       }
 
-      // ===== NUMBER BRUTEFORCE (only if not AES and not unlocked) =====
-      if (!aesDetected && !isUnlocked && !stopBruteForceRef.current) {
+      if (status === 'unlocked' || stopBruteForceRef.current) {
+        return;
+      }
+
+      // 3. If no AES detected and still locked, run numeric brute force (from second version)
+      if (!isAes256 && !stopBruteForceRef.current) {
         setStatus('number_bruteforce');
         const numCores = navigator.hardwareConcurrency || 4;
         
         for (let length = 1; length <= 9; length++) {
-          if (isUnlocked || stopBruteForceRef.current) break;
+          if (stopBruteForceRef.current) break;
           let maxNum = Math.pow(10, length) - 1;
           
           await new Promise<void>((resolve) => {
@@ -310,7 +284,6 @@ export default function UnlockTool() {
                   resolve();
                 }
                 else if (type === 'success') {
-                  isUnlocked = true;
                   stopBruteForceRef.current = true;
                   terminateAllWorkers();
                   const pdfDoc = await PDFDocument.load(pdfBytes, { password });
@@ -321,7 +294,7 @@ export default function UnlockTool() {
                 } 
                 else if (type === 'progress') {
                   setCurrentTry(`${wTry} (Len: ${length})`);
-                  setProgress(Math.round(((parseInt(wTry) / maxNum) * 100)));
+                  setProgress(Math.round(((parseInt(wTry) - startNum) / (endNum - startNum)) * 100));
                 } 
                 else if (type === 'done') {
                   activeWorkers--;
@@ -333,9 +306,10 @@ export default function UnlockTool() {
         }
       }
 
-      if (!isUnlocked && !stopBruteForceRef.current) {
+      // If still not unlocked, show password request
+      if (status !== 'unlocked' && !stopBruteForceRef.current) {
         setStatus('needs_password');
-        if (aesDetected) {
+        if (isAes256) {
           setErrorMessage("Strong Titanium Lock (AES-256) detected. Please enter password or use Smart Recovery.");
         }
       }
@@ -621,6 +595,7 @@ export default function UnlockTool() {
                 </div>
               )}
               
+              {/* Progress bar only shown if progress > 0 */}
               {progress > 0 && (
                 <div className="w-full max-w-md mx-auto mt-8">
                   <div className="bg-gray-200/80 rounded-full h-3 overflow-hidden shadow-inner">
