@@ -426,7 +426,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // UPDATE KIYA GAYA FUNCTION: Elimination method ke sath
+  // UPDATE KIYA GAYA FUNCTION: Elimination method (Contiguous + Scattered dono rules ke sath)
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -447,127 +447,157 @@ export default function UnlockTool() {
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
 
-    // Known string ko ulta pulta karke list bana li
-    const hintVariants = middleHint ? getPermutations(middleHint) : [''];
+    // RULE 3 HELPER: Check karne ke liye ki kya characters alag-alag places par available hain
+    const hasScatteredChars = (pwd: string, hint: string) => {
+      let temp = pwd;
+      for (const char of hint) {
+        const idx = temp.indexOf(char);
+        if (idx === -1) return false;
+        temp = temp.slice(0, idx) + temp.slice(idx + 1); // Found character hata do taaki duplicate match na ho
+      }
+      return true;
+    };
 
-    // ELIMINATION: Outer loop sirf selected length par chalega, baaki sab cut.
-    for (let len = lenMin; len <= lenMax; len++) {
+    // 2 PHASES: Agar hint hai toh Phase 1 (ek saath) aur Phase 2 (alag-alag) run karega
+    const phases = middleHint ? [1, 2] : [1];
+
+    // ELIMINATION: Outer loop sirf selected length par chalega
+    for (const phase of phases) {
       if (unlocked || stopBruteForceRef.current) break;
 
-      // Har ek ulte-pulte variant ke liye try karenge
-      for (const variant of hintVariants) {
+      for (let len = lenMin; len <= lenMax; len++) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        const startIndices = variant ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) : [null];
+        // Known string ke permutations bana lo
+        const hintVariants = middleHint ? getPermutations(middleHint) : [''];
 
-        for (const mIdx of startIndices) {
+        // Har ek permutation ke liye try karo
+        for (const variant of hintVariants) {
           if (unlocked || stopBruteForceRef.current) break;
 
-          // ELIMINATION: Agar variant ki jagah First ya Last char se takra rahi hai, toh turant reject karo
-          if (variant && mIdx !== null) {
-              if (firstChar && mIdx === 0 && variant[0] !== firstChar) continue;
-              if (lastChar && mIdx + variant.length === len && variant[variant.length - 1] !== lastChar) continue;
-          }
+          // Har possible starting position jahaan variant aa sakta hai
+          const startIndices = variant ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) : [null];
 
-          const stack = [{ str: '', depth: 0, alpha: 0, num: 0, sym: 0 }];
+          for (const mIdx of startIndices) {
+            if (unlocked || stopBruteForceRef.current) break;
 
-          while (stack.length > 0) {
-            if (stopBruteForceRef.current || unlocked || attempts >= MAX_SMART_ATTEMPTS) break;
-
-            const { str, depth, alpha, num, sym } = stack.pop()!;
-
-            const remaining = len - depth;
-            
-            // ELIMINATION: Agar bich me hi pata chal gaya ki required Alphabets/Numbers pure nahi honge, toh wo rasta wahi block kar do.
-            if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
-            if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
-            if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
-
-            if (variant && mIdx !== null && depth === mIdx) {
-               let mAlpha=0, mNum=0, mSym=0;
-               for(let i=0; i<variant.length; i++){
-                   const c = variant.charCodeAt(i);
-                   if ((c>=65 && c<=90)||(c>=97 && c<=122)) mAlpha++;
-                   else if(c>=48 && c<=57) mNum++;
-                   else mSym++;
-               }
-               stack.push({
-                   str: str + variant,
-                   depth: depth + variant.length,
-                   alpha: alpha + mAlpha,
-                   num: num + mNum,
-                   sym: sym + mSym
-               });
-               continue;
+            // ELIMINATION: Agar variant ki jagah First ya Last character se takra rahi hai toh reject karo
+            if (variant && mIdx !== null) {
+                if (firstChar && mIdx === 0 && variant[0] !== firstChar) continue;
+                if (lastChar && mIdx + variant.length === len && variant[variant.length - 1] !== lastChar) continue;
             }
 
-            // ELIMINATION: First Character fixed hai, toh dusre letters ki loop mat lagao
-            if (depth === 0 && firstChar) {
-                let isA=0, isN=0, isS=0;
-                const c = firstChar.charCodeAt(0);
-                if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
-                stack.push({ str: firstChar, depth: 1, alpha: isA, num: isN, sym: isS });
+            const stack = [{ str: '', depth: 0, alpha: 0, num: 0, sym: 0 }];
+
+            while (stack.length > 0) {
+              if (stopBruteForceRef.current || unlocked || attempts >= MAX_SMART_ATTEMPTS) break;
+
+              const { str, depth, alpha, num, sym } = stack.pop()!;
+              const remaining = len - depth;
+              
+              // ELIMINATION RULE 8: Agar bich me hi pata chal gaya ki required Alphabets/Numbers pure nahi honge, toh rasta wahi block kar do.
+              if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
+              if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
+              if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
+
+              // Agar is depth par variant dalna hai toh daal do
+              if (variant && mIdx !== null && depth === mIdx) {
+                let mAlpha=0, mNum=0, mSym=0;
+                for(let i=0; i<variant.length; i++){
+                    const c = variant.charCodeAt(i);
+                    if ((c>=65 && c<=90)||(c>=97 && c<=122)) mAlpha++;
+                    else if(c>=48 && c<=57) mNum++;
+                    else mSym++;
+                }
+                stack.push({
+                    str: str + variant,
+                    depth: depth + variant.length,
+                    alpha: alpha + mAlpha,
+                    num: num + mNum,
+                    sym: sym + mSym
+                });
                 continue;
-            }
-
-            // ELIMINATION: Last Character fixed hai, toh direct wahi place karo
-            if (depth === len - 1 && lastChar) {
-                let isA=0, isN=0, isS=0;
-                const c = lastChar.charCodeAt(0);
-                if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
-                stack.push({ str: str + lastChar, depth: len, alpha: alpha+isA, num: num+isN, sym: sym+isS });
-                continue;
-            }
-
-            if (depth === len) {
-              if (triedPasswords.has(str)) continue;
-
-              if (reqAlpha !== -1 && alpha !== reqAlpha) continue;
-              if (reqNum !== -1 && num !== reqNum) continue;
-              if (reqSym !== -1 && sym !== reqSym) continue;
-
-              attempts++;
-
-              const timeLimit = isAes256 ? 20 : 50; 
-              if (Date.now() - lastYieldTime > timeLimit) {
-                setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-                setCurrentTry(str); 
-                await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
-                lastYieldTime = Date.now();
               }
 
-              // Testing phase
-              if (isAes256) {
-                 try {
-                   const bytes = await unlockWithWasm(str, pdfBytes);
-                   setUnlockedPdfBytes(bytes);
-                   setStatus('unlocked');
-                   unlocked = true;
-                   break;
-                 } catch(e) {}
-              } else {
-                 try {
-                   const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
-                   const savedBytes = await pdfDoc.save();
-                   setUnlockedPdfBytes(savedBytes);
-                   setStatus('unlocked');
-                   unlocked = true;
-                   break;
-                 } catch(e) {}
-              }
-            } else {
-              // Yahan par hum ek aur choti elimination lagayenge
-              for (let i = pool.length - 1; i >= 0; i--) {
+              // ELIMINATION RULE 7: First Character fixed hai
+              if (depth === 0 && firstChar) {
                   let isA=0, isN=0, isS=0;
-                  const c = pool.charCodeAt(i);
+                  const c = firstChar.charCodeAt(0);
                   if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
-                  
-                  // ELIMINATION: Agar koi type ka character limit cross kar raha hai, toh stack me daalna hi nahi hai
-                  if (reqAlpha !== -1 && alpha + isA > reqAlpha) continue;
-                  if (reqNum !== -1 && num + isN > reqNum) continue;
-                  if (reqSym !== -1 && sym + isS > reqSym) continue;
+                  stack.push({ str: firstChar, depth: 1, alpha: isA, num: isN, sym: isS });
+                  continue;
+              }
 
-                  stack.push({ str: str + pool[i], depth: depth + 1, alpha: alpha+isA, num: num+isN, sym: sym+isS });
+              // ELIMINATION RULE 7: Last Character fixed hai
+              if (depth === len - 1 && lastChar) {
+                  let isA=0, isN=0, isS=0;
+                  const c = lastChar.charCodeAt(0);
+                  if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+                  stack.push({ str: str + lastChar, depth: len, alpha: alpha+isA, num: num+isN, sym: sym+isS });
+                  continue;
+              }
+
+              if (depth === len) {
+                if (triedPasswords.has(str)) continue;
+                
+                // ==========================================
+                // SMART RULE 1, 2, 3: CONTIGUOUS VS SCATTERED
+                // ==========================================
+                if (middleHint) {
+                  if (phase === 1) {
+                    // Phase 1 (Rule 1): Hint string me ek saath (lagatar) maujood hona chahiye
+                    if (!str.includes(middleHint)) continue;
+                  } else if (phase === 2) {
+                    // Phase 2 (Rule 2 & 3): Hint characters 'alag-alag' khali jagah par maujood hone chahiye.
+                    // Note: Agar wo ek-sath hue (str.includes), toh hum use ignore karenge kyunki wo Phase 1 me check ho chuke hain, isse processing time bachega!
+                    if (!hasScatteredChars(str, middleHint) || str.includes(middleHint)) continue;
+                  }
+                }
+
+                attempts++;
+
+                // Lag-Free UI trick (Aapka banaya hua)
+                const timeLimit = isAes256 ? 20 : 50; 
+                if (Date.now() - lastYieldTime > timeLimit) {
+                  setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
+                  setCurrentTry(`${str} (Phase ${phase})`); 
+                  await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
+                  lastYieldTime = Date.now();
+                }
+
+                // Checking password
+                if (isAes256) {
+                   try {
+                     const bytes = await unlockWithWasm(str, pdfBytes);
+                     setUnlockedPdfBytes(bytes);
+                     setStatus('unlocked');
+                     unlocked = true;
+                     break;
+                   } catch(e) {}
+                } else {
+                   try {
+                     const pdfDoc = await PDFDocument.load(pdfBytes, { password: str });
+                     const savedBytes = await pdfDoc.save();
+                     setUnlockedPdfBytes(savedBytes);
+                     setStatus('unlocked');
+                     unlocked = true;
+                     break;
+                   } catch(e) {}
+                }
+              } else {
+                // Bachi hui khali jagah par letters fill karna (Elimination ke sath)
+                for (let i = pool.length - 1; i >= 0; i--) {
+                    let isA=0, isN=0, isS=0;
+                    const c = pool.charCodeAt(i);
+                    if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
+                    
+                    // Agar alphabet/number/symbol ki condition paar ho rahi hai, toh usko list me dalo hi mat
+                    if (reqAlpha !== -1 && alpha + isA > reqAlpha) continue;
+                    if (reqNum !== -1 && num + isN > reqNum) continue;
+                    if (reqSym !== -1 && sym + isS > reqSym) continue;
+
+                    stack.push({ str: str + pool[i], depth: depth + 1, alpha: alpha+isA, num: num+isN, sym: sym+isS });
+                }
               }
             }
           }
