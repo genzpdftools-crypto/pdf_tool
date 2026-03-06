@@ -426,7 +426,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // UPDATE KIYA GAYA FUNCTION: Elimination method (Contiguous + Scattered dono rules ke sath)
+  // ***** NEW CORRECTED handleSmartUnlock FUNCTION (Integrated) *****
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -435,7 +435,7 @@ export default function UnlockTool() {
     setCurrentTry('Starting Engine...'); 
     stopBruteForceRef.current = false;
 
-    const pool = getCharPool(); // ELIMINATION: Sirf tick kiye hue characters hi try honge
+    const pool = getCharPool(); 
     const arrayBuffer = await file.arrayBuffer();
     const pdfBytes = new Uint8Array(arrayBuffer);
 
@@ -447,42 +447,38 @@ export default function UnlockTool() {
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
 
-    // RULE 3 HELPER: Check karne ke liye ki kya characters alag-alag places par available hain
     const hasScatteredChars = (pwd: string, hint: string) => {
       let temp = pwd;
       for (const char of hint) {
         const idx = temp.indexOf(char);
         if (idx === -1) return false;
-        temp = temp.slice(0, idx) + temp.slice(idx + 1); // Found character hata do taaki duplicate match na ho
+        temp = temp.slice(0, idx) + temp.slice(idx + 1); 
       }
       return true;
     };
 
-    // 2 PHASES: Agar hint hai toh Phase 1 (ek saath) aur Phase 2 (alag-alag) run karega
     const phases = middleHint ? [1, 2] : [1];
 
-    // ELIMINATION: Outer loop sirf selected length par chalega
     for (const phase of phases) {
       if (unlocked || stopBruteForceRef.current) break;
 
       for (let len = lenMin; len <= lenMax; len++) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        // Known string ke permutations bana lo
         const hintVariants = middleHint ? getPermutations(middleHint) : [''];
 
-        // Har ek permutation ke liye try karo
         for (const variant of hintVariants) {
           if (unlocked || stopBruteForceRef.current) break;
 
-          // Har possible starting position jahaan variant aa sakta hai
-          const startIndices = variant ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) : [null];
+          // Phase 1 uses distinct starting positions. Phase 2 just needs one pass.
+          const startIndices = (phase === 1 && variant) 
+            ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) 
+            : [null];
 
           for (const mIdx of startIndices) {
             if (unlocked || stopBruteForceRef.current) break;
 
-            // ELIMINATION: Agar variant ki jagah First ya Last character se takra rahi hai toh reject karo
-            if (variant && mIdx !== null) {
+            if (phase === 1 && variant && mIdx !== null) {
                 if (firstChar && mIdx === 0 && variant[0] !== firstChar) continue;
                 if (lastChar && mIdx + variant.length === len && variant[variant.length - 1] !== lastChar) continue;
             }
@@ -495,13 +491,12 @@ export default function UnlockTool() {
               const { str, depth, alpha, num, sym } = stack.pop()!;
               const remaining = len - depth;
               
-              // ELIMINATION RULE 8: Agar bich me hi pata chal gaya ki required Alphabets/Numbers pure nahi honge, toh rasta wahi block kar do.
               if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
               if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
               if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
 
-              // Agar is depth par variant dalna hai toh daal do
-              if (variant && mIdx !== null && depth === mIdx) {
+              // Only force the contiguous block in Phase 1
+              if (phase === 1 && variant && mIdx !== null && depth === mIdx) {
                 let mAlpha=0, mNum=0, mSym=0;
                 for(let i=0; i<variant.length; i++){
                     const c = variant.charCodeAt(i);
@@ -519,7 +514,6 @@ export default function UnlockTool() {
                 continue;
               }
 
-              // ELIMINATION RULE 7: First Character fixed hai
               if (depth === 0 && firstChar) {
                   let isA=0, isN=0, isS=0;
                   const c = firstChar.charCodeAt(0);
@@ -528,7 +522,6 @@ export default function UnlockTool() {
                   continue;
               }
 
-              // ELIMINATION RULE 7: Last Character fixed hai
               if (depth === len - 1 && lastChar) {
                   let isA=0, isN=0, isS=0;
                   const c = lastChar.charCodeAt(0);
@@ -540,23 +533,16 @@ export default function UnlockTool() {
               if (depth === len) {
                 if (triedPasswords.has(str)) continue;
                 
-                // ==========================================
-                // SMART RULE 1, 2, 3: CONTIGUOUS VS SCATTERED
-                // ==========================================
                 if (middleHint) {
                   if (phase === 1) {
-                    // Phase 1 (Rule 1): Hint string me ek saath (lagatar) maujood hona chahiye
                     if (!str.includes(middleHint)) continue;
                   } else if (phase === 2) {
-                    // Phase 2 (Rule 2 & 3): Hint characters 'alag-alag' khali jagah par maujood hone chahiye.
-                    // Note: Agar wo ek-sath hue (str.includes), toh hum use ignore karenge kyunki wo Phase 1 me check ho chuke hain, isse processing time bachega!
                     if (!hasScatteredChars(str, middleHint) || str.includes(middleHint)) continue;
                   }
                 }
 
                 attempts++;
 
-                // Lag-Free UI trick (Aapka banaya hua)
                 const timeLimit = isAes256 ? 20 : 50; 
                 if (Date.now() - lastYieldTime > timeLimit) {
                   setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
@@ -565,7 +551,6 @@ export default function UnlockTool() {
                   lastYieldTime = Date.now();
                 }
 
-                // Checking password
                 if (isAes256) {
                    try {
                      const bytes = await unlockWithWasm(str, pdfBytes);
@@ -585,13 +570,11 @@ export default function UnlockTool() {
                    } catch(e) {}
                 }
               } else {
-                // Bachi hui khali jagah par letters fill karna (Elimination ke sath)
                 for (let i = pool.length - 1; i >= 0; i--) {
                     let isA=0, isN=0, isS=0;
                     const c = pool.charCodeAt(i);
                     if ((c>=65 && c<=90)||(c>=97 && c<=122)) isA=1; else if(c>=48 && c<=57) isN=1; else isS=1;
                     
-                    // Agar alphabet/number/symbol ki condition paar ho rahi hai, toh usko list me dalo hi mat
                     if (reqAlpha !== -1 && alpha + isA > reqAlpha) continue;
                     if (reqNum !== -1 && num + isN > reqNum) continue;
                     if (reqSym !== -1 && sym + isS > reqSym) continue;
@@ -607,9 +590,10 @@ export default function UnlockTool() {
 
     if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Target ke hisab se ${attempts} combinations check kiye gaye.`);
+      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} target combinations.`);
     }
   };
+  // ***** END OF NEW handleSmartUnlock FUNCTION *****
 
   const downloadUnlockedPdf = () => {
     if (!unlockedPdfBytes || !file) return;
