@@ -146,23 +146,46 @@ export default function UnlockTool() {
       let isUnlocked = false;
       let aesDetected = false;
 
+      // ===== REPLACED LOOP STARTS HERE =====
       for (const pwd of autoTryPasswords) {
-        try {
-          const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-          const savedBytes = await pdfDoc.save();
-          setUnlockedPdfBytes(savedBytes);
-          setStatus('unlocked');
-          isUnlocked = true;
-          break;
-        } catch (error: any) {
-          const errorMsg = error.message ? error.message.toLowerCase() : "";
-          if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
-            aesDetected = true;
-            setIsAes256(true);
-            break; 
+        if (aesDetected) {
+          // Agar pehle hi pata chal gaya hai ki file AES-256 hai, toh seedha WASM se try karo
+          try {
+            const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+            setUnlockedPdfBytes(unlockedBytes);
+            setStatus('unlocked');
+            isUnlocked = true;
+            break;
+          } catch(e) {}
+        } else {
+          try {
+            const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
+            const savedBytes = await pdfDoc.save();
+            setUnlockedPdfBytes(savedBytes);
+            setStatus('unlocked');
+            isUnlocked = true;
+            break;
+          } catch (error: any) {
+            const errorMsg = error.message ? error.message.toLowerCase() : "";
+            if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
+              aesDetected = true;
+              setIsAes256(true);
+              
+              // Break lagane ki jagah, is password ko turant WASM se try karke dekho
+              try {
+                const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+                setUnlockedPdfBytes(unlockedBytes);
+                setStatus('unlocked');
+                isUnlocked = true;
+                break;
+              } catch(e) {
+                // Yahan loop chalte rehna chahiye agle password ke liye
+              }
+            }
           }
         }
       }
+      // ===== REPLACED LOOP ENDS HERE =====
 
       if (!isUnlocked) {
         setStatus('auto_cracking');
