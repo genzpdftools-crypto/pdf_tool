@@ -171,120 +171,142 @@ export default function UnlockTool() {
       let currentTriedSet = new Set<string>(autoTryPasswords);
       setTriedPasswords(currentTriedSet);
 
+      // ===== NAYA SUPERFAST AUTOMATIC CODE =====
       let isUnlocked = false;
       let aesDetected = false;
+      let correctPassword = null;
+      let unlockedBytesResult = null;
 
-      // ===== REPLACED LOOP STARTS HERE =====
-      for (const pwd of autoTryPasswords) {
-        if (aesDetected) {
-          // Agar pehle hi pata chal gaya hai ki file AES-256 hai, toh seedha WASM se try karo
-          try {
-            const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-            setUnlockedPdfBytes(unlockedBytes);
-            setStatus('unlocked');
-            isUnlocked = true;
-            break;
-          } catch(e) {}
-        } else {
-          try {
-            const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-            const savedBytes = await pdfDoc.save();
-            setUnlockedPdfBytes(savedBytes);
-            setStatus('unlocked');
-            isUnlocked = true;
-            break;
-          } catch (error: any) {
-            const errorMsg = error.message ? error.message.toLowerCase() : "";
-            if (errorMsg.includes('not supported') || errorMsg.includes('aes-256') || errorMsg.includes('encrypt')) {
-              aesDetected = true;
-              setIsAes256(true);
-              
-              // Break lagane ki jagah, is password ko turant WASM se try karke dekho
-              try {
-                const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                setUnlockedPdfBytes(unlockedBytes);
-                setStatus('unlocked');
-                isUnlocked = true;
-                break;
-              } catch(e) {
-                // Yahan loop chalte rehna chahiye agle password ke liye
-              }
-            }
-          }
+      // 1. Chupke se ek false password daal kar check karo ki file AES-256 (High Security) hai ya Normal
+      try {
+        await PDFDocument.load(pdfBytes, { password: 'PINTU_FAST_CHECK' });
+      } catch (error: any) {
+        const errorMsg = error.message ? error.message.toLowerCase() : "";
+        if (errorMsg.includes('not supported') || errorMsg.includes('aes') || errorMsg.includes('encrypt')) {
+          aesDetected = true;
+          setIsAes256(true);
         }
       }
-      // ===== REPLACED LOOP ENDS HERE =====
 
-      if (!isUnlocked) {
-        setStatus('auto_cracking');
-        setErrorMessage('');
-        
-        try {
-          const response = await fetch('/api/unlock', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fetchPasswordsOnly: true })
-          });
+      // 2. Database se passwords background me fetch karna start kar do (Network ka waiting time bachega)
+      const dbPasswordsPromise = fetch('/api/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fetchPasswordsOnly: true })
+      }).then(res => res.json()).catch(() => ({ success: false, passwords: [] }));
+
+      // --- HELPER 1: Web Workers se Superfast checking (Normal PDFs ke liye) ---
+      const testPasswordsInWorkers = (passwordsToTest: string[]): Promise<string | null> => {
+        return new Promise((resolve) => {
+          const numCores = navigator.hardwareConcurrency || 4;
+          let activeWorkers = numCores;
+          const chunkSize = Math.ceil(passwordsToTest.length / numCores);
+          let foundPassword: string | null = null;
+
+          for (let i = 0; i < numCores; i++) {
+            if (stopBruteForceRef.current || foundPassword) { resolve(null); return; }
+            const chunk = passwordsToTest.slice(i * chunkSize, (i + 1) * chunkSize);
+            if (chunk.length === 0) { activeWorkers--; continue; }
+
+            const worker = new PdfWorker();
+            workersRef.current.push(worker);
+
+            worker.postMessage({ type: 'dictionary_attack', pdfBytes, passwords: chunk, workerId: i });
+
+            worker.onmessage = (msg) => {
+               const { type, password, currentTry: wTry } = msg.data;
+               if (type === 'success') {
+                 foundPassword = password;
+                 stopBruteForceRef.current = true;
+                 terminateAllWorkers();
+                 resolve(password);
+               } else if (type === 'progress') {
+                 setCurrentTry(wTry);
+               } else if (type === 'fatal_error') {
+                 terminateAllWorkers();
+                 resolve('AES_DETECTED');
+               } else if (type === 'done') {
+                 activeWorkers--;
+                 if (activeWorkers <= 0 && !foundPassword) resolve(null);
+               }
+            };
+          }
+          if (activeWorkers === 0) resolve(null);
+        });
+      };
+
+      // --- HELPER 2: WASM Engine (Main Thread) AES-256 ke liye lag-free chunks me ---
+      const testPasswordsWithWASM = async (passwordsToTest: string[]) => {
+        let count = 0;
+        const total = passwordsToTest.length;
+        for (const pwd of passwordsToTest) {
+          if (stopBruteForceRef.current) return null;
+          count++;
           
-          const data = await response.json();
-          
-          if (response.ok && data.success && data.passwords) {
-            const passwordsList = data.passwords;
-            
-            currentTriedSet = new Set([...currentTriedSet, ...passwordsList]);
+          if (count % 5 === 0) {
+            setCurrentTry(pwd);
+            setProgress(Math.round((count / total) * 100));
+            await new Promise(res => setTimeout(res, 0)); // Lag roko
+          }
+
+          try {
+             const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
+             unlockedBytesResult = unlockedBytes;
+             return pwd;
+          } catch(e) {}
+        }
+        return null;
+      };
+
+      // --- ATTACK SHURU! ---
+
+      // Phase 1: Local Common Passwords Try Karo
+      if (!aesDetected) {
+         correctPassword = await testPasswordsInWorkers(autoTryPasswords);
+         if (correctPassword === 'AES_DETECTED') {
+           aesDetected = true;
+           setIsAes256(true);
+           correctPassword = null;
+         }
+      }
+      
+      if (aesDetected && !correctPassword && !stopBruteForceRef.current) {
+         correctPassword = await testPasswordsWithWASM(autoTryPasswords);
+      }
+
+      // Phase 2: Database Passwords Try Karo (Agar lock nahi khula)
+      if (!correctPassword && !stopBruteForceRef.current) {
+         const dbData = await dbPasswordsPromise;
+         if (dbData.success && dbData.passwords) {
+            const dbPasswordsList = dbData.passwords;
+            currentTriedSet = new Set([...currentTriedSet, ...dbPasswordsList]);
             setTriedPasswords(currentTriedSet);
 
-            const totalPasswords = passwordsList.length;
-            let count = 0;
-
-            for (const pwd of passwordsList) {
-              if (!pwd) continue;
-              
-              setCurrentTry(pwd);
-              count++;
-              setProgress(Math.round((count / totalPasswords) * 100));
-
-              if (count % 5 === 0) {
-                await new Promise(resolve => setTimeout(resolve, 0));
-              }
-
-              if (aesDetected) {
-                try {
-                  const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                  setUnlockedPdfBytes(unlockedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (e) {}
-              } else {
-                try {
-                  const pdfDoc = await PDFDocument.load(pdfBytes, { password: pwd });
-                  const savedBytes = await pdfDoc.save();
-                  setUnlockedPdfBytes(savedBytes);
-                  setStatus('unlocked');
-                  isUnlocked = true;
-                  break;
-                } catch (error: any) {
-                  const errorMsg = error.message ? error.message.toLowerCase() : "";
-                  if (errorMsg.includes('not supported') || errorMsg.includes('encrypt') || errorMsg.includes('aes')) {
-                    aesDetected = true;
-                    setIsAes256(true);
-                    try {
-                      const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-                      setUnlockedPdfBytes(unlockedBytes);
-                      setStatus('unlocked');
-                      isUnlocked = true;
-                      break;
-                    } catch(e) {}
-                  }
-                }
-              }
+            if (!aesDetected) {
+               correctPassword = await testPasswordsInWorkers(dbPasswordsList);
+               if (correctPassword === 'AES_DETECTED') {
+                 aesDetected = true;
+                 setIsAes256(true);
+                 correctPassword = null;
+               }
             }
-          }
-        } catch (apiError) {
-          console.error("DB Passwords fetch error:", apiError);
-        }
+            if (aesDetected && !correctPassword && !stopBruteForceRef.current) {
+               correctPassword = await testPasswordsWithWASM(dbPasswordsList);
+            }
+         }
       }
+
+      // Result Set Karo
+      if (correctPassword && correctPassword !== 'AES_DETECTED') {
+         if (!unlockedBytesResult) {
+             const pdfDoc = await PDFDocument.load(pdfBytes, { password: correctPassword });
+             unlockedBytesResult = await pdfDoc.save();
+         }
+         setUnlockedPdfBytes(unlockedBytesResult);
+         setStatus('unlocked');
+         isUnlocked = true;
+      }
+      // ===== NAYA SUPERFAST AUTOMATIC CODE KHATAM =====
 
       if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
