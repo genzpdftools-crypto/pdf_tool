@@ -147,7 +147,21 @@ export default function UnlockTool() {
       let aesDetected = false;
 
       // ===== REPLACED LOOP STARTS HERE =====
+      let autoCount = 0;
+      const totalAutoPasswords = autoTryPasswords.length;
+
       for (const pwd of autoTryPasswords) {
+        autoCount++;
+        
+        // UI ko update karte raho taaki user ko lage tool chal raha hai
+        setCurrentTry(pwd || "Empty Password");
+        setProgress(Math.round((autoCount / totalAutoPasswords) * 100));
+
+        // Sabse important line: Har 5 attempt ke baad browser ko thoda free karo taaki wo hang na ho
+        if (autoCount % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+
         if (aesDetected) {
           // Agar pehle hi pata chal gaya hai ki file AES-256 hai, toh seedha WASM se try karo
           try {
