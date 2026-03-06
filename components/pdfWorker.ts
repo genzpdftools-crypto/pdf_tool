@@ -1,12 +1,13 @@
 import { PDFDocument } from 'pdf-lib';
 
 // ==========================================
-// 1. BLOCK 1: CORE LOGIC (Smart Generator)
+// 1. CORE LOGIC: Smart Password Generator (with split placements)
 // ==========================================
+
 export interface SmartRecoveryOptions {
   minLength: number;
   maxLength: number;
-  charPool: string; 
+  charPool: string;
   startChar?: string;
   endChar?: string;
   knownString?: string;
@@ -46,7 +47,7 @@ export function* generateSmartPasswords(options: SmartRecoveryOptions) {
     const emptyIndices = template.map((val, idx) => val === null ? idx : -1).filter(idx => idx !== -1);
 
     if (knownString && knownString.length <= emptySpotsCount) {
-      // PHASE 1: Contiguous (Ek saath)
+      // PHASE 1: Contiguous placements (together)
       for (let i = 0; i <= emptyIndices.length - knownString.length; i++) {
         let tempGrid = [...template];
         for (let j = 0; j < knownString.length; j++) {
@@ -55,16 +56,22 @@ export function* generateSmartPasswords(options: SmartRecoveryOptions) {
         const remainingEmpty = tempGrid.map((val, idx) => val === null ? idx : -1).filter(idx => idx !== -1);
         yield* fillBlanksAndYield(tempGrid, remainingEmpty, 0, charPool, isValidCount);
       }
-      
-      // PHASE 2: (Aapka helper 2 yahan call hoga)
-      // yield* generateSplitPlacements(...); 
+
+      // PHASE 2: Split placements (scattered, skipping contiguous)
+      yield* generateSplitPlacements(template, emptyIndices, knownString, charPool, isValidCount);
     } else {
       yield* fillBlanksAndYield(template, emptyIndices, 0, charPool, isValidCount);
     }
   }
 }
 
-function* fillBlanksAndYield(grid: string[], emptyIndices: number[], currentEmptyIndex: number, charPool: string, isValidCount: (pwd: string) => boolean): Generator<string> {
+function* fillBlanksAndYield(
+  grid: string[],
+  emptyIndices: number[],
+  currentEmptyIndex: number,
+  charPool: string,
+  isValidCount: (pwd: string) => boolean
+): Generator<string> {
   if (currentEmptyIndex === emptyIndices.length) {
     const candidate = grid.join('');
     if (isValidCount(candidate)) yield candidate;
@@ -75,47 +82,110 @@ function* fillBlanksAndYield(grid: string[], emptyIndices: number[], currentEmpt
     grid[targetGridIndex] = charPool[i];
     yield* fillBlanksAndYield(grid, emptyIndices, currentEmptyIndex + 1, charPool, isValidCount);
   }
-  grid[targetGridIndex] = null as any; 
+  grid[targetGridIndex] = null as any;
+}
+
+function* generateSplitPlacements(
+  grid: string[],
+  emptyIndices: number[],
+  knownString: string,
+  charPool: string,
+  isValidCount: (pwd: string) => boolean
+): Generator<string> {
+  const kLen = knownString.length;
+  if (kLen > emptyIndices.length || kLen <= 1) return;
+
+  // All possible ways to select kLen spots from empty indices
+  function getIndexCombinations(arr: number[], k: number): number[][] {
+    if (k === 1) return arr.map(e => [e]);
+    const combs: number[][] = [];
+    for (let i = 0; i <= arr.length - k; i++) {
+      const head = arr.slice(i, i + 1);
+      const tailCombs = getIndexCombinations(arr.slice(i + 1), k - 1);
+      for (const tail of tailCombs) combs.push(head.concat(tail));
+    }
+    return combs;
+  }
+
+  // Unique permutations of the known string (handles duplicates)
+  function getUniquePermutations(str: string): string[] {
+    const results = new Set<string>();
+    function permute(arr: string[], m: string[] = []) {
+      if (arr.length === 0) results.add(m.join(''));
+      else {
+        for (let i = 0; i < arr.length; i++) {
+          let curr = arr.slice();
+          let next = curr.splice(i, 1);
+          permute(curr, m.concat(next));
+        }
+      }
+    }
+    permute(str.split(''));
+    return Array.from(results);
+  }
+
+  const indexCombs = getIndexCombinations(emptyIndices, kLen);
+  const strPerms = getUniquePermutations(knownString);
+
+  for (const indices of indexCombs) {
+    // Skip contiguous placements – already tested in Phase 1
+    const isContiguous = indices.every((val, i, arr) => i === 0 || val === arr[i - 1] + 1);
+    if (isContiguous) continue;
+
+    for (const perm of strPerms) {
+      let tempGrid = [...grid];
+      for (let i = 0; i < kLen; i++) {
+        tempGrid[indices[i]] = perm[i];
+      }
+      const remainingEmpty = emptyIndices.filter(idx => !indices.includes(idx));
+      yield* fillBlanksAndYield(tempGrid, remainingEmpty, 0, charPool, isValidCount);
+    }
+  }
 }
 
 // ==========================================
-// 2. BLOCK 2: WORKER MESSAGE LISTENER (All Attacks)
+// 2. WORKER MESSAGE LISTENER (All Attacks)
 // ==========================================
+
 self.onmessage = async (e: MessageEvent) => {
   const data = e.data;
 
-  // ==================== SMART GENERATOR (NEW) ====================
+  // -------------------- SMART RECOVERY (with progress) --------------------
   if (data.type === 'SMART_RECOVER') {
     const { fileData, options } = data;
     const generator = generateSmartPasswords(options);
+    let attempts = 0;
 
     for (const password of generator) {
+      attempts++;
+
+      if (attempts % 1000 === 0) {
+        self.postMessage({ type: 'PROGRESS', currentTry: password, progress: 0 });
+      }
+
       try {
         await PDFDocument.load(fileData, { password, updateMetadata: false });
         self.postMessage({ type: 'SUCCESS', password });
         return;
       } catch (err: any) {
-        // Ignore wrong password errors, continue checking
         if (err.message?.toLowerCase().includes('password')) {
-          continue;
+          continue; // wrong password, keep trying
         }
-        // If it's a fatal error (like unsupported encryption), report it
-        self.postMessage({ type: 'fatal_error', message: err.message, password });
+        self.postMessage({ type: 'FAILED', message: 'Fatal error or unsupported encryption' });
         return;
       }
     }
-
-    self.postMessage({ type: 'FAILED', message: 'Password not found' });
+    self.postMessage({ type: 'FAILED', message: 'Password not found', attempts });
   }
 
-  // ==================== FAST MULTI-CORE DICTIONARY ATTACK ====================
+  // -------------------- FAST MULTI-CORE DICTIONARY ATTACK --------------------
   else if (data.type === 'dictionary_attack') {
     const { pdfBytes, passwords, workerId } = data;
     let count = 0;
 
     for (const pwd of passwords) {
       count++;
-      
+
       if (count % 200 === 0) {
         self.postMessage({ type: 'progress', workerId, currentTry: pwd });
       }
@@ -126,7 +196,7 @@ self.onmessage = async (e: MessageEvent) => {
         return;
       } catch (err: any) {
         const errorMsg = err.message ? err.message.toLowerCase() : "";
-        
+
         if (errorMsg.includes('not supported') || errorMsg.includes('aes')) {
           self.postMessage({ type: 'fatal_error', message: err.message, password: pwd });
           return;
@@ -136,7 +206,7 @@ self.onmessage = async (e: MessageEvent) => {
     self.postMessage({ type: 'done', workerId });
   }
 
-  // ==================== SMART CRACK WITH ELIMINATION RULES ====================
+  // -------------------- SMART CRACK WITH ELIMINATION RULES --------------------
   else if (data.type === 'smart_crack') {
     const {
       pdfBytes, pool, lenMin, lenMax,
@@ -198,7 +268,7 @@ self.onmessage = async (e: MessageEvent) => {
               return;
             } catch (err: any) {
               const errorMsg = err.message ? err.message.toLowerCase() : "";
-              
+
               if (errorMsg.includes('not supported') || errorMsg.includes('aes-256')) {
                 self.postMessage({ type: 'success', password: str });
                 unlocked = true;
@@ -216,7 +286,7 @@ self.onmessage = async (e: MessageEvent) => {
     if (!unlocked) self.postMessage({ type: 'done', workerId, totalChecked: attempts });
   }
 
-  // ==================== NUMERIC BRUTE‑FORCE ====================
+  // -------------------- NUMERIC BRUTE‑FORCE --------------------
   else if (data.startNum !== undefined && data.endNum !== undefined) {
     const { pdfBytes, startNum, endNum, length, workerId } = data;
 
