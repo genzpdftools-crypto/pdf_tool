@@ -88,8 +88,8 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
                   <img
                     src="/logo.png"
                     alt="Genz PDF – Free Online PDF Editor"
-                    width={56}
-                    height={56}
+                    width={80}
+                    height={80}
                     className="relative w-14 h-14 object-contain bg-white rounded-xl shadow-sm border border-slate-100 p-1 transition-transform duration-300 group-hover:-translate-y-1"
                     itemProp="logo"
                   />
