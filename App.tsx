@@ -252,26 +252,44 @@ const SEO_METADATA: Record<AppMode, {
 };
 
 function App() {
-  const getInitialMode = (): AppMode => {
+  // --- UPDATED: get initial mode + dynamic param together ---
+  const getInitialModeAndParam = (): { mode: AppMode; param: string | null } => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
-      if (path.includes('/merge')) return 'merge';
-      if (path.includes('/split')) return 'split';
-      if (path.includes('/convert')) return 'convert';
-      if (path.includes('/compress')) return 'compress';
-      if (path.includes('/resize')) return 'resize';
-      if (path.includes('/protect')) return 'protect';
-      if (path.includes('/signature')) return 'signature';
-      if (path.includes('/unlock')) return 'unlock';
-      if (path.includes('/about')) return 'about';
-      if (path.includes('/contact')) return 'contact';
-      if (path.includes('/policy')) return 'policy';
-      if (path.includes('/terms')) return 'terms';
+
+      // Dynamic Resize Routing
+      const resizeMatch = path.match(/^\/resize-image-(?:to-)?(\d+)kb\/?$/);
+      if (resizeMatch) {
+        return { mode: 'resize', param: resizeMatch[1] };
+      }
+
+      // Dynamic Convert Routing
+      const convertMatch = path.match(/^\/(jpg|jpeg|png)-to-pdf\/?$/);
+      if (convertMatch) {
+        return { mode: 'convert', param: convertMatch[1] };
+      }
+
+      // Static routes (keep existing)
+      if (path.includes('/merge')) return { mode: 'merge', param: null };
+      if (path.includes('/split')) return { mode: 'split', param: null };
+      if (path.includes('/convert')) return { mode: 'convert', param: null };
+      if (path.includes('/compress')) return { mode: 'compress', param: null };
+      if (path.includes('/resize')) return { mode: 'resize', param: null };
+      if (path.includes('/protect')) return { mode: 'protect', param: null };
+      if (path.includes('/signature')) return { mode: 'signature', param: null };
+      if (path.includes('/unlock')) return { mode: 'unlock', param: null };
+      if (path.includes('/about')) return { mode: 'about', param: null };
+      if (path.includes('/contact')) return { mode: 'contact', param: null };
+      if (path.includes('/policy')) return { mode: 'policy', param: null };
+      if (path.includes('/terms')) return { mode: 'terms', param: null };
     }
-    return 'home';
+    return { mode: 'home', param: null };
   };
 
-  const [mode, setMode] = useState<AppMode>(getInitialMode);
+  const { mode: initialMode, param: initialParam } = getInitialModeAndParam();
+  const [mode, setMode] = useState<AppMode>(initialMode);
+  // --- NEW: dynamicParam state ---
+  const [dynamicParam, setDynamicParam] = useState<string | null>(initialParam);
   const [files, setFiles] = useState<PdfFile[]>([]);
   const [isMerging, setIsMerging] = useState(false);
   const [mergedPdfUrl, setMergedPdfUrl] = useState<string | null>(null);
@@ -293,12 +311,19 @@ function App() {
     const path = targetMode === 'home' ? '/' : `/${targetMode}`;
     window.history.pushState({}, '', path);
     setMode(targetMode);
+    // Reset dynamic param when navigating to static route
+    setDynamicParam(null);
     setIsMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // --- UPDATED: handle popstate to also update dynamicParam ---
   useEffect(() => {
-    const handlePopState = () => setMode(getInitialMode());
+    const handlePopState = () => {
+      const { mode: newMode, param: newParam } = getInitialModeAndParam();
+      setMode(newMode);
+      setDynamicParam(newParam);
+    };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
@@ -311,9 +336,30 @@ function App() {
     }
   }, [mergedPdfUrl]);
 
+  // --- UPDATED: SEO effect with dynamic overrides ---
   useEffect(() => {
-    const meta = SEO_METADATA[mode] || SEO_METADATA.home;
-    const url = mode === 'home' ? BASE_URL : `${BASE_URL}/${mode}`;
+    let meta = SEO_METADATA[mode] || SEO_METADATA.home;
+    let url = mode === 'home' ? BASE_URL : `${BASE_URL}/${mode}`;
+
+    // 🪄 Override metadata dynamically for resize/convert with param
+    if (mode === 'resize' && dynamicParam) {
+      meta = {
+        title: `Resize Image to ${dynamicParam}KB Online Free | Genz PDF`,
+        description: `Instantly compress and resize your image to exact ${dynamicParam}KB online for free. Secure, fast, and 100% client-side processing.`,
+        keywords: `resize image to ${dynamicParam}kb, compress image to ${dynamicParam}kb, ${dynamicParam}kb photo resizer, genz pdf`,
+        schema: meta.schema, // Keep existing schema or generate a dynamic one
+      };
+      url = `${BASE_URL}/resize-image-${dynamicParam}kb`;
+    } else if (mode === 'convert' && dynamicParam) {
+      const format = dynamicParam.toUpperCase();
+      meta = {
+        title: `${format} to PDF Converter Online Free | Genz PDF`,
+        description: `Convert ${format} images to PDF documents instantly. High quality, no watermarks, secure online tool.`,
+        keywords: `${dynamicParam} to pdf, convert ${dynamicParam} to pdf, free ${dynamicParam} to pdf converter`,
+        schema: meta.schema,
+      };
+      url = `${BASE_URL}/${dynamicParam}-to-pdf`;
+    }
 
     document.documentElement.lang = 'en';
     document.title = meta.title;
@@ -415,7 +461,7 @@ function App() {
       });
       document.head.appendChild(breadcrumbScript);
     }
-  }, [mode]);
+  }, [mode, dynamicParam]); // Added dynamicParam to dependencies
 
   const handleFilesSelected = (newFiles: File[]) => {
     const pdfFiles: PdfFile[] = newFiles.map((file) => ({
@@ -935,9 +981,10 @@ function App() {
           ) : (
             <div className="bg-white p-4 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-xl border border-slate-100 min-h-[500px]">
               {mode === 'split' && <SplitTool />}
-              {mode === 'convert' && <ConverterTool />}
+              {/* --- UPDATED: pass dynamicParam as prop to ConverterTool and ResizeTool --- */}
+              {mode === 'convert' && <ConverterTool initialFormat={dynamicParam} />}
               {mode === 'compress' && <CompressTool />}
-              {mode === 'resize' && <ResizeTool />}
+              {mode === 'resize' && <ResizeTool initialTargetKb={dynamicParam} />}
               {mode === 'about' && <About />}
               {mode === 'contact' && <Contact />}
               {mode === 'policy' && <Policy />}
