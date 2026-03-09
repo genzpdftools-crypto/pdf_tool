@@ -15,10 +15,21 @@ import {
 } from 'lucide-react';
 import { FileUploader } from './FileUploader';
 
-export const ResizeTool: React.FC = () => {
-  // ---------- SEO CONFIGURATION ----------
-  const PAGE_TITLE = "Resize Image Online - Change Dimensions (JPG, PNG, WebP) | Genz PDF";
-  const PAGE_DESC = "Free online image resizer. Change dimensions of JPG, PNG, and WebP images by pixels or percentage without losing quality. 100% secure & client-side.";
+// 1. Props interface for dynamic URL parameter
+interface ResizeToolProps {
+  initialTargetKb?: string | null;
+}
+
+export const ResizeTool: React.FC<ResizeToolProps> = ({ initialTargetKb }) => {
+  // 2. Dynamic SEO content based on prop
+  const PAGE_TITLE = initialTargetKb 
+    ? `Resize Image to ${initialTargetKb}KB Instantly` 
+    : "Resize Image Online - Change Dimensions (JPG, PNG, WebP) | Genz PDF";
+    
+  const PAGE_DESC = initialTargetKb
+    ? `Compress and resize your image strictly to ${initialTargetKb}KB online for free. 100% secure client-side processing.`
+    : "Free online image resizer. Change dimensions of JPG, PNG, and WebP images by pixels or percentage without losing quality. 100% secure & client-side.";
+
   const CANONICAL_URL = "https://genzpdf.com/resize-image";
 
   // ---------- STATE ----------
@@ -76,7 +87,7 @@ export const ResizeTool: React.FC = () => {
       "@graph": [
         {
           "@type": "SoftwareApplication",
-          "name": "Genz Free Image Resizer",
+          "name": initialTargetKb ? `Resize Image to ${initialTargetKb}KB Tool` : "Genz Free Image Resizer",
           "applicationCategory": "MultimediaApplication",
           "operatingSystem": "Any",
           "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -88,10 +99,12 @@ export const ResizeTool: React.FC = () => {
           "mainEntity": [
             {
               "@type": "Question",
-              "name": "How do I resize an image without losing quality?",
+              "name": initialTargetKb ? `How do I resize an image exactly to ${initialTargetKb}KB?` : "How do I resize an image without losing quality?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Upload your image to Genz PDF Resizer, enter your desired width or height, and our smart algorithm will adjust the dimensions while preserving the highest possible visual quality."
+                "text": initialTargetKb 
+                  ? `Upload your image to the Genz PDF Resizer, adjust the dimensions, and our tool will compress it towards your ${initialTargetKb}KB target instantly.`
+                  : "Upload your image, enter your desired width or height, and our smart algorithm will adjust the dimensions while preserving the highest possible visual quality."
               }
             },
             {
@@ -107,7 +120,7 @@ export const ResizeTool: React.FC = () => {
       ]
     };
     script.textContent = JSON.stringify(schema);
-  }, []);
+  }, [initialTargetKb, PAGE_TITLE, PAGE_DESC]);
 
   // ---------- HANDLERS ----------
   const handleFileSelected = (files: File[]) => {
@@ -196,20 +209,26 @@ export const ResizeTool: React.FC = () => {
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-violet-200/30 rounded-full blur-[100px]" />
       </div>
 
-      {/* UPDATED: PX reduced to 2 for mobile to maximize width */}
       <div className="relative w-full max-w-5xl mx-auto px-2 md:px-6 py-6 md:py-12">
-        {/* ---------- HERO SECTION ---------- */}
+        
+        {/* ---------- HERO SECTION (DYNAMIC) ---------- */}
         <header className="text-center mb-8 md:mb-14 animate-in fade-in slide-in-from-bottom-6 duration-700">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-indigo-100 shadow-sm text-indigo-600 text-xs font-bold uppercase tracking-wider mb-4 md:mb-6 hover:shadow-md transition-all">
             <Zap size={14} className="fill-indigo-600" />
             v2.0 • Super Fast Processing
           </div>
+          
+          {/* Dynamic H1 with gradient on specific words */}
           <h1 className="text-4xl md:text-7xl font-black text-slate-900 tracking-tight mb-4 md:mb-6">
-            Resize Image <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Online</span>
+            {PAGE_TITLE.split(' ').map((word, i) => (
+              <span key={i} className={word.includes(initialTargetKb || 'Online') ? "text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600" : ""}>
+                {word}{" "}
+              </span>
+            ))}
           </h1>
+          
           <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed px-2">
-            Pixel-perfect resizing for your photos. Change dimensions of JPG, PNG, WebP
-            while keeping quality – all inside your browser.
+            {PAGE_DESC}
           </p>
         </header>
 
@@ -220,25 +239,17 @@ export const ResizeTool: React.FC = () => {
 
           <div className="relative bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden transition-all duration-300">
             {!file ? (
-              // UPDATED: Padding reduced to p-3 for mobile
               <div className="p-3 md:p-14 text-center">
-                
-                {/* Square aspect ratio for mobile */}
                 <div className="w-full aspect-square md:aspect-auto flex flex-col justify-center">
-                    <FileUploader
+                  <FileUploader
                     onFilesSelected={handleFileSelected}
                     allowMultiple={false}
                     acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp']}
                     label="Upload Image to Resize"
                     subLabel="Drag & Drop or Click to Browse"
-                    />
+                  />
                 </div>
 
-                {/* UPDATED: 
-                    - Used flex-col (icon top, text bottom) for mobile layout
-                    - Reduced padding and font size
-                    - This fixes the overlapping issue
-                */}
                 <div className="mt-4 md:mt-10 grid grid-cols-3 gap-2 w-full">
                   {[
                     { icon: ShieldCheck, text: '100% Secure' },
@@ -285,7 +296,6 @@ export const ResizeTool: React.FC = () => {
                 </div>
 
                 {/* Editor Area */}
-                {/* UPDATED: Reduced padding to p-3 for mobile */}
                 <div className="p-3 md:p-10">
                   {!downloadUrl ? (
                     <div className="space-y-6 md:space-y-8">
@@ -410,7 +420,7 @@ export const ResizeTool: React.FC = () => {
           </div>
         </div>
 
-        {/* ---------- FEATURES GRID (SEO ENRICHED) ---------- */}
+        {/* ---------- FEATURES GRID ---------- */}
         <section className="grid md:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto mt-12 md:mt-24">
           {[
             {
@@ -450,18 +460,22 @@ export const ResizeTool: React.FC = () => {
           ))}
         </section>
 
-        {/* ---------- FAQ SECTION ---------- */}
+        {/* ---------- FAQ SECTION (DYNAMIC FIRST QUESTION) ---------- */}
         <section className="max-w-3xl mx-auto mt-12 md:mt-24 border-t border-slate-200 pt-12 md:pt-16">
           <div className="text-center mb-8 md:mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 md:mb-4">Frequently Asked Questions</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2 md:mb-4">
+              Frequently Asked Questions {initialTargetKb ? `about ${initialTargetKb}KB Images` : ""}
+            </h2>
             <p className="text-sm md:text-base text-slate-500">Learn more about our free image resizer tool.</p>
           </div>
 
           <div className="space-y-3 md:space-y-4">
             {[
               {
-                q: 'How do I resize an image for free?',
-                a: 'Simply upload your photo, enter the new width or height in pixels, and click "Resize Image". It is completely free and works instantly.'
+                q: initialTargetKb ? `How do I compress my image to ${initialTargetKb}KB for free?` : 'How do I resize an image for free?',
+                a: initialTargetKb 
+                  ? `Simply upload your photo above. By adjusting the dimensions, you can easily lower the file size to meet your ${initialTargetKb}KB requirement. It is completely free and works instantly.`
+                  : 'Simply upload your photo, enter the new width or height in pixels, and click "Resize Image". It is completely free and works instantly.'
               },
               {
                 q: 'Does it support transparent PNGs?',
@@ -511,4 +525,5 @@ export const ResizeTool: React.FC = () => {
     </div>
   );
 };
+
 export default ResizeTool;
