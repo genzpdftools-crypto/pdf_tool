@@ -14,13 +14,10 @@ const getPermutations = (str: string): string[] => {
   if (!str) return [''];
   if (str.length === 1) return [str];
   
-  // Agar string 5 characters se badi hai, toh sabhi combinations me time waste hoga.
-  // Isliye aisi situation me sirf original aur uska ulta (reverse) check karenge.
   if (str.length > 5) {
     return Array.from(new Set([str, str.split('').reverse().join('')]));
   }
   
-  // Chhoti string ke liye saare possible combinations banayenge (ro -> ro, or)
   const perms = new Set<string>();
   const permute = (arr: string[], m: string[] = []) => {
     if (arr.length === 0) {
@@ -72,7 +69,6 @@ export default function UnlockTool() {
   const [exactNumbers, setExactNumbers] = useState<string>('');
   const [exactSymbols, setExactSymbols] = useState<string>('');
 
-  // SEO: Update Title and Meta Description on load
   useEffect(() => {
     document.title = "Unlock PDF Free | Smart Password Recovery for Students";
     
@@ -170,13 +166,11 @@ export default function UnlockTool() {
       let currentTriedSet = new Set<string>(autoTryPasswords);
       setTriedPasswords(currentTriedSet);
 
-      // ===== NAYA SUPERFAST AUTOMATIC CODE =====
       let isUnlocked = false;
       let aesDetected = false;
       let correctPassword = null;
       let unlockedBytesResult = null;
 
-      // 1. Chupke se ek false password daal kar check karo ki file AES-256 (High Security) hai ya Normal
       try {
         await PDFDocument.load(pdfBytes, { password: 'PINTU_FAST_CHECK' });
       } catch (error: any) {
@@ -187,14 +181,12 @@ export default function UnlockTool() {
         }
       }
 
-      // 2. Database se passwords background me fetch karna start kar do (Network ka waiting time bachega)
       const dbPasswordsPromise = fetch('/api/unlock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fetchPasswordsOnly: true })
       }).then(res => res.json()).catch(() => ({ success: false, passwords: [] }));
 
-      // --- HELPER 1: Web Workers se Superfast checking (Normal PDFs ke liye) ---
       const testPasswordsInWorkers = (passwordsToTest: string[]): Promise<string | null> => {
         return new Promise((resolve) => {
           const numCores = navigator.hardwareConcurrency || 4;
@@ -234,12 +226,10 @@ export default function UnlockTool() {
         });
       };
 
-      // --- HELPER 2: WASM Engine (Main Thread) AES-256 ke liye lag-free chunks me ---
       const testPasswordsWithWASM = async (passwordsToTest: string[]) => {
         let count = 0;
         const total = passwordsToTest.length;
         
-        // 🔥 NAYA FIX: Engine ko loop ke bahar sirf 1 baar load karo
         const qpdf = await QPDF();
         try { qpdf.FS.writeFile('shared_input.pdf', pdfBytes); } catch(e){}
 
@@ -250,12 +240,11 @@ export default function UnlockTool() {
           if (count % 5 === 0) {
             setCurrentTry(pwd);
             setProgress(Math.round((count / total) * 100));
-            await new Promise(res => setTimeout(res, 0)); // Lag roko
+            await new Promise(res => setTimeout(res, 0));
           }
 
           try {
              try { qpdf.FS.unlink('shared_output.pdf'); } catch(e){}
-             // Purane file pe direct naya password test karo
              qpdf.callMain(['--password=' + pwd, '--decrypt', 'shared_input.pdf', 'shared_output.pdf']);
              const unlockedBytes = qpdf.FS.readFile('shared_output.pdf');
              
@@ -271,9 +260,6 @@ export default function UnlockTool() {
         return null;
       };
 
-      // --- ATTACK SHURU! ---
-
-      // Phase 1: Local Common Passwords Try Karo
       if (!aesDetected) {
          correctPassword = await testPasswordsInWorkers(autoTryPasswords);
          if (correctPassword === 'AES_DETECTED') {
@@ -287,7 +273,6 @@ export default function UnlockTool() {
          correctPassword = await testPasswordsWithWASM(autoTryPasswords);
       }
 
-      // Phase 2: Database Passwords Try Karo (Agar lock nahi khula)
       if (!correctPassword && !stopBruteForceRef.current) {
          const dbData = await dbPasswordsPromise;
          if (dbData.success && dbData.passwords) {
@@ -309,7 +294,6 @@ export default function UnlockTool() {
          }
       }
 
-      // Result Set Karo
       if (correctPassword && correctPassword !== 'AES_DETECTED') {
          if (!unlockedBytesResult) {
              const pdfDoc = await PDFDocument.load(pdfBytes, { password: correctPassword });
@@ -319,7 +303,6 @@ export default function UnlockTool() {
          setStatus('unlocked');
          isUnlocked = true;
       }
-      // ===== NAYA SUPERFAST AUTOMATIC CODE KHATAM =====
 
       if (!aesDetected && !isUnlocked) {
         setStatus('number_bruteforce');
@@ -439,7 +422,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // ***** INTEGRATED handleSmartUnlock FUNCTION *****
+  // ***** FIXED & INTEGRATED handleSmartUnlock FUNCTION *****
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -456,14 +439,15 @@ export default function UnlockTool() {
     let attempts = 0;
     let lastYieldTime = Date.now();
 
-    // 🔥 MAIN FIX: Ab Smart Recovery hamesha SUPER-POWERFUL WASM (C++) Engine use karega!
-    // Standard engine kuchh locks par fail ho jata hai (jaise tumhari file me hua).
+    // 🔥 MAIN FIX: Dynamic Engine Upgrade! 
+    let useWasm = isAes256;
     let qpdfInstance: any = null;
-    try {
-       qpdfInstance = await QPDF();
-       qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes);
-    } catch(e) {
-       console.log("WASM Init failed, using fallback");
+
+    if (useWasm) {
+      try {
+         qpdfInstance = await QPDF();
+         qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes);
+      } catch(e) {}
     }
 
     const reqAlpha = exactAlphabets !== '' ? parseInt(exactAlphabets) : -1;
@@ -491,7 +475,6 @@ export default function UnlockTool() {
 
         for (const variant of hintVariants) {
           if (unlocked || stopBruteForceRef.current) break;
-
           if (phase === 2 && variant !== hintVariants[0]) continue;
 
           const startIndices = (phase === 1 && variant) 
@@ -565,16 +548,23 @@ export default function UnlockTool() {
 
                 attempts++;
 
-                const timeLimit = qpdfInstance ? 20 : 50; 
+                // 🔥 MEMORY CRASH FIX: Refresh WASM Memory har 500 attempts pe
+                if (useWasm && attempts % 500 === 0 && attempts > 0) {
+                    try {
+                        qpdfInstance = await QPDF();
+                        qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes);
+                    } catch(e) {}
+                }
+
+                const timeLimit = useWasm ? 20 : 50; 
                 if (Date.now() - lastYieldTime > timeLimit) {
                   setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
                   setCurrentTry(`${str} (Phase ${phase})`); 
-                  await new Promise(resolve => setTimeout(resolve, qpdfInstance ? 5 : 0)); 
+                  await new Promise(resolve => setTimeout(resolve, 0)); 
                   lastYieldTime = Date.now();
                 }
 
-                // 🔥 Yahan 100% C++ Engine use hoga
-                if (qpdfInstance) {
+                if (useWasm && qpdfInstance) {
                    try {
                      try { qpdfInstance.FS.unlink('smart_output.pdf'); } catch(e){}
                      qpdfInstance.callMain(['--password=' + str, '--decrypt', 'smart_input.pdf', 'smart_output.pdf']);
@@ -595,7 +585,29 @@ export default function UnlockTool() {
                      setStatus('unlocked');
                      unlocked = true;
                      break;
-                   } catch(e) {}
+                   } catch(e: any) {
+                     // 🔥 DYNAMIC UPGRADE FIX: Agar standard engine ko silent encryption error aaya
+                     const msg = e.message ? e.message.toLowerCase() : "";
+                     if (msg.includes('not supported') || msg.includes('aes') || msg.includes('encrypt')) {
+                         useWasm = true;
+                         setIsAes256(true); // UI Update ke liye
+                         try {
+                             qpdfInstance = await QPDF();
+                             qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes);
+                             
+                             // Password skip na ho isliye immediately usko Wasm se verify karo
+                             try { qpdfInstance.FS.unlink('smart_output.pdf'); } catch(err){}
+                             qpdfInstance.callMain(['--password=' + str, '--decrypt', 'smart_input.pdf', 'smart_output.pdf']);
+                             const unlockedBytes = qpdfInstance.FS.readFile('smart_output.pdf');
+                             if (unlockedBytes && unlockedBytes.length > 0) {
+                                 setUnlockedPdfBytes(unlockedBytes);
+                                 setStatus('unlocked');
+                                 unlocked = true;
+                                 break;
+                             }
+                         } catch(err) {}
+                     }
+                   }
                 }
               } else {
                 for (let i = pool.length - 1; i >= 0; i--) {
@@ -672,7 +684,7 @@ export default function UnlockTool() {
             </p>
           </div>
 
-          {/* Selected File Badge (Text Wrapping Fix Included) */}
+          {/* Selected File Badge */}
           {file && status !== 'unlocked' && (
             <div className="mb-8 flex justify-center animate-in fade-in slide-in-from-bottom-2 duration-500">
                <div className="inline-flex items-center p-3 px-5 bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/60 rounded-2xl max-w-full shadow-sm">
@@ -686,7 +698,7 @@ export default function UnlockTool() {
             </div>
           )}
 
-          {/* Upload Zone - New Style */}
+          {/* Upload Zone */}
           {!file && (
             <div className="px-4 py-8 md:px-12 md:py-20 flex flex-col items-center justify-center h-full min-h-[400px] animate-in fade-in zoom-in-95 duration-500">
               <div className="w-full max-w-[280px] md:max-w-[380px] aspect-square relative group mx-auto cursor-pointer">
@@ -774,7 +786,7 @@ export default function UnlockTool() {
               <Settings className="animate-spin w-16 h-16 text-rose-400 mx-auto mb-6 drop-shadow-md" />
               <h3 className="text-2xl font-bold text-gray-800 mb-3">Smart Recovery in Progress</h3>
               <div className="inline-block bg-white/60 px-4 py-2 rounded-lg border border-rose-200 mb-4">
-                <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-rose-600">Smart Target Engine (WASM)</span></p>
+                <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-rose-600">{isAes256 ? 'Smart Target Engine (WASM)' : 'Smart Fast Engine'}</span></p>
               </div>
               
               {currentTry && (
@@ -871,7 +883,7 @@ export default function UnlockTool() {
                   <div className="p-6 sm:p-8 space-y-8 border-t border-rose-50 bg-white animate-in slide-in-from-top-4 fade-in duration-300">
                     <div className="bg-rose-50/50 border border-rose-100 p-4 rounded-xl">
                       <p className="text-sm text-rose-800 font-medium leading-relaxed">
-                        Aapki file ke hisaab se engine pehle se set hai <b className="bg-rose-200 px-2 py-0.5 rounded text-rose-900">({isAes256 ? 'WASM Engine' : 'Standard Engine'})</b>. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.
+                        Aapki file ke hisaab se engine pehle se set hai. Niche conditions lagayein taaki engine faltu combinations check na kare aur jaldi unlock ho.
                       </p>
                     </div>
 
