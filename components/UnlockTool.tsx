@@ -238,6 +238,11 @@ export default function UnlockTool() {
       const testPasswordsWithWASM = async (passwordsToTest: string[]) => {
         let count = 0;
         const total = passwordsToTest.length;
+        
+        // 🔥 NAYA FIX: Engine ko loop ke bahar sirf 1 baar load karo
+        const qpdf = await QPDF();
+        try { qpdf.FS.writeFile('shared_input.pdf', pdfBytes); } catch(e){}
+
         for (const pwd of passwordsToTest) {
           if (stopBruteForceRef.current) return null;
           count++;
@@ -249,11 +254,20 @@ export default function UnlockTool() {
           }
 
           try {
-             const unlockedBytes = await unlockWithWasm(pwd, pdfBytes);
-             unlockedBytesResult = unlockedBytes;
-             return pwd;
+             try { qpdf.FS.unlink('shared_output.pdf'); } catch(e){}
+             // Purane file pe direct naya password test karo
+             qpdf.callMain(['--password=' + pwd, '--decrypt', 'shared_input.pdf', 'shared_output.pdf']);
+             const unlockedBytes = qpdf.FS.readFile('shared_output.pdf');
+             
+             if (unlockedBytes && unlockedBytes.length > 0) {
+                 unlockedBytesResult = unlockedBytes;
+                 try { qpdf.FS.unlink('shared_input.pdf'); qpdf.FS.unlink('shared_output.pdf'); } catch(e){}
+                 return pwd;
+             }
           } catch(e) {}
         }
+        
+        try { qpdf.FS.unlink('shared_input.pdf'); qpdf.FS.unlink('shared_output.pdf'); } catch(e){}
         return null;
       };
 
