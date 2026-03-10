@@ -81,7 +81,6 @@ export default function UnlockTool() {
       metaDescription.setAttribute('content', 'Remove PDF passwords for free instantly. Use our smart engine to auto-recover forgotten passwords or bypass secure AES-256 locks securely and fast.');
     } else {
       metaDescription = document.createElement('meta');
-      metaDescription.setAttribute('name', 'description');
       metaDescription.setAttribute('content', 'Remove PDF passwords for free instantly. Use our smart engine to auto-recover forgotten passwords or bypass secure AES-256 locks securely and fast.');
       document.head.appendChild(metaDescription);
     }
@@ -426,7 +425,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // ***** NEW CORRECTED handleSmartUnlock FUNCTION (Integrated) *****
+  // ***** INTEGRATED handleSmartUnlock FUNCTION *****
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -457,6 +456,9 @@ export default function UnlockTool() {
       return true;
     };
 
+    // 🔥 NAYA: middleHint ke saare permutations banao
+    const hintVariants = middleHint ? getPermutations(middleHint) : [''];
+
     const phases = middleHint ? [1, 2] : [1];
 
     for (const phase of phases) {
@@ -465,12 +467,14 @@ export default function UnlockTool() {
       for (let len = lenMin; len <= lenMax; len++) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        const hintVariants = middleHint ? getPermutations(middleHint) : [''];
-
+        // 🔥 NAYA: har variant ke liye loop
         for (const variant of hintVariants) {
           if (unlocked || stopBruteForceRef.current) break;
 
-          // Phase 1 uses distinct starting positions. Phase 2 just needs one pass.
+          // 🔥 NAYA FIX 1: Phase 2 ko sirf ek baar run hone do, baar-baar nahi
+          if (phase === 2 && variant !== hintVariants[0]) continue;
+
+          // Phase 1 uses distinct starting positions based on current variant
           const startIndices = (phase === 1 && variant) 
             ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) 
             : [null];
@@ -533,9 +537,10 @@ export default function UnlockTool() {
               if (depth === len) {
                 if (triedPasswords.has(str)) continue;
                 
+                // 🔥 NAYA FIX 2: Original word ki jagah inject kiye gaye 'variant' ko check karo
                 if (middleHint) {
                   if (phase === 1) {
-                    if (!str.includes(middleHint)) continue;
+                    if (!str.includes(variant)) continue;
                   } else if (phase === 2) {
                     if (!hasScatteredChars(str, middleHint) || str.includes(middleHint)) continue;
                   }
@@ -593,7 +598,7 @@ export default function UnlockTool() {
       setErrorMessage(`Smart Cracking Failed. Checked ${attempts} target combinations.`);
     }
   };
-  // ***** END OF NEW handleSmartUnlock FUNCTION *****
+  // ***** END OF INTEGRATED handleSmartUnlock *****
 
   const downloadUnlockedPdf = () => {
     if (!unlockedPdfBytes || !file) return;
