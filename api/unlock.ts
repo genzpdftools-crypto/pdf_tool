@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (fetchPasswordsOnly) {
       await client.connect();
       const database = client.db('pdf_tool');
-      const passwordDocs = await database.collection('passwords').find({}).limit(5000).toArray();
+      const passwordDocs = await database.collection('passwords').find({}).limit(3000).toArray();
       const passwordsList = passwordDocs.map(doc => doc.password);
       await client.close();
       return res.status(200).json({ success: true, passwords: passwordsList });
@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const database = client.db('pdf_tool');
       const collection = database.collection('passwords');
 
-      const passwordDocs = await collection.find({}).limit(5000).toArray();
+      const passwordDocs = await collection.find({}).limit(3000).toArray();
       const passwordsToTry = passwordDocs.map(doc => doc.password);
 
       for (const pwd of passwordsToTry) {
