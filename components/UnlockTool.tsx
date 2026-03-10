@@ -456,11 +456,14 @@ export default function UnlockTool() {
     let attempts = 0;
     let lastYieldTime = Date.now();
 
-    // 🔥 FIX: WASM Engine ko loop ke bahar sirf 1 baar load karo taaki browser crash na ho!
+    // 🔥 MAIN FIX: Ab Smart Recovery hamesha SUPER-POWERFUL WASM (C++) Engine use karega!
+    // Standard engine kuchh locks par fail ho jata hai (jaise tumhari file me hua).
     let qpdfInstance: any = null;
-    if (isAes256) {
+    try {
        qpdfInstance = await QPDF();
-       try { qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes); } catch(e){}
+       qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes);
+    } catch(e) {
+       console.log("WASM Init failed, using fallback");
     }
 
     const reqAlpha = exactAlphabets !== '' ? parseInt(exactAlphabets) : -1;
@@ -562,16 +565,16 @@ export default function UnlockTool() {
 
                 attempts++;
 
-                const timeLimit = isAes256 ? 20 : 50; 
+                const timeLimit = qpdfInstance ? 20 : 50; 
                 if (Date.now() - lastYieldTime > timeLimit) {
                   setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
                   setCurrentTry(`${str} (Phase ${phase})`); 
-                  await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
+                  await new Promise(resolve => setTimeout(resolve, qpdfInstance ? 5 : 0)); 
                   lastYieldTime = Date.now();
                 }
 
-                // 🔥 FIX: Naye fast engine method ko call kar rahe hain
-                if (isAes256 && qpdfInstance) {
+                // 🔥 Yahan 100% C++ Engine use hoga
+                if (qpdfInstance) {
                    try {
                      try { qpdfInstance.FS.unlink('smart_output.pdf'); } catch(e){}
                      qpdfInstance.callMain(['--password=' + str, '--decrypt', 'smart_input.pdf', 'smart_output.pdf']);
@@ -613,7 +616,6 @@ export default function UnlockTool() {
       }
     }
 
-    // 🔥 FIX: Cleanup the WASM filesystem after unlocking or failing
     if (qpdfInstance) {
         try { 
            qpdfInstance.FS.unlink('smart_input.pdf'); 
@@ -772,7 +774,7 @@ export default function UnlockTool() {
               <Settings className="animate-spin w-16 h-16 text-rose-400 mx-auto mb-6 drop-shadow-md" />
               <h3 className="text-2xl font-bold text-gray-800 mb-3">Smart Recovery in Progress</h3>
               <div className="inline-block bg-white/60 px-4 py-2 rounded-lg border border-rose-200 mb-4">
-                <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-rose-600">{isAes256 ? 'WASM (AES-256)' : 'Standard'}</span></p>
+                <p className="text-gray-700 font-medium text-sm">Engine: <span className="font-bold text-rose-600">Smart Target Engine (WASM)</span></p>
               </div>
               
               {currentTry && (
