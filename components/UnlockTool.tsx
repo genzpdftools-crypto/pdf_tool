@@ -456,6 +456,13 @@ export default function UnlockTool() {
     let attempts = 0;
     let lastYieldTime = Date.now();
 
+    // 🔥 FIX: WASM Engine ko loop ke bahar sirf 1 baar load karo taaki browser crash na ho!
+    let qpdfInstance: any = null;
+    if (isAes256) {
+       qpdfInstance = await QPDF();
+       try { qpdfInstance.FS.writeFile('smart_input.pdf', pdfBytes); } catch(e){}
+    }
+
     const reqAlpha = exactAlphabets !== '' ? parseInt(exactAlphabets) : -1;
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
@@ -470,9 +477,7 @@ export default function UnlockTool() {
       return true;
     };
 
-    // 🔥 NAYA: middleHint ke saare permutations banao
     const hintVariants = middleHint ? getPermutations(middleHint) : [''];
-
     const phases = middleHint ? [1, 2] : [1];
 
     for (const phase of phases) {
@@ -481,14 +486,11 @@ export default function UnlockTool() {
       for (let len = lenMin; len <= lenMax; len++) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        // 🔥 NAYA: har variant ke liye loop
         for (const variant of hintVariants) {
           if (unlocked || stopBruteForceRef.current) break;
 
-          // 🔥 NAYA FIX 1: Phase 2 ko sirf ek baar run hone do, baar-baar nahi
           if (phase === 2 && variant !== hintVariants[0]) continue;
 
-          // Phase 1 uses distinct starting positions based on current variant
           const startIndices = (phase === 1 && variant) 
             ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) 
             : [null];
@@ -513,7 +515,6 @@ export default function UnlockTool() {
               if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
               if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
 
-              // Only force the contiguous block in Phase 1
               if (phase === 1 && variant && mIdx !== null && depth === mIdx) {
                 let mAlpha=0, mNum=0, mSym=0;
                 for(let i=0; i<variant.length; i++){
@@ -551,7 +552,6 @@ export default function UnlockTool() {
               if (depth === len) {
                 if (triedPasswords.has(str)) continue;
                 
-                // 🔥 NAYA FIX 2: Original word ki jagah inject kiye gaye 'variant' ko check karo
                 if (middleHint) {
                   if (phase === 1) {
                     if (!str.includes(variant)) continue;
@@ -570,13 +570,19 @@ export default function UnlockTool() {
                   lastYieldTime = Date.now();
                 }
 
-                if (isAes256) {
+                // 🔥 FIX: Naye fast engine method ko call kar rahe hain
+                if (isAes256 && qpdfInstance) {
                    try {
-                     const bytes = await unlockWithWasm(str, pdfBytes);
-                     setUnlockedPdfBytes(bytes);
-                     setStatus('unlocked');
-                     unlocked = true;
-                     break;
+                     try { qpdfInstance.FS.unlink('smart_output.pdf'); } catch(e){}
+                     qpdfInstance.callMain(['--password=' + str, '--decrypt', 'smart_input.pdf', 'smart_output.pdf']);
+                     const unlockedBytes = qpdfInstance.FS.readFile('smart_output.pdf');
+                     
+                     if (unlockedBytes && unlockedBytes.length > 0) {
+                         setUnlockedPdfBytes(unlockedBytes);
+                         setStatus('unlocked');
+                         unlocked = true;
+                         break;
+                     }
                    } catch(e) {}
                 } else {
                    try {
@@ -605,6 +611,14 @@ export default function UnlockTool() {
           }
         }
       }
+    }
+
+    // 🔥 FIX: Cleanup the WASM filesystem after unlocking or failing
+    if (qpdfInstance) {
+        try { 
+           qpdfInstance.FS.unlink('smart_input.pdf'); 
+           qpdfInstance.FS.unlink('smart_output.pdf'); 
+        } catch(e){}
     }
 
     if (!unlocked && !stopBruteForceRef.current) {
