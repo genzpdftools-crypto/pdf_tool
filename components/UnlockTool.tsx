@@ -426,7 +426,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // ***** NEW CORRECTED handleSmartUnlock FUNCTION (Integrated & Fixed) *****
+  // ***** NEW CORRECTED handleSmartUnlock FUNCTION (Phase Logic Fixed) *****
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -458,8 +458,10 @@ export default function UnlockTool() {
       return true;
     };
 
-    const phases = middleHint ? [1, 2] : [1];
-    const hintVariants = middleHint ? getPermutations(middleHint) : [''];
+    // Phase 1: Exact Fixed Word
+    // Phase 2: Jumbled Fixed Word (Permutations)
+    // Phase 3: Scattered Characters (Aage Piche randomly)
+    const phases = middleHint ? [1, 2, 3] : [1];
 
     for (const phase of phases) {
       if (unlocked || stopBruteForceRef.current) break;
@@ -467,20 +469,34 @@ export default function UnlockTool() {
       for (let len = lenMin; len <= lenMax; len++) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        // Phase 1 uses all hint permutations. Phase 2 checks characters scatteredly (so it only needs to run once per length, not for every variant)
-        const variantsToUse = phase === 1 ? hintVariants : [''];
+        let variantsToUse = [''];
+        if (middleHint) {
+          if (phase === 1) {
+            variantsToUse = [middleHint]; // Strict Fixed Block
+          } else if (phase === 2) {
+            // Permutations except the exact one (which was already checked in Phase 1)
+            variantsToUse = getPermutations(middleHint).filter(v => v !== middleHint);
+          } else if (phase === 3) {
+            variantsToUse = ['']; // No fixed block, we just scatter the chars
+          }
+        }
+
+        // If no permutations exist (e.g. single character), skip Phase 2.
+        if ((phase === 2 || phase === 3) && variantsToUse.length === 0 && !middleHint) continue;
 
         for (const variant of variantsToUse) {
           if (unlocked || stopBruteForceRef.current) break;
 
-          const startIndices = (phase === 1 && variant) 
+          // Only Phase 1 & 2 have a contiguous block to place. Phase 3 has mIdx = null.
+          const startIndices = ((phase === 1 || phase === 2) && variant) 
             ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) 
             : [null];
 
           for (const mIdx of startIndices) {
             if (unlocked || stopBruteForceRef.current) break;
 
-            if (phase === 1 && variant && mIdx !== null) {
+            // Pre-validation logic for Phase 1 and 2
+            if ((phase === 1 || phase === 2) && variant && mIdx !== null) {
                 if (firstChar && mIdx === 0 && variant[0] !== firstChar) continue;
                 if (lastChar && mIdx + variant.length === len && variant[variant.length - 1] !== lastChar) continue;
             }
@@ -493,12 +509,13 @@ export default function UnlockTool() {
               const { str, depth, alpha, num, sym } = stack.pop()!;
               const remaining = len - depth;
               
+              // Count pruning
               if (reqAlpha !== -1 && (alpha + remaining < reqAlpha || alpha > reqAlpha)) continue;
               if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
               if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
 
-              // Force the contiguous block in Phase 1
-              if (phase === 1 && variant && mIdx !== null && depth === mIdx) {
+              // Force the contiguous block (Phase 1 & 2)
+              if ((phase === 1 || phase === 2) && variant && mIdx !== null && depth === mIdx) {
                 let mAlpha=0, mNum=0, mSym=0;
                 for(let i=0; i<variant.length; i++){
                     const c = variant.charCodeAt(i);
@@ -532,17 +549,16 @@ export default function UnlockTool() {
                   continue;
               }
 
+              // Password Ready - Checking Phase
               if (depth === len) {
                 if (triedPasswords.has(str)) continue;
                 
-                // Final filtering based on the Phase
-                if (middleHint) {
-                  if (phase === 2) {
-                    // Check if it has scattered characters
-                    if (!hasScatteredChars(str, middleHint)) continue;
-                    // Avoid duplicating tests that were already checked as contiguous blocks in Phase 1
-                    if (hintVariants.some(v => str.includes(v))) continue;
-                  }
+                // Extra filtering for Phase 3 (Scattered / Aage Piche logic)
+                if (middleHint && phase === 3) {
+                  if (!hasScatteredChars(str, middleHint)) continue;
+                  // Avoid tests already done in Phase 1 or 2 (which check contiguous blocks)
+                  const allVariants = getPermutations(middleHint);
+                  if (allVariants.some(v => str.includes(v))) continue;
                 }
 
                 attempts++;
@@ -550,11 +566,16 @@ export default function UnlockTool() {
                 const timeLimit = isAes256 ? 20 : 50; 
                 if (Date.now() - lastYieldTime > timeLimit) {
                   setProgress(Math.round((attempts / MAX_SMART_ATTEMPTS) * 100));
-                  setCurrentTry(`${str} (Phase ${phase})`); 
+                  
+                  let phaseText = phase === 1 ? 'Fixed Block' : (phase === 2 ? 'Jumbled Block' : 'Scattered Chars');
+                  if (!middleHint) phaseText = 'Standard Search';
+                  
+                  setCurrentTry(`${str} [${phaseText}]`); 
                   await new Promise(resolve => setTimeout(resolve, isAes256 ? 5 : 0)); 
                   lastYieldTime = Date.now();
                 }
 
+                // Engine Execution
                 if (isAes256) {
                    try {
                      const bytes = await unlockWithWasm(str, pdfBytes);
@@ -594,7 +615,7 @@ export default function UnlockTool() {
 
     if (!unlocked && !stopBruteForceRef.current) {
       setStatus('needs_password');
-      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} target combinations.`);
+      setErrorMessage(`Smart Cracking Failed. Checked ${attempts} targeted combinations.`);
     }
   };
   // ***** END OF NEW handleSmartUnlock FUNCTION *****
