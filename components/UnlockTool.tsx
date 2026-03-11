@@ -426,7 +426,7 @@ export default function UnlockTool() {
     return pool || 'abcdefghijklmnopqrstuvwxyz0123456789';
   };
 
-  // ***** NEW CORRECTED handleSmartUnlock FUNCTION (Integrated) *****
+  // ***** NEW CORRECTED handleSmartUnlock FUNCTION (Integrated & Fixed) *****
   const handleSmartUnlock = async () => {
     if (!file) return;
     setStatus('smart_cracking');
@@ -447,6 +447,7 @@ export default function UnlockTool() {
     const reqNum = exactNumbers !== '' ? parseInt(exactNumbers) : -1;
     const reqSym = exactSymbols !== '' ? parseInt(exactSymbols) : -1;
 
+    // Scattered characters checking logic
     const hasScatteredChars = (pwd: string, hint: string) => {
       let temp = pwd;
       for (const char of hint) {
@@ -458,6 +459,7 @@ export default function UnlockTool() {
     };
 
     const phases = middleHint ? [1, 2] : [1];
+    const hintVariants = middleHint ? getPermutations(middleHint) : [''];
 
     for (const phase of phases) {
       if (unlocked || stopBruteForceRef.current) break;
@@ -465,12 +467,12 @@ export default function UnlockTool() {
       for (let len = lenMin; len <= lenMax; len++) {
         if (unlocked || stopBruteForceRef.current) break;
 
-        const hintVariants = middleHint ? getPermutations(middleHint) : [''];
+        // Phase 1 uses all hint permutations. Phase 2 checks characters scatteredly (so it only needs to run once per length, not for every variant)
+        const variantsToUse = phase === 1 ? hintVariants : [''];
 
-        for (const variant of hintVariants) {
+        for (const variant of variantsToUse) {
           if (unlocked || stopBruteForceRef.current) break;
 
-          // Phase 1 uses distinct starting positions. Phase 2 just needs one pass.
           const startIndices = (phase === 1 && variant) 
             ? Array.from({length: Math.max(0, len - variant.length + 1)}, (_, i) => i) 
             : [null];
@@ -495,7 +497,7 @@ export default function UnlockTool() {
               if (reqNum !== -1 && (num + remaining < reqNum || num > reqNum)) continue;
               if (reqSym !== -1 && (sym + remaining < reqSym || sym > reqSym)) continue;
 
-              // Only force the contiguous block in Phase 1
+              // Force the contiguous block in Phase 1
               if (phase === 1 && variant && mIdx !== null && depth === mIdx) {
                 let mAlpha=0, mNum=0, mSym=0;
                 for(let i=0; i<variant.length; i++){
@@ -533,11 +535,13 @@ export default function UnlockTool() {
               if (depth === len) {
                 if (triedPasswords.has(str)) continue;
                 
+                // Final filtering based on the Phase
                 if (middleHint) {
-                  if (phase === 1) {
-                    if (!str.includes(middleHint)) continue;
-                  } else if (phase === 2) {
-                    if (!hasScatteredChars(str, middleHint) || str.includes(middleHint)) continue;
+                  if (phase === 2) {
+                    // Check if it has scattered characters
+                    if (!hasScatteredChars(str, middleHint)) continue;
+                    // Avoid duplicating tests that were already checked as contiguous blocks in Phase 1
+                    if (hintVariants.some(v => str.includes(v))) continue;
                   }
                 }
 
