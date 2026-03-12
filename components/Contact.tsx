@@ -41,11 +41,7 @@ export const Contact: React.FC = () => {
           <div className="space-y-3">
             <a href="mailto:p7431309@gmail.com" className="flex items-center gap-3 text-slate-700 hover:text-blue-600 font-medium transition-colors p-2 hover:bg-slate-50 rounded-lg">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              p7431309@gmail.com
-            </a>
-            <a href="mailto:rkamari12345@gmail.com" className="flex items-center gap-3 text-slate-700 hover:text-blue-600 font-medium transition-colors p-2 hover:bg-slate-50 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-              rkamari12345@gmail.com
+              genzpdftools@gmail.com
             </a>
           </div>
         </div>
