@@ -1030,7 +1030,7 @@ export default function UnlockTool() {
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-4 relative z-10">
                <a href="/compress" className="bg-white text-rose-600 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-rose-50 hover:scale-105 transition-all">Compress PDF</a>
-               <a href="/split" className="bg-white-700 text-white border border-rose-400 px-8 py-4 rounded-xl font-bold hover:bg-rose-800 hover:scale-105 transition-all shadow-lg">Split PDF</a>
+               <a href="/split" className="bg-white text-rose-600 px-8 py-4 rounded-xl font-bold shadow-lg hover:bg-rose-50 hover:scale-105 transition-all">Split PDF</a>
             </div>
           </div>
 
