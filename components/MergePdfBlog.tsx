@@ -498,14 +498,14 @@ export const MergePdfBlog = () => {
 
           {/* ✍️ AUTHOR BIO BOX (E-E-A-T) */}
           <div className="bg-indigo-50/50 border border-indigo-100 p-6 md:p-8 rounded-3xl flex flex-col sm:flex-row items-center sm:items-start gap-6 mt-12">
-            <img src="/logo.png" alt="Pintu Chauhan" className="w-20 h-20 bg-white p-2 rounded-2xl shadow-sm border border-slate-200 object-contain flex-shrink-0" />
+            <img src="/logo.png" alt="Pintu and Raushan " className="w-20 h-20 bg-white p-2 rounded-2xl shadow-sm border border-slate-200 object-contain flex-shrink-0" />
             <div>
               <h4 className="font-black text-lg text-slate-900 m-0 mb-1 flex items-center gap-2 justify-center sm:justify-start">
-                Pintu Chauhan <ShieldCheck size={16} className="text-blue-500 fill-blue-500/20" />
+                Pintu And Raushan <ShieldCheck size={16} className="text-blue-500 fill-blue-500/20" />
               </h4>
               <p className="text-sm font-bold text-indigo-600 uppercase tracking-widest m-0 mb-3 text-center sm:text-left">Founder & Developer</p>
               <p className="text-slate-600 text-sm m-0 leading-relaxed text-center sm:text-left">
-                Pintu is the creator behind Genz PDF. With a mission to provide fast, unlimited, and 100% secure offline PDF tools, he built Genz PDF so users never have to upload their private documents to sketchy cloud servers again.
+                Pintu And Raushan is the creator behind Genz PDF. With a mission to provide fast, unlimited, and 100% secure offline PDF tools, he built Genz PDF so users never have to upload their private documents to sketchy cloud servers again.
               </p>
               <div className="flex justify-center sm:justify-start gap-4 mt-4">
                 <a href="https://www.linkedin.com/in/pintu-chauhan-ctuap/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-indigo-600 transition-colors"><Linkedin size={18} /></a>
