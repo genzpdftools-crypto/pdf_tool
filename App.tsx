@@ -55,6 +55,8 @@ const About = lazy(() => import('./components/About'));
 const Contact = lazy(() => import('./components/Contact'));
 const Policy = lazy(() => import('./components/Policy'));
 const Terms = lazy(() => import('./components/Terms'));
+// 🆕 New lazy import for the blog page
+const MergePdfBlog = lazy(() => import('./components/MergePdfBlog'));
 
 const BASE_URL = "https://genzpdf.com";
 const SITE_NAME = "Genz PDF";
@@ -248,6 +250,17 @@ const SEO_METADATA: Record<AppMode, {
     keywords: "terms of service, pdf terms",
     schema: { "@context": "https://schema.org", "@type": "WebPage", "name": "Terms of Service" },
     breadcrumb: [{ name: "Home", url: BASE_URL }, { name: "Terms", url: `${BASE_URL}/terms` }]
+  },
+  // 🆕 SEO metadata for the new blog page
+  'blog-merge': {
+    title: "How Our Merge PDF Tool Works - Architecture & FAQs | Genz PDF",
+    description: "Read the comprehensive technical guide on how Genz PDF merges your documents 100% locally in your browser for maximum privacy and security.",
+    keywords: "how merge pdf works, pdf-lib react, client side pdf merge, genz pdf tech stack, merge pdf privacy",
+    schema: { "@context": "https://schema.org", "@type": "Article", "headline": "How Our Merge PDF Tool Works" },
+    breadcrumb: [
+      { name: "Home", url: BASE_URL },
+      { name: "Blog: Merge PDF", url: `${BASE_URL}/blog/merge-pdf` }
+    ]
   }
 };
 
@@ -268,6 +281,9 @@ function App() {
       if (convertMatch) {
         return { mode: 'convert', param: convertMatch[1] };
       }
+
+      // 🆕 New static route for the blog page
+      if (path.includes('/blog/merge-pdf')) return { mode: 'blog-merge', param: null };
 
       // Static routes (keep existing)
       if (path.includes('/merge')) return { mode: 'merge', param: null };
@@ -308,7 +324,7 @@ function App() {
 
   const navigateTo = (targetMode: AppMode, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    const path = targetMode === 'home' ? '/' : `/${targetMode}`;
+    const path = targetMode === 'home' ? '/' : targetMode === 'blog-merge' ? '/blog/merge-pdf' : `/${targetMode}`;
     window.history.pushState({}, '', path);
     setMode(targetMode);
     // Reset dynamic param when navigating to static route
@@ -339,7 +355,7 @@ function App() {
   // --- UPDATED: SEO effect with dynamic overrides ---
   useEffect(() => {
     let meta = SEO_METADATA[mode] || SEO_METADATA.home;
-    let url = mode === 'home' ? BASE_URL : `${BASE_URL}/${mode}`;
+    let url = mode === 'home' ? BASE_URL : mode === 'blog-merge' ? `${BASE_URL}/blog/merge-pdf` : `${BASE_URL}/${mode}`;
 
     // 🪄 Override metadata dynamically for resize/convert with param
     if (mode === 'resize' && dynamicParam) {
@@ -590,7 +606,7 @@ function App() {
     const isActive = (mode === targetMode) || (targetMode === 'home' && mode === 'home');
     return (
       <a
-        href={targetMode === 'home' ? '/' : `/${targetMode}`}
+        href={targetMode === 'home' ? '/' : targetMode === 'blog-merge' ? '/blog/merge-pdf' : `/${targetMode}`}
         onClick={(e) => navigateTo(targetMode, e)}
         className={clsx(
           "flex items-center gap-2 xl:gap-3 transition-all duration-300 font-bold rounded-xl group",
@@ -985,6 +1001,8 @@ function App() {
               {mode === 'convert' && <ConverterTool initialFormat={dynamicParam} />}
               {mode === 'compress' && <CompressTool />}
               {mode === 'resize' && <ResizeTool initialTargetKb={dynamicParam} />}
+              {/* 🆕 Render the new blog page here */}
+              {mode === 'blog-merge' && <MergePdfBlog />}
               {mode === 'about' && <About />}
               {mode === 'contact' && <Contact />}
               {mode === 'policy' && <Policy />}
