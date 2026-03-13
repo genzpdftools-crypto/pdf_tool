@@ -18,7 +18,9 @@ import {
   FilePlus,
   Image as ImageIcon,
   Move,
-  CheckSquare
+  CheckSquare,
+  Eye,
+  X
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -55,10 +57,11 @@ interface SortablePageProps {
   idx: number;
   isSelected: boolean;
   onPageClick: (e: React.MouseEvent, id: string) => void;
+  onPreview: (page: PageData) => void;
 }
 
 // Drag & Drop Sortable Page Component
-function SortablePage({ page, idx, isSelected, onPageClick }: SortablePageProps) {
+function SortablePage({ page, idx, isSelected, onPageClick, onPreview }: SortablePageProps) {
   const {
     attributes,
     listeners,
@@ -101,6 +104,18 @@ function SortablePage({ page, idx, isSelected, onPageClick }: SortablePageProps)
       <div className="absolute top-2 left-2 z-30 bg-slate-900/40 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <Move size={14} />
       </div>
+
+      {/* Preview Button */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onPreview(page);
+        }}
+        className="absolute inset-0 m-auto w-10 h-10 bg-slate-900/60 backdrop-blur-sm text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:bg-rose-500 hover:scale-110 shadow-lg"
+        title="Preview Page"
+      >
+        <Eye size={20} />
+      </button>
 
       <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
         <img
@@ -147,6 +162,7 @@ export default function App() {
   const [pages, setPages] = useState<PageData[]>([]);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // For Shift+Click range selection
+  const [previewPage, setPreviewPage] = useState<PageData | null>(null); // For Full-Screen Preview
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -266,10 +282,10 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     const newPages: PageData[] = [];
-    let hasUnsupportedFiles = false;
+    let errorMessages: string[] = [];
 
-    try {
-      for (const file of newFiles) {
+    for (const file of newFiles) {
+      try {
         const fileId = generateId();
         const fileType = file.type || getExtensionType(file.name);
 
@@ -277,6 +293,9 @@ export default function App() {
           const buff = await file.arrayBuffer();
           const loadedPdfJs: any = await loadPdfJs();
           const lib = loadedPdfJs.default || loadedPdfJs;
+          
+          // Yeh function bina password wale PDFs process karega, 
+          // password-protected PDFs yahan error throw karenge
           const pdf = await lib.getDocument({ data: buff }).promise;
           const scale = window.devicePixelRatio > 1 ? 0.5 : 0.35;
 
@@ -314,100 +333,99 @@ export default function App() {
             fileName: file.name
           });
         } else if (file.name.toLowerCase().endsWith('.docx')) {
-          try {
-            const mammoth: any = await loadMammoth();
-            const html2canvas: any = await loadHtml2Canvas();
-            const arrayBuffer = await file.arrayBuffer();
-            
-            const result = await mammoth.convertToHtml({ arrayBuffer });
-            const htmlContent = result.value || "<p>Blank Document</p>";
-            
-            const container = document.createElement('div');
-            container.style.position = 'absolute';
-            container.style.top = '-99999px';
-            container.style.left = '-99999px';
-            container.style.width = '800px'; 
-            container.style.backgroundColor = '#ffffff';
-            container.style.padding = '40px';
-            container.style.color = '#1e293b';
-            container.style.fontFamily = 'Arial, sans-serif';
-            container.style.fontSize = '16px';
-            container.style.lineHeight = '1.6';
-            container.innerHTML = htmlContent;
-            
-            const style = document.createElement('style');
-            style.innerHTML = 'img { max-width: 100%; height: auto; }';
-            container.appendChild(style);
-            
-            document.body.appendChild(container);
-            await new Promise(res => setTimeout(res, 300));
+          const mammoth: any = await loadMammoth();
+          const html2canvas: any = await loadHtml2Canvas();
+          const arrayBuffer = await file.arrayBuffer();
+          
+          const result = await mammoth.convertToHtml({ arrayBuffer });
+          const htmlContent = result.value || "<p>Blank Document</p>";
+          
+          const container = document.createElement('div');
+          container.style.position = 'absolute';
+          container.style.top = '-99999px';
+          container.style.left = '-99999px';
+          container.style.width = '800px'; 
+          container.style.backgroundColor = '#ffffff';
+          container.style.padding = '40px';
+          container.style.color = '#1e293b';
+          container.style.fontFamily = 'Arial, sans-serif';
+          container.style.fontSize = '16px';
+          container.style.lineHeight = '1.6';
+          container.innerHTML = htmlContent;
+          
+          const style = document.createElement('style');
+          style.innerHTML = 'img { max-width: 100%; height: auto; }';
+          container.appendChild(style);
+          
+          document.body.appendChild(container);
+          await new Promise(res => setTimeout(res, 300));
 
-            const fullCanvas = await html2canvas(container, {
-              scale: 1.5,
-              useCORS: true,
-              backgroundColor: '#ffffff',
-              logging: false
+          const fullCanvas = await html2canvas(container, {
+            scale: 1.5,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            logging: false
+          });
+
+          document.body.removeChild(container);
+
+          const A4_WIDTH = fullCanvas.width;
+          const A4_HEIGHT = Math.floor(fullCanvas.width * 1.414);
+          const totalHeight = fullCanvas.height;
+          const totalPages = Math.max(1, Math.ceil(totalHeight / A4_HEIGHT));
+
+          for (let i = 0; i < totalPages; i++) {
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = A4_WIDTH;
+            pageCanvas.height = A4_HEIGHT;
+            const pCtx = pageCanvas.getContext('2d');
+            if (!pCtx) continue;
+
+            pCtx.fillStyle = '#ffffff';
+            pCtx.fillRect(0, 0, A4_WIDTH, A4_HEIGHT);
+
+            const sy = i * A4_HEIGHT;
+            const sHeight = Math.min(A4_HEIGHT, totalHeight - sy);
+
+            pCtx.drawImage(
+              fullCanvas,
+              0, sy, A4_WIDTH, sHeight, 
+              0, 0, A4_WIDTH, sHeight
+            );
+
+            newPages.push({
+              id: generateId(),
+              fileId,
+              fileType: 'application/pdf',
+              pageIndex: i,
+              imageUrl: pageCanvas.toDataURL('image/jpeg', 0.9), 
+              rotation: 0,
+              originalFile: file,
+              fileName: `${file.name} (Pg ${i + 1})`,
+              isDocxRendered: true
             });
-
-            document.body.removeChild(container);
-
-            const A4_WIDTH = fullCanvas.width;
-            const A4_HEIGHT = Math.floor(fullCanvas.width * 1.414);
-            const totalHeight = fullCanvas.height;
-            const totalPages = Math.max(1, Math.ceil(totalHeight / A4_HEIGHT));
-
-            for (let i = 0; i < totalPages; i++) {
-              const pageCanvas = document.createElement('canvas');
-              pageCanvas.width = A4_WIDTH;
-              pageCanvas.height = A4_HEIGHT;
-              const pCtx = pageCanvas.getContext('2d');
-              if (!pCtx) continue;
-
-              pCtx.fillStyle = '#ffffff';
-              pCtx.fillRect(0, 0, A4_WIDTH, A4_HEIGHT);
-
-              const sy = i * A4_HEIGHT;
-              const sHeight = Math.min(A4_HEIGHT, totalHeight - sy);
-
-              pCtx.drawImage(
-                fullCanvas,
-                0, sy, A4_WIDTH, sHeight, 
-                0, 0, A4_WIDTH, sHeight
-              );
-
-              newPages.push({
-                id: generateId(),
-                fileId,
-                fileType: 'application/pdf',
-                pageIndex: i,
-                imageUrl: pageCanvas.toDataURL('image/jpeg', 0.9), 
-                rotation: 0,
-                originalFile: file,
-                fileName: `${file.name} (Pg ${i + 1})`,
-                isDocxRendered: true
-              });
-            }
-          } catch (err) {
-            console.error("DOCX rendering failed", err);
-            hasUnsupportedFiles = true;
           }
         } else {
-          hasUnsupportedFiles = true;
+          errorMessages.push(`'${file.name}' ka format support nahi karta.`);
+        }
+      } catch (err: any) {
+        console.error(`Error processing file ${file.name}:`, err);
+        // Password exception handling taaki crash prevent kiya ja sake
+        if (err?.name === 'PasswordException' || err?.message?.toLowerCase().includes('password')) {
+          errorMessages.push(`'${file.name}' password protected hai. Kripya isey unlock karein.`);
+        } else {
+          errorMessages.push(`'${file.name}' load nahi ho payi. Shayad file corrupted hai.`);
         }
       }
-
-      setPages(prev => [...prev, ...newPages]);
-      
-      if (hasUnsupportedFiles) {
-        setError('Sirf PDF, DOCX, aur Images (JPG/PNG) support hoti hain.');
-      }
-
-    } catch (err) {
-      console.error(err);
-      setError('Kuch files load nahi ho payi. Shayad password protected ya corrupted hain.');
-    } finally {
-      setIsLoading(false);
     }
+
+    setPages(prev => [...prev, ...newPages]);
+    
+    if (errorMessages.length > 0) {
+      setError(Array.from(new Set(errorMessages)).join(' | '));
+    }
+
+    setIsLoading(false);
   };
 
   const getExtensionType = (filename: string) => {
@@ -578,7 +596,13 @@ export default function App() {
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
           
           const embeddedPdf = await finalPdf.embedPage(copiedPage);
-          const dims = embeddedPdf.scaleToFit(A4_WIDTH, A4_HEIGHT);
+          
+          // PDFEmbeddedPage mein scaleToFit nahi hota, isliye manual width/height set kiya hai
+          const scaleFactor = Math.min(A4_WIDTH / embeddedPdf.width, A4_HEIGHT / embeddedPdf.height);
+          const dims = {
+            width: embeddedPdf.width * scaleFactor,
+            height: embeddedPdf.height * scaleFactor
+          };
           
           page.drawPage(embeddedPdf, {
             x: (A4_WIDTH - dims.width) / 2,
@@ -966,6 +990,7 @@ export default function App() {
                                 idx={idx}
                                 isSelected={selectedPages.has(p.id)}
                                 onPageClick={handlePageClick}
+                                onPreview={setPreviewPage}
                               />
                             ))}
                             
@@ -1071,6 +1096,41 @@ export default function App() {
         </section>
 
       </div>
+
+      {/* FULL-SCREEN PREVIEW MODAL */}
+      {previewPage && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setPreviewPage(null)}
+        >
+          <button
+            onClick={() => setPreviewPage(null)}
+            className="absolute top-4 right-4 md:top-6 md:right-6 text-white/70 hover:text-white bg-slate-800/50 hover:bg-rose-500 p-2 rounded-full transition-all z-50"
+          >
+            <X size={24} />
+          </button>
+          
+          <div 
+            className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-slate-50 p-2 md:p-4 rounded-xl shadow-2xl relative overflow-hidden flex items-center justify-center w-auto max-w-full">
+               <img
+                 src={previewPage.imageUrl}
+                 alt={previewPage.fileName}
+                 style={{ transform: `rotate(${previewPage.rotation}deg)` }}
+                 className="max-w-full max-h-[75vh] md:max-h-[80vh] object-contain transition-transform duration-300"
+               />
+            </div>
+            <div className="mt-4 md:mt-6 text-white font-medium text-center bg-slate-800/50 px-4 py-2 rounded-full shadow-lg backdrop-blur-md border border-slate-700/50">
+              <span className="opacity-70">{previewPage.fileName}</span> 
+              <span className="mx-2 opacity-30">•</span> 
+              <span>Page {previewPage.pageIndex + 1}</span>
+              {previewPage.isDocxRendered && <span className="ml-2 text-rose-400">(DOCX)</span>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
