@@ -21,11 +21,6 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { FileUploader } from './FileUploader';
-// Retaining original imports as requested, though we now use advanced inline processing for multi-files
-import { removePagesFromPdf, createPdfUrl } from '../services/pdfService';
-
-interface SplitToolProps {}
 
 // Extended Page Data interface for the Continuous Editor
 interface PageData {
@@ -37,9 +32,11 @@ interface PageData {
   rotation: number;
   originalFile: File;
   fileName: string;
+  isDocxRendered?: boolean; // New flag to track Docx screenshots
 }
 
-export const SplitTool: React.FC<SplitToolProps> = () => {
+// Canvas requires the main component to be named App and be the default export
+export default function App() {
   // ---------- COMPREHENSIVE SEO CONFIGURATION ----------
   const SEO = {
     title: 'Split PDF Online - Remove Pages from PDF Free | Genz PDF',
@@ -61,9 +58,33 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   
-  // Ref for the hidden file input (Add More Files feature)
+  // Ref for the hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ---------- DYNAMIC SCRIPT LOADER FOR DOCX (Mammoth.js & Html2Canvas) ----------
+  const loadMammoth = async () => {
+    if ((window as any).mammoth) return (window as any).mammoth;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js';
+      script.onload = () => resolve((window as any).mammoth);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
+  const loadHtml2Canvas = async () => {
+    if ((window as any).html2canvas) return (window as any).html2canvas;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      script.onload = () => resolve((window as any).html2canvas);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
 
   // ---------- MASTER SEO INJECTION & PDF WORKER INIT ----------
   useEffect(() => {
@@ -91,39 +112,16 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
     upsertMeta('description', SEO.description);
     upsertMeta('robots', 'index, follow');
     upsertMeta('viewport', 'width=device-width, initial-scale=1');
-    upsertMeta('author', SEO.author);
-    upsertMeta('keywords', SEO.keywords);
-
-    let canonicalLink = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
-    if (!canonicalLink) {
-      canonicalLink = document.createElement('link');
-      canonicalLink.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonicalLink);
-    }
-    canonicalLink.setAttribute('href', SEO.canonical);
-
-    upsertMeta('og:title', SEO.title, true);
-    upsertMeta('og:description', SEO.description, true);
-    upsertMeta('og:url', SEO.canonical, true);
-    upsertMeta('og:image', SEO.image, true);
-    upsertMeta('og:type', 'website', true);
-    upsertMeta('og:site_name', SEO.siteName, true);
-    upsertMeta('og:locale', SEO.locale, true);
-
-    upsertMeta('twitter:card', 'summary_large_image');
-    upsertMeta('twitter:title', SEO.title);
-    upsertMeta('twitter:description', SEO.description);
-    upsertMeta('twitter:image', SEO.image);
-    upsertMeta('twitter:site', SEO.twitterHandle);
   }, []);
 
-  // ---------- CORE FILE PROCESSING (PDF, Images, DOCX/PPT) ----------
+  // ---------- CORE FILE PROCESSING (PDF, Images, DOCX) ----------
   const processFiles = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
     
     setIsLoading(true);
     setError(null);
     const newPages: PageData[] = [];
+    let hasUnsupportedFiles = false;
 
     try {
       for (const file of newFiles) {
@@ -170,35 +168,110 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
             originalFile: file,
             fileName: file.name
           });
-        } else {
-          // Process DOCX, PPT, etc. (Create placeholder visual)
-          const canvas = document.createElement('canvas');
-          canvas.width = 400; canvas.height = 500;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, 400, 500);
-            ctx.fillStyle = '#cbd5e1'; ctx.font = '60px Arial';
-            ctx.textAlign = 'center'; ctx.fillText('📄', 200, 200);
-            ctx.fillStyle = '#334155'; ctx.font = '16px Arial';
-            ctx.fillText(file.name.substring(0, 30), 200, 260);
+        } else if (file.name.toLowerCase().endsWith('.docx')) {
+          // Process DOCX: Extract HTML (with images) & Take Canvas Screenshots
+          try {
+            const mammoth: any = await loadMammoth();
+            const html2canvas: any = await loadHtml2Canvas();
+            const arrayBuffer = await file.arrayBuffer();
+            
+            // convertToHtml se images aur basic formatting preserve rehti hai
+            const result = await mammoth.convertToHtml({ arrayBuffer });
+            const htmlContent = result.value || "<p>Blank Document</p>";
+            
+            // Ek temporary div banayenge jo screen ke bahar hoga
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.top = '-99999px';
+            container.style.left = '-99999px';
+            container.style.width = '800px'; // A4 width at 96 DPI
+            container.style.backgroundColor = '#ffffff';
+            container.style.padding = '40px';
+            container.style.color = '#1e293b';
+            container.style.fontFamily = 'Arial, sans-serif';
+            container.style.fontSize = '16px';
+            container.style.lineHeight = '1.6';
+            container.innerHTML = htmlContent;
+            
+            // Ensure images inside HTML max-width is 100% to prevent overflow
+            const style = document.createElement('style');
+            style.innerHTML = 'img { max-width: 100%; height: auto; }';
+            container.appendChild(style);
+            
+            document.body.appendChild(container);
+
+            // Base64 images ko DOM mein properly render hone ke liye thoda wait karenge
+            await new Promise(res => setTimeout(res, 300));
+
+            // Pure content ka ek high-quality screenshot lenge
+            const fullCanvas = await html2canvas(container, {
+              scale: 1.5, // Better quality ke liye
+              useCORS: true,
+              backgroundColor: '#ffffff',
+              logging: false
+            });
+
+            document.body.removeChild(container);
+
+            // Ab is lamba screenshot ko A4 pages mein slice karenge
+            const A4_WIDTH = fullCanvas.width;
+            const A4_HEIGHT = Math.floor(fullCanvas.width * 1.414); // A4 aspect ratio
+            const totalHeight = fullCanvas.height;
+            const totalPages = Math.max(1, Math.ceil(totalHeight / A4_HEIGHT));
+
+            for (let i = 0; i < totalPages; i++) {
+              const pageCanvas = document.createElement('canvas');
+              pageCanvas.width = A4_WIDTH;
+              pageCanvas.height = A4_HEIGHT;
+              const pCtx = pageCanvas.getContext('2d');
+              if (!pCtx) continue;
+
+              // White background fill karenge
+              pCtx.fillStyle = '#ffffff';
+              pCtx.fillRect(0, 0, A4_WIDTH, A4_HEIGHT);
+
+              // Bade screenshot mein se ek page jitna hissa cut kar ke draw karenge
+              const sy = i * A4_HEIGHT;
+              const sHeight = Math.min(A4_HEIGHT, totalHeight - sy);
+
+              pCtx.drawImage(
+                fullCanvas,
+                0, sy, A4_WIDTH, sHeight, // Source slice
+                0, 0, A4_WIDTH, sHeight   // Destination slice
+              );
+
+              newPages.push({
+                id: crypto.randomUUID(),
+                fileId,
+                fileType: 'application/pdf', // Internally PDF ki tarah treat hoga
+                pageIndex: i,
+                imageUrl: pageCanvas.toDataURL('image/jpeg', 0.9), // 0.9 Quality
+                rotation: 0,
+                originalFile: file,
+                fileName: `${file.name} (Pg ${i + 1})`,
+                isDocxRendered: true // Mark karenge ki ye Docx ka screenshot hai
+              });
+            }
+
+          } catch (err) {
+            console.error("DOCX rendering failed", err);
+            hasUnsupportedFiles = true;
           }
-          newPages.push({
-            id: crypto.randomUUID(),
-            fileId,
-            fileType,
-            pageIndex: 0,
-            imageUrl: canvas.toDataURL(),
-            rotation: 0,
-            originalFile: file,
-            fileName: file.name
-          });
+        } else {
+          // Other unsupported files (e.g. PPT, Excel)
+          hasUnsupportedFiles = true;
         }
       }
 
       setPages(prev => [...prev, ...newPages]);
+      
+      if (hasUnsupportedFiles) {
+        setError('Sirf PDF, DOCX, aur Images (JPG/PNG) support hoti hain.');
+      }
+
     } catch (err) {
       console.error(err);
-      setError('Could not process some files. They might be corrupted or password protected.');
+      setError('Kuch files load nahi ho payi. Shayad password protected ya corrupted hain.');
     } finally {
       setIsLoading(false);
     }
@@ -213,19 +286,33 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
     return 'unknown';
   };
 
-  // ---------- HANDLERS ----------
-  const handleFileSelected = (files: File[]) => {
-    processFiles(files);
+  // ---------- DRAG & DROP HANDLERS ----------
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(Array.from(e.dataTransfer.files));
+    }
   };
 
   const handleHiddenFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       processFiles(Array.from(e.target.files));
     }
-    // Reset input so the same file can be selected again if needed
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  // ---------- EDITOR HANDLERS ----------
   const togglePage = (id: string) => {
     setSelectedPages(prev => {
       const next = new Set(prev);
@@ -235,25 +322,22 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
     });
   };
 
-  // Rotate only selected pages
   const handleRotateSelected = () => {
     setPages(prev => prev.map(p => 
       selectedPages.has(p.id) ? { ...p, rotation: (p.rotation + 90) % 360 } : p
     ));
   };
 
-  // Split: Keep only selected pages, remove the rest
   const handleSplitKeepSelected = () => {
     if (selectedPages.size === 0) return;
     setPages(prev => prev.filter(p => selectedPages.has(p.id)));
-    setSelectedPages(new Set()); // Clear selection after action
+    setSelectedPages(new Set());
   };
 
-  // Remove: Delete only selected pages
   const handleDeleteSelected = () => {
     if (selectedPages.size === 0) return;
     setPages(prev => prev.filter(p => !selectedPages.has(p.id)));
-    setSelectedPages(new Set()); // Clear selection after action
+    setSelectedPages(new Set());
   };
 
   const reset = () => {
@@ -269,12 +353,11 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
     
     try {
       const finalPdf = await PDFDocument.create();
-      
-      // Cache original PDFs to avoid re-parsing the same document repeatedly
       const parsedPdfs = new Map<string, PDFDocument>();
 
       for (const p of pages) {
-        if (p.fileType === 'application/pdf') {
+        // If it is a real PDF file
+        if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
           let sourcePdf = parsedPdfs.get(p.fileId);
           if (!sourcePdf) {
             const buf = await p.originalFile.arrayBuffer();
@@ -282,28 +365,25 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
             parsedPdfs.set(p.fileId, sourcePdf);
           }
           const [copiedPage] = await finalPdf.copyPages(sourcePdf, [p.pageIndex]);
-          
-          // Apply user-defined rotation on top of document's existing rotation
           const currentRotation = copiedPage.getRotation().angle;
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
           finalPdf.addPage(copiedPage);
 
-        } else if (p.fileType.startsWith('image/')) {
-          const buf = await p.originalFile.arrayBuffer();
+        } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
+          // If it's an uploaded Image OR our generated DOCX Canvas Screenshot
+          const response = await fetch(p.imageUrl);
+          const buf = await response.arrayBuffer();
+          
           let img;
-          if (p.fileType === 'image/png') {
+          if (p.imageUrl.startsWith('data:image/png')) {
             img = await finalPdf.embedPng(buf);
           } else {
             img = await finalPdf.embedJpg(buf);
           }
+          
           const page = finalPdf.addPage([img.width, img.height]);
           page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
           page.setRotation(degrees(p.rotation));
-        } else {
-          // Fallback for docx/ppt -> Draw a simple text page
-          const page = finalPdf.addPage([595, 842]); // A4
-          page.drawText(`Attached File: ${p.fileName}`, { x: 50, y: 750, size: 18 });
-          page.drawText('(Please refer to original document. Auto-conversion not supported)', { x: 50, y: 720, size: 12 });
         }
       }
 
@@ -339,7 +419,6 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
         const ctx = canvas.getContext('2d');
         if (!ctx) continue;
 
-        // Adjust canvas dimensions if rotated 90 or 270 degrees
         if (p.rotation % 180 !== 0) {
           canvas.width = img.height;
           canvas.height = img.width;
@@ -348,7 +427,6 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
           canvas.height = img.height;
         }
 
-        // Draw with rotation
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((p.rotation * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
@@ -358,8 +436,6 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
         a.href = dataUrl;
         a.download = `page-${i + 1}.${format}`;
         a.click();
-        
-        // Small delay to prevent browser from blocking multiple immediate downloads
         await new Promise(res => setTimeout(res, 250));
       }
     } catch (e) {
@@ -387,7 +463,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
         <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
             <Zap size={12} className="fill-rose-600" />
-            V3.0 • Multi-File Advanced Editor
+            V4.0 • DOCX Canvas Integration
           </div>
           <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
             Merge, Split & <br className="hidden md:block"/>
@@ -396,7 +472,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
             </span>
           </h1>
           <p className="text-sm md:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed px-2">
-            Professional grade tool to arrange, rotate, and extract pages. Supports PDFs, Images, Word & PPT.
+            Professional grade tool to arrange, rotate, and extract pages. Supports PDFs, Images, and DOCX text rendering.
             <span className="font-medium text-slate-800"> Secure, Private, and Free.</span>
           </p>
         </header>
@@ -413,17 +489,30 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                 <div className="w-full max-w-[280px] md:max-w-[380px] aspect-square relative group shrink-0 mx-auto md:mx-0">
                   <div className="absolute -inset-2 bg-gradient-to-tr from-rose-400 to-orange-400 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-60 animate-pulse transition duration-700"></div>
                   
-                  <div className="relative h-full bg-white rounded-[1.8rem] md:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/50">
-                    <div className="absolute inset-0 flex flex-col">
-                       <div className="h-full w-full [&>div]:h-full [&>div]:border-dashed [&>div]:border-2 [&>div]:border-rose-200 [&>div]:bg-rose-50/30">
-                          <FileUploader 
-                            onFilesSelected={handleFileSelected} 
-                            allowMultiple={true} 
-                            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.ppt,.pptx"
-                            label="Drop Files Here"
-                            subLabel="PDFs, Images, DOCX, PPT"
-                          />
-                       </div>
+                  <div className="relative h-full bg-white rounded-[1.8rem] md:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/50 flex flex-col">
+                    <div 
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={clsx(
+                        "flex-1 m-4 border-2 border-dashed rounded-[1rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
+                        isDragging ? "border-rose-500 bg-rose-50" : "border-rose-200 bg-rose-50/30 hover:bg-rose-50/60"
+                      )}
+                    >
+                      <input 
+                        type="file" 
+                        multiple 
+                        className="hidden" 
+                        ref={fileInputRef} 
+                        onChange={handleHiddenFileInput}
+                        accept=".pdf,.jpg,.jpeg,.png,.docx"
+                      />
+                      <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 text-rose-500 group-hover:scale-110 transition-transform">
+                        <Plus size={32} />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-800 mb-1">Drop Files Here</h3>
+                      <p className="text-sm font-medium text-slate-500">PDFs, Images, & DOCX</p>
                     </div>
                   </div>
                 </div>
@@ -436,7 +525,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                         <span className="text-rose-600">& PDF Splitter</span>
                       </h3>
                       <p className="text-xs md:text-base text-slate-500 font-medium">
-                        Mix images, PDFs, rotate and securely save formats in browser.
+                        Mix images, PDFs, aur DOCX text. Securely save as PDF.
                       </p>
                    </div>
 
@@ -444,7 +533,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                       {[
                         { icon: ShieldCheck, title: "100% Secure", desc: "Files never leave your device" },
                         { icon: Scissors, title: "Precise Control", desc: "Extract or remove exact pages" },
-                        { icon: Zap, title: "Universal Formats", desc: "Merge PDFs, JPG, PNG & more" }
+                        { icon: Zap, title: "DOCX to PDF", desc: "Read DOCX as image pages" }
                       ].map((f, i) => (
                         <div key={i} className="flex items-center gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-rose-100 transition-all group cursor-default text-left">
                           <div className="shrink-0 w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gradient-to-br from-rose-50 to-orange-50 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
@@ -485,14 +574,13 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                   {/* Right: Actions */}
                   <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full md:w-auto">
                     
-                    {/* Add More Files Button (Hidden Input Trigger) */}
                     <input 
                       type="file" 
                       multiple 
                       className="hidden" 
                       ref={fileInputRef} 
                       onChange={handleHiddenFileInput}
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.ppt,.pptx"
+                      accept=".pdf,.jpg,.jpeg,.png,.docx"
                     />
                     <button 
                       onClick={() => fileInputRef.current?.click()}
@@ -502,7 +590,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                       <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
                     </button>
 
-                    {/* Contextual Actions (Enabled if pages selected) */}
+                    {/* Contextual Actions */}
                     <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
                       <button
                         onClick={handleRotateSelected}
@@ -541,7 +629,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                       <RefreshCcw size={16} />
                     </button>
 
-                    {/* Powerful Download Dropdown */}
+                    {/* Download Dropdown */}
                     <div className="relative group inline-block">
                       <button
                         disabled={pages.length === 0 || isProcessing}
@@ -552,7 +640,6 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                         <ChevronDown size={14} className="opacity-70" />
                       </button>
                       
-                      {/* Dropdown Menu */}
                       <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
                         <div className="p-2 flex flex-col gap-1">
                           <button onClick={downloadAsPdf} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
@@ -641,7 +728,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                                   {p.fileName}
                                 </div>
                                 <div className="text-slate-300 text-[8px] md:text-[10px] font-semibold drop-shadow-md">
-                                  Page {idx + 1}
+                                  Page {idx + 1} {p.isDocxRendered && "(DOCX)"}
                                 </div>
                               </div>
                             </div>
@@ -685,7 +772,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
             },
             {
               title: "Multiple Formats",
-              desc: "Upload PDFs alongside JPGs and PNGs. Export your finalized arrangement as a combined PDF or images.",
+              desc: "Upload PDFs alongside JPGs, PNGs, aur ab DOCX bhi! Export as a combined PDF or images.",
               icon: FilePlus,
               style: "bg-indigo-50 text-indigo-600"
             }
@@ -709,7 +796,7 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
                <div className="hidden md:block absolute top-6 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-rose-200 to-indigo-200 z-0" />
 
                {[
-                 { step: "1", title: "Upload Files", text: "Drop PDFs, Images, or Documents." },
+                 { step: "1", title: "Upload Files", text: "Drop PDFs, Images, or DOCX." },
                  { step: "2", title: "Edit Visually", text: "Select pages to extract, rotate, or delete." },
                  { step: "3", title: "Export Format", text: "Download as PDF, JPG, or PNG." }
                ].map((s, i) => (
@@ -729,9 +816,9 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
               </h3>
               <div className="space-y-3 md:space-y-4">
                 {[
-                  { q: "Is this tool free?", a: "Yes, completely free with no limits." },
-                  { q: "Can I add more files after starting?", a: "Absolutely! Click 'Add Files' in the top toolbar to mix in new PDFs or images." },
-                  { q: "Is my data safe?", a: "Yes. All extraction, rotation, and file combination happens locally inside your browser." }
+                  { q: "Kya ye tool free hai?", a: "Haan, bilkul free hai." },
+                  { q: "Kya DOCX support karta hai?", a: "Haan! DOCX upload karne par ye uska text automatically extract karke image format me convert kar deta hai jise aap PDF me export kar sakte hain." },
+                  { q: "Is my data safe?", a: "Haan, 100%. Ye sab browser ke andar hi chalta hai." }
                 ].map((faq, i) => (
                   <details key={i} className="group bg-slate-50 rounded-lg md:rounded-xl overflow-hidden cursor-pointer">
                     <summary className="flex justify-between items-center p-3 md:p-4 font-semibold text-slate-700 hover:text-rose-600 transition-colors text-sm md:text-base list-none">
@@ -750,6 +837,4 @@ export const SplitTool: React.FC<SplitToolProps> = () => {
       </div>
     </div>
   );
-};
-
-export default SplitTool;
+}
