@@ -17,7 +17,8 @@ import {
   ChevronDown,
   FilePlus,
   Image as ImageIcon,
-  Move
+  Move,
+  CheckSquare
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -53,11 +54,11 @@ interface SortablePageProps {
   page: PageData;
   idx: number;
   isSelected: boolean;
-  togglePage: (id: string) => void;
+  onPageClick: (e: React.MouseEvent, id: string) => void;
 }
 
 // Drag & Drop Sortable Page Component
-function SortablePage({ page, idx, isSelected, togglePage }: SortablePageProps) {
+function SortablePage({ page, idx, isSelected, onPageClick }: SortablePageProps) {
   const {
     attributes,
     listeners,
@@ -80,7 +81,7 @@ function SortablePage({ page, idx, isSelected, togglePage }: SortablePageProps) 
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => togglePage(page.id)}
+      onClick={(e) => onPageClick(e, page.id)}
       className={clsx(
         "group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-grab active:cursor-grabbing transition-all duration-200 ease-out overflow-hidden bg-white touch-none",
         isSelected
@@ -145,6 +146,7 @@ export default function App() {
   // ---------- STATE ----------
   const [pages, setPages] = useState<PageData[]>([]);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // For Shift+Click range selection
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -443,14 +445,52 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ---------- EDITOR HANDLERS ----------
-  const togglePage = (id: string) => {
-    setSelectedPages(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // ---------- ADVANCED EDITOR HANDLERS ----------
+  
+  // Shift+Click support for multiple selections
+  const handlePageClick = (e: React.MouseEvent, id: string) => {
+    if (e.shiftKey && lastSelectedId) {
+      // Find start and end indices
+      const currentIndex = pages.findIndex(p => p.id === id);
+      const lastIndex = pages.findIndex(p => p.id === lastSelectedId);
+
+      if (currentIndex !== -1 && lastIndex !== -1) {
+        const start = Math.min(currentIndex, lastIndex);
+        const end = Math.max(currentIndex, lastIndex);
+        
+        const rangeIds = pages.slice(start, end + 1).map(p => p.id);
+
+        setSelectedPages(prev => {
+          const next = new Set(prev);
+          rangeIds.forEach(rangeId => next.add(rangeId));
+          return next;
+        });
+      }
+    } else {
+      // Normal Toggle
+      setSelectedPages(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      setLastSelectedId(id);
+    }
+  };
+
+  // Mass Selection Helpers
+  const selectAll = () => setSelectedPages(new Set(pages.map(p => p.id)));
+  const deselectAll = () => setSelectedPages(new Set());
+  
+  // Odd pages usually mean visual Page 1, 3, 5 (index 0, 2, 4)
+  const selectOdd = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 === 0).map(p => p.id)));
+  
+  // Even pages usually mean visual Page 2, 4, 6 (index 1, 3, 5)
+  const selectEven = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 !== 0).map(p => p.id)));
+  
+  // Invert Selection
+  const invertSelection = () => {
+    setSelectedPages(new Set(pages.filter(p => !selectedPages.has(p.id)).map(p => p.id)));
   };
 
   const handleRotateSelected = () => {
@@ -463,17 +503,20 @@ export default function App() {
     if (selectedPages.size === 0) return;
     setPages(prev => prev.filter(p => selectedPages.has(p.id)));
     setSelectedPages(new Set());
+    setLastSelectedId(null);
   };
 
   const handleDeleteSelected = () => {
     if (selectedPages.size === 0) return;
     setPages(prev => prev.filter(p => !selectedPages.has(p.id)));
     setSelectedPages(new Set());
+    setLastSelectedId(null);
   };
 
   const reset = () => {
     setPages([]);
     setSelectedPages(new Set());
+    setLastSelectedId(null);
     setError(null);
   };
 
@@ -658,7 +701,7 @@ export default function App() {
         <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
             <Zap size={12} className="fill-rose-600" />
-            V5.0 • DOCX Canvas & Drag Reorder
+            V6.0 • Advanced Selection Tools & Drag Reorder
           </div>
           <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
             Merge, Split & <br className="hidden md:block"/>
@@ -785,6 +828,28 @@ export default function App() {
                       <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
                     </button>
 
+                    {/* NEW: Selection Tools Dropdown */}
+                    <div className="relative group inline-block">
+                      <button
+                        disabled={pages.length === 0}
+                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <CheckSquare size={16} /> <span className="hidden sm:inline">Select</span>
+                        <ChevronDown size={14} className="opacity-70" />
+                      </button>
+                      <div className="absolute left-0 sm:-left-12 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-50">
+                        <div className="p-2 flex flex-col gap-1">
+                          <button onClick={selectAll} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select All</button>
+                          <button onClick={deselectAll} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Deselect All</button>
+                          <div className="h-px bg-slate-100 my-1"></div>
+                          <button onClick={selectOdd} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Odd Pages</button>
+                          <button onClick={selectEven} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Even Pages</button>
+                          <div className="h-px bg-slate-100 my-1"></div>
+                          <button onClick={invertSelection} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Invert Selection</button>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Contextual Actions */}
                     <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
                       <button
@@ -879,7 +944,7 @@ export default function App() {
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6 md:mb-8">
                         <div className="bg-white px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-[10px] md:text-sm text-slate-500 font-medium">
                           <MousePointerClick size={14} className="text-slate-400 shrink-0" />
-                          <span>Tap to select or <span className="text-indigo-600 font-bold">Drag to Reorder</span> pages</span>
+                          <span>Tap to select, <span className="text-rose-500 font-bold">Shift+Click</span> for range, or <span className="text-indigo-600 font-bold">Drag to Reorder</span></span>
                         </div>
                       </div>
 
@@ -900,7 +965,7 @@ export default function App() {
                                 page={p}
                                 idx={idx}
                                 isSelected={selectedPages.has(p.id)}
-                                togglePage={togglePage}
+                                onPageClick={handlePageClick}
                               />
                             ))}
                             
