@@ -2,6 +2,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import { PDFDocument, degrees } from 'pdf-lib';
 import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import {
   Loader2,
   Download,
   Trash2,
@@ -18,7 +34,20 @@ import {
   RefreshCw,
   ChevronDown,
   FilePlus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  GripVertical,
+  Eye,
+  X,
+  Undo2,
+  Redo2,
+  ToggleLeft,
+  ToggleRight,
+  WholeWord,
+  FlipHorizontal,
+  FlipVertical,
+  Shuffle,
+  PanelRight,
+  PanelLeft,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -33,6 +62,13 @@ interface PageData {
   originalFile: File;
   fileName: string;
   isDocxRendered?: boolean; // New flag to track Docx screenshots
+}
+
+// History structure for undo/redo
+interface HistoryState {
+  past: PageData[][];
+  present: PageData[];
+  future: PageData[][];
 }
 
 // Canvas requires the main component to be named App and be the default export
@@ -55,11 +91,25 @@ export default function App() {
   // ---------- STATE ----------
   const [pages, setPages] = useState<PageData[]>([]);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [previewPage, setPreviewPage] = useState<PageData | null>(null);
+  const [rangeInput, setRangeInput] = useState('');
+  const [progress, setProgress] = useState(0);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [docxQuality, setDocxQuality] = useState<'high' | 'fast'>('high'); // 'high' = scale 1.5, 'fast' = scale 0.8
   
+  // History for undo/redo
+  const [history, setHistory] = useState<HistoryState>({
+    past: [],
+    present: [],
+    future: []
+  });
+
   // Ref for the hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,6 +134,78 @@ export default function App() {
       script.onerror = reject;
       document.head.appendChild(script);
     });
+  };
+
+  // ---------- UNDO/REDO LOGIC ----------
+  const pushHistory = (newPresent: PageData[]) => {
+    setHistory(prev => ({
+      past: [...prev.past, prev.present],
+      present: newPresent,
+      future: []
+    }));
+  };
+
+  const undo = () => {
+    setHistory(prev => {
+      if (prev.past.length === 0) return prev;
+      const previous = prev.past[prev.past.length - 1];
+      const newPast = prev.past.slice(0, -1);
+      return {
+        past: newPast,
+        present: previous,
+        future: [prev.present, ...prev.future]
+      };
+    });
+  };
+
+  const redo = () => {
+    setHistory(prev => {
+      if (prev.future.length === 0) return prev;
+      const next = prev.future[0];
+      const newFuture = prev.future.slice(1);
+      return {
+        past: [...prev.past, prev.present],
+        present: next,
+        future: newFuture
+      };
+    });
+  };
+
+  // Sync pages with history.present
+  useEffect(() => {
+    setPages(history.present);
+  }, [history.present]);
+
+  // Helper to update pages and push to history
+  const updatePages = (newPages: PageData[], shouldPushHistory = true) => {
+    if (shouldPushHistory) {
+      pushHistory(newPages);
+    } else {
+      setPages(newPages);
+    }
+    // Clear selection on major changes? For now, keep selection but may cause inconsistencies.
+    // Safer to clear selection when pages structure changes (except reorder where ids remain same)
+    // We'll let the caller decide.
+  };
+
+  // ---------- DRAG AND DROP SETUP ----------
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    
+    const oldIndex = pages.findIndex(p => p.id === active.id);
+    const newIndex = pages.findIndex(p => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    
+    const reordered = arrayMove(pages, oldIndex, newIndex);
+    // Push to history, but we don't want to clear selection (ids unchanged)
+    pushHistory(reordered);
+    // No need to clear selection, keep as is
   };
 
   // ---------- MASTER SEO INJECTION & PDF WORKER INIT ----------
@@ -118,6 +240,14 @@ export default function App() {
   const processFiles = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
     
+    // Check file size warning (total > 50MB)
+    const totalSize = newFiles.reduce((acc, f) => acc + f.size, 0);
+    if (totalSize > 50 * 1024 * 1024) {
+      setWarning('Total file size exceeds 50MB. Processing may be slow.');
+    } else {
+      setWarning(null);
+    }
+
     setIsLoading(true);
     setError(null);
     const newPages: PageData[] = [];
@@ -175,16 +305,14 @@ export default function App() {
             const html2canvas: any = await loadHtml2Canvas();
             const arrayBuffer = await file.arrayBuffer();
             
-            // convertToHtml se images aur basic formatting preserve rehti hai
             const result = await mammoth.convertToHtml({ arrayBuffer });
             const htmlContent = result.value || "<p>Blank Document</p>";
             
-            // Ek temporary div banayenge jo screen ke bahar hoga
             const container = document.createElement('div');
             container.style.position = 'absolute';
             container.style.top = '-99999px';
             container.style.left = '-99999px';
-            container.style.width = '800px'; // A4 width at 96 DPI
+            container.style.width = '800px';
             container.style.backgroundColor = '#ffffff';
             container.style.padding = '40px';
             container.style.color = '#1e293b';
@@ -193,19 +321,17 @@ export default function App() {
             container.style.lineHeight = '1.6';
             container.innerHTML = htmlContent;
             
-            // Ensure images inside HTML max-width is 100% to prevent overflow
             const style = document.createElement('style');
             style.innerHTML = 'img { max-width: 100%; height: auto; }';
             container.appendChild(style);
             
             document.body.appendChild(container);
 
-            // Base64 images ko DOM mein properly render hone ke liye thoda wait karenge
             await new Promise(res => setTimeout(res, 300));
 
-            // Pure content ka ek high-quality screenshot lenge
+            const scale = docxQuality === 'high' ? 1.5 : 0.8;
             const fullCanvas = await html2canvas(container, {
-              scale: 1.5, // Better quality ke liye
+              scale,
               useCORS: true,
               backgroundColor: '#ffffff',
               logging: false
@@ -213,9 +339,8 @@ export default function App() {
 
             document.body.removeChild(container);
 
-            // Ab is lamba screenshot ko A4 pages mein slice karenge
             const A4_WIDTH = fullCanvas.width;
-            const A4_HEIGHT = Math.floor(fullCanvas.width * 1.414); // A4 aspect ratio
+            const A4_HEIGHT = Math.floor(fullCanvas.width * 1.414);
             const totalHeight = fullCanvas.height;
             const totalPages = Math.max(1, Math.ceil(totalHeight / A4_HEIGHT));
 
@@ -226,30 +351,28 @@ export default function App() {
               const pCtx = pageCanvas.getContext('2d');
               if (!pCtx) continue;
 
-              // White background fill karenge
               pCtx.fillStyle = '#ffffff';
               pCtx.fillRect(0, 0, A4_WIDTH, A4_HEIGHT);
 
-              // Bade screenshot mein se ek page jitna hissa cut kar ke draw karenge
               const sy = i * A4_HEIGHT;
               const sHeight = Math.min(A4_HEIGHT, totalHeight - sy);
 
               pCtx.drawImage(
                 fullCanvas,
-                0, sy, A4_WIDTH, sHeight, // Source slice
-                0, 0, A4_WIDTH, sHeight   // Destination slice
+                0, sy, A4_WIDTH, sHeight,
+                0, 0, A4_WIDTH, sHeight
               );
 
               newPages.push({
                 id: crypto.randomUUID(),
                 fileId,
-                fileType: 'application/pdf', // Internally PDF ki tarah treat hoga
+                fileType: 'application/pdf',
                 pageIndex: i,
-                imageUrl: pageCanvas.toDataURL('image/jpeg', 0.9), // 0.9 Quality
+                imageUrl: pageCanvas.toDataURL('image/jpeg', 0.9),
                 rotation: 0,
                 originalFile: file,
                 fileName: `${file.name} (Pg ${i + 1})`,
-                isDocxRendered: true // Mark karenge ki ye Docx ka screenshot hai
+                isDocxRendered: true
               });
             }
 
@@ -258,12 +381,16 @@ export default function App() {
             hasUnsupportedFiles = true;
           }
         } else {
-          // Other unsupported files (e.g. PPT, Excel)
           hasUnsupportedFiles = true;
         }
       }
 
-      setPages(prev => [...prev, ...newPages]);
+      const combined = [...pages, ...newPages];
+      // Check page count warning
+      if (combined.length > 500) {
+        setWarning('Page count exceeds 500. Performance may degrade.');
+      }
+      pushHistory(combined); // Add to history
       
       if (hasUnsupportedFiles) {
         setError('Sirf PDF, DOCX, aur Images (JPG/PNG) support hoti hain.');
@@ -313,37 +440,131 @@ export default function App() {
   };
 
   // ---------- EDITOR HANDLERS ----------
-  const togglePage = (id: string) => {
-    setSelectedPages(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const handlePageClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const index = pages.findIndex(p => p.id === id);
+    if (index === -1) return;
+
+    if (e.shiftKey && lastSelectedId) {
+      // Range selection
+      const lastIndex = pages.findIndex(p => p.id === lastSelectedId);
+      if (lastIndex === -1) return;
+      const start = Math.min(lastIndex, index);
+      const end = Math.max(lastIndex, index);
+      const rangeIds = pages.slice(start, end + 1).map(p => p.id);
+      setSelectedPages(prev => {
+        const newSet = new Set(prev);
+        rangeIds.forEach(rangeId => newSet.add(rangeId));
+        return newSet;
+      });
+    } else {
+      // Toggle single
+      setSelectedPages(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(id)) newSet.delete(id);
+        else newSet.add(id);
+        return newSet;
+      });
+    }
+    setLastSelectedId(id);
   };
 
   const handleRotateSelected = () => {
-    setPages(prev => prev.map(p => 
+    if (selectedPages.size === 0) return;
+    const updated = pages.map(p => 
       selectedPages.has(p.id) ? { ...p, rotation: (p.rotation + 90) % 360 } : p
-    ));
+    );
+    pushHistory(updated);
+    // Keep selection
   };
 
   const handleSplitKeepSelected = () => {
     if (selectedPages.size === 0) return;
-    setPages(prev => prev.filter(p => selectedPages.has(p.id)));
-    setSelectedPages(new Set());
+    const updated = pages.filter(p => selectedPages.has(p.id));
+    pushHistory(updated);
+    setSelectedPages(new Set()); // clear selection
   };
 
   const handleDeleteSelected = () => {
     if (selectedPages.size === 0) return;
-    setPages(prev => prev.filter(p => !selectedPages.has(p.id)));
+    const updated = pages.filter(p => !selectedPages.has(p.id));
+    pushHistory(updated);
     setSelectedPages(new Set());
+    setLastSelectedId(null);
   };
 
+  // Advanced selection tools
+  const handleSelectAll = () => {
+    setSelectedPages(new Set(pages.map(p => p.id)));
+    setLastSelectedId(null);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedPages(new Set());
+    setLastSelectedId(null);
+  };
+
+  const handleSelectOdd = () => {
+    const oddIds = pages.filter((_, idx) => idx % 2 === 0).map(p => p.id); // index 0 -> page 1 (odd)
+    setSelectedPages(new Set(oddIds));
+    setLastSelectedId(null);
+  };
+
+  const handleSelectEven = () => {
+    const evenIds = pages.filter((_, idx) => idx % 2 === 1).map(p => p.id);
+    setSelectedPages(new Set(evenIds));
+    setLastSelectedId(null);
+  };
+
+  const handleInvertSelection = () => {
+    const allIds = new Set(pages.map(p => p.id));
+    setSelectedPages(prev => {
+      const newSet = new Set<string>();
+      allIds.forEach(id => {
+        if (!prev.has(id)) newSet.add(id);
+      });
+      return newSet;
+    });
+    setLastSelectedId(null);
+  };
+
+  // Range input parser and selector
+  const parseRangeString = (input: string): number[] => {
+    const indices: number[] = [];
+    const parts = input.split(',').map(s => s.trim());
+    for (const part of parts) {
+      if (part.includes('-')) {
+        const [startStr, endStr] = part.split('-').map(s => s.trim());
+        const start = parseInt(startStr, 10);
+        const end = parseInt(endStr, 10);
+        if (!isNaN(start) && !isNaN(end) && start <= end) {
+          for (let i = start; i <= end; i++) {
+            indices.push(i - 1); // convert to 0-based index
+          }
+        }
+      } else {
+        const num = parseInt(part, 10);
+        if (!isNaN(num)) indices.push(num - 1);
+      }
+    }
+    return indices.filter(idx => idx >= 0 && idx < pages.length);
+  };
+
+  const handleRangeSelect = () => {
+    const indices = parseRangeString(rangeInput);
+    const ids = indices.map(idx => pages[idx].id);
+    setSelectedPages(new Set(ids));
+    setLastSelectedId(null);
+  };
+
+  // Reset workspace
   const reset = () => {
-    setPages([]);
+    pushHistory([]); // history mein empty array
     setSelectedPages(new Set());
     setError(null);
+    setWarning(null);
+    setRangeInput('');
+    setPreviewPage(null);
   };
 
   // Helper function: Image rotate karne ke baad sahi dimensions secure karne ke liye
@@ -371,24 +592,28 @@ export default function App() {
     });
   };
 
-  // ---------- DOWNLOAD GENERATORS ----------
+  // ---------- DOWNLOAD GENERATORS WITH PROGRESS ----------
   const downloadAsPdf = async () => {
     if (pages.length === 0) return;
     setIsProcessing(true);
+    setProgress(0);
+    setProgressMessage('Preparing PDF...');
     
     try {
       const finalPdf = await PDFDocument.create();
       const parsedPdfs = new Map<string, PDFDocument>();
       
-      // Standard A4 Dimensions in points
       const A4_WIDTH = 595.28;
       const A4_HEIGHT = 841.89;
+      const total = pages.length;
 
-      for (const p of pages) {
-        // Uniform page add karna
+      for (let idx = 0; idx < pages.length; idx++) {
+        const p = pages[idx];
+        setProgress(Math.floor((idx / total) * 100));
+        setProgressMessage(`Adding page ${idx + 1} of ${total}`);
+
         const page = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
 
-        // Agar asli PDF file hai
         if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
           let sourcePdf = parsedPdfs.get(p.fileId);
           if (!sourcePdf) {
@@ -400,7 +625,6 @@ export default function App() {
           const currentRotation = copiedPage.getRotation().angle;
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
           
-          // PDF page ko A4 mein embed karke uniformly fit karna
           const embeddedPdf = await finalPdf.embedPage(copiedPage);
           const dims = embeddedPdf.scaleToFit(A4_WIDTH, A4_HEIGHT);
           
@@ -412,7 +636,6 @@ export default function App() {
           });
 
         } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
-          // Images aur DOCX screenshots ko embed karna
           const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
           const response = await fetch(rotatedSrc);
           const buf = await response.arrayBuffer();
@@ -424,7 +647,6 @@ export default function App() {
             img = await finalPdf.embedJpg(buf);
           }
           
-          // Images ko bhi A4 page par properly scale karke center mein lagana
           const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
           
           page.drawImage(img, { 
@@ -436,6 +658,7 @@ export default function App() {
         }
       }
 
+      setProgressMessage('Saving PDF...');
       const pdfBytes = await finalPdf.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -450,15 +673,22 @@ export default function App() {
       setError('Error generating final PDF. Ensure files are valid.');
     } finally {
       setIsProcessing(false);
+      setProgress(0);
+      setProgressMessage('');
     }
   };
 
   const downloadAsImages = async (format: 'jpeg' | 'png') => {
     if (pages.length === 0) return;
     setIsProcessing(true);
+    setProgress(0);
+    setProgressMessage(`Exporting as ${format.toUpperCase()}...`);
     
     try {
       for (let i = 0; i < pages.length; i++) {
+        setProgress(Math.floor((i / pages.length) * 100));
+        setProgressMessage(`Exporting page ${i + 1} of ${pages.length}`);
+
         const p = pages[i];
         const img = new Image();
         img.src = p.imageUrl;
@@ -492,7 +722,79 @@ export default function App() {
       setError(`Error downloading ${format.toUpperCase()} images.`);
     } finally {
       setIsProcessing(false);
+      setProgress(0);
+      setProgressMessage('');
     }
+  };
+
+  // ---------- SORTABLE PAGE COMPONENT ----------
+  const SortablePage = ({ page, index, isSelected }: { page: PageData; index: number; isSelected: boolean }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: page.id });
+
+    const style = {
+      transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+      transition,
+      zIndex: isDragging ? 10 : undefined,
+      opacity: isDragging ? 0.8 : 1,
+    };
+
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={clsx(
+          "group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out overflow-hidden bg-white",
+          isSelected 
+            ? "ring-4 md:ring-[5px] ring-rose-500 shadow-xl shadow-rose-200 transform scale-[0.96]" 
+            : "shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 hover:border-rose-300"
+        )}
+        onClick={(e) => handlePageClick(e, page.id)}
+      >
+        {/* Drag Handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-1 left-1 z-30 p-1 bg-white/80 rounded-md cursor-grab active:cursor-grabbing hover:bg-rose-100 text-slate-600"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={14} />
+        </div>
+
+        {/* Preview Button */}
+        <button
+          className="absolute top-1 right-8 z-30 p-1 bg-white/80 rounded-md hover:bg-indigo-100 text-slate-600"
+          onClick={(e) => { e.stopPropagation(); setPreviewPage(page); }}
+        >
+          <Eye size={14} />
+        </button>
+
+        {/* Selection Checkmark Overlay */}
+        {isSelected && (
+          <div className="absolute top-1 right-1 z-30 bg-rose-500 text-white rounded-full shadow-lg p-0.5">
+            <CheckCircle2 size={16} />
+          </div>
+        )}
+
+        <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
+          <img 
+            src={page.imageUrl} 
+            alt={`Page ${index + 1}`} 
+            style={{ transform: `rotate(${page.rotation}deg)` }}
+            className="max-w-full max-h-full object-contain transition-transform duration-300 pointer-events-none"
+            loading="lazy"
+          />
+        </div>
+
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/80 to-transparent p-2 pt-6 flex flex-col justify-end z-20 pointer-events-none">
+          <div className="text-white text-[9px] md:text-[11px] font-bold truncate drop-shadow-md">
+            {page.fileName}
+          </div>
+          <div className="text-slate-300 text-[8px] md:text-[10px] font-semibold drop-shadow-md">
+            Page {index + 1} {page.isDocxRendered && "(DOCX)"}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // ---------- RENDER ----------
@@ -602,115 +904,191 @@ export default function App() {
               /* ---------- EDITOR STATE ---------- */
               <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-500">
                 
-                {/* STICKY TOOLBAR (Responsive tweaks for Mobile/Tablet) */}
-                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all gap-3 sm:gap-4">
+                {/* STICKY TOOLBAR (Extended with new features) */}
+                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col gap-2 transition-all shadow-sm">
                   
-                  {/* Left: Info */}
-                  <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full sm:w-auto">
-                    <div className="bg-gradient-to-br from-rose-500 to-orange-500 p-1.5 md:p-2.5 rounded-lg md:rounded-xl text-white shadow-lg shadow-rose-200 shrink-0">
-                      <FileText size={16} className="md:w-6 md:h-6" />
-                    </div>
-                    <div className="min-w-0 truncate">
-                      <h3 className="font-bold text-slate-800 text-xs md:text-base truncate">
-                        Document Workspace
-                      </h3>
-                      <p className="text-[8px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">
-                        {pages.length} Pages Total • {selectedPages.size} Selected
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto">
-                    
-                    <input 
-                      type="file" 
-                      multiple 
-                      className="hidden" 
-                      ref={fileInputRef} 
-                      onChange={handleHiddenFileInput}
-                      accept=".pdf,.jpg,.jpeg,.png,.docx"
-                    />
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold"
-                      title="Add More Files"
-                    >
-                      <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
-                    </button>
-
-                    {/* Contextual Actions */}
-                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
-                      <button
-                        onClick={handleRotateSelected}
-                        disabled={selectedPages.size === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Rotate Selected 90°"
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                      <button
-                        onClick={handleSplitKeepSelected}
-                        disabled={selectedPages.size === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Extract Selected (Remove unselected)"
-                      >
-                        <Scissors size={16} />
-                      </button>
-                      <button
-                        onClick={handleDeleteSelected}
-                        disabled={selectedPages.size === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-red-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Delete Selected"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
-
-                    {/* Reset Button */}
-                    <button 
-                      onClick={reset}
-                      className="p-1.5 md:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg md:rounded-xl transition-all"
-                      title="Clear Workspace"
-                    >
-                      <RefreshCcw size={16} />
-                    </button>
-
-                    {/* Download Dropdown */}
-                    <div className="relative group inline-block">
-                      <button
-                        disabled={pages.length === 0 || isProcessing}
-                        className="flex items-center gap-1 md:gap-2 bg-slate-900 hover:bg-rose-600 text-white px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg md:rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-rose-200 transition-all duration-300 text-xs md:text-sm"
-                      >
-                        {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <Download size={16} />}
-                        <span>Export</span>
-                        <ChevronDown size={14} className="opacity-70" />
-                      </button>
-                      
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
-                        <div className="p-2 flex flex-col gap-1">
-                          <button onClick={downloadAsPdf} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <FileText size={16} /> Export as PDF
-                          </button>
-                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <ImageIcon size={16} /> Export as JPGs
-                          </button>
-                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <ImageIcon size={16} /> Export as PNGs
-                          </button>
-                        </div>
+                  {/* Row 1: Basic info and main actions */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+                    {/* Left: Info */}
+                    <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full sm:w-auto">
+                      <div className="bg-gradient-to-br from-rose-500 to-orange-500 p-1.5 md:p-2.5 rounded-lg md:rounded-xl text-white shadow-lg shadow-rose-200 shrink-0">
+                        <FileText size={16} className="md:w-6 md:h-6" />
+                      </div>
+                      <div className="min-w-0 truncate">
+                        <h3 className="font-bold text-slate-800 text-xs md:text-base truncate">
+                          Document Workspace
+                        </h3>
+                        <p className="text-[8px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">
+                          {pages.length} Pages Total • {selectedPages.size} Selected
+                        </p>
                       </div>
                     </div>
 
+                    {/* Right: Actions */}
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto">
+                      
+                      <input 
+                        type="file" 
+                        multiple 
+                        className="hidden" 
+                        ref={fileInputRef} 
+                        onChange={handleHiddenFileInput}
+                        accept=".pdf,.jpg,.jpeg,.png,.docx"
+                      />
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold"
+                        title="Add More Files"
+                      >
+                        <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
+                      </button>
+
+                      {/* Undo/Redo */}
+                      <button
+                        onClick={undo}
+                        disabled={history.past.length === 0}
+                        className="p-1.5 md:p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-30 transition-all"
+                        title="Undo (Ctrl+Z)"
+                      >
+                        <Undo2 size={16} />
+                      </button>
+                      <button
+                        onClick={redo}
+                        disabled={history.future.length === 0}
+                        className="p-1.5 md:p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-30 transition-all"
+                        title="Redo (Ctrl+Y)"
+                      >
+                        <Redo2 size={16} />
+                      </button>
+
+                      {/* Contextual Actions */}
+                      <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
+                        <button
+                          onClick={handleRotateSelected}
+                          disabled={selectedPages.size === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg disabled:opacity-30 transition-all"
+                          title="Rotate Selected 90°"
+                        >
+                          <RefreshCw size={16} />
+                        </button>
+                        <button
+                          onClick={handleSplitKeepSelected}
+                          disabled={selectedPages.size === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg disabled:opacity-30 transition-all"
+                          title="Extract Selected (Remove unselected)"
+                        >
+                          <Scissors size={16} />
+                        </button>
+                        <button
+                          onClick={handleDeleteSelected}
+                          disabled={selectedPages.size === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-red-600 hover:bg-white rounded-lg disabled:opacity-30 transition-all"
+                          title="Delete Selected"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      {/* Reset Button */}
+                      <button 
+                        onClick={reset}
+                        className="p-1.5 md:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg md:rounded-xl transition-all"
+                        title="Clear Workspace"
+                      >
+                        <RefreshCcw size={16} />
+                      </button>
+
+                      {/* Download Dropdown */}
+                      <div className="relative group inline-block">
+                        <button
+                          disabled={pages.length === 0 || isProcessing}
+                          className="flex items-center gap-1 md:gap-2 bg-slate-900 hover:bg-rose-600 text-white px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg md:rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-rose-200 transition-all duration-300 text-xs md:text-sm"
+                        >
+                          {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <Download size={16} />}
+                          <span>Export</span>
+                          <ChevronDown size={14} className="opacity-70" />
+                        </button>
+                        
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
+                          <div className="p-2 flex flex-col gap-1">
+                            <button onClick={downloadAsPdf} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
+                              <FileText size={16} /> Export as PDF
+                            </button>
+                            <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
+                              <ImageIcon size={16} /> Export as JPGs
+                            </button>
+                            <button onClick={() => downloadAsImages('png')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
+                              <ImageIcon size={16} /> Export as PNGs
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {/* Row 2: Advanced selection tools, range input, DOCX quality toggle */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-rose-100/50">
+                    {/* Selection tools */}
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                      <button onClick={handleSelectAll} className="px-2 py-1 text-xs font-medium hover:bg-white rounded-md transition-colors">All</button>
+                      <button onClick={handleDeselectAll} className="px-2 py-1 text-xs font-medium hover:bg-white rounded-md transition-colors">None</button>
+                      <button onClick={handleSelectOdd} className="px-2 py-1 text-xs font-medium hover:bg-white rounded-md transition-colors">Odd</button>
+                      <button onClick={handleSelectEven} className="px-2 py-1 text-xs font-medium hover:bg-white rounded-md transition-colors">Even</button>
+                      <button onClick={handleInvertSelection} className="px-2 py-1 text-xs font-medium hover:bg-white rounded-md transition-colors" title="Invert Selection">
+                        <Shuffle size={14} />
+                      </button>
+                    </div>
+
+                    {/* Range input */}
+                    <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg overflow-hidden">
+                      <input
+                        type="text"
+                        placeholder="e.g., 1-5,8,11"
+                        value={rangeInput}
+                        onChange={(e) => setRangeInput(e.target.value)}
+                        className="w-28 md:w-36 px-2 py-1 text-xs outline-none"
+                      />
+                      <button onClick={handleRangeSelect} className="px-2 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-xs font-medium">Select</button>
+                    </div>
+
+                    {/* DOCX Quality Toggle */}
+                    <button
+                      onClick={() => setDocxQuality(prev => prev === 'high' ? 'fast' : 'high')}
+                      className={clsx(
+                        "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors",
+                        docxQuality === 'high' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'
+                      )}
+                      title="Toggle DOCX rendering quality"
+                    >
+                      {docxQuality === 'high' ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                      <span>DOCX: {docxQuality === 'high' ? 'High' : 'Fast'}</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* ERROR ALERT */}
+                {/* WARNING & ERROR ALERTS */}
+                {warning && (
+                  <div className="mx-3 mt-3 p-3 bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl flex items-center gap-2 text-sm font-medium animate-in slide-in-from-top-2">
+                    <AlertCircle size={16} /> {warning}
+                  </div>
+                )}
                 {error && (
                   <div className="mx-3 mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2 text-sm font-medium animate-in slide-in-from-top-2">
                     <AlertCircle size={16} /> {error}
+                  </div>
+                )}
+
+                {/* PROGRESS BAR */}
+                {isProcessing && progress > 0 && (
+                  <div className="mx-3 mt-3">
+                    <div className="flex justify-between text-xs font-medium text-slate-600 mb-1">
+                      <span>{progressMessage}</span>
+                      <span>{progress}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div className="bg-rose-500 h-2 transition-all duration-300" style={{ width: `${progress}%` }} />
+                    </div>
                   </div>
                 )}
 
@@ -726,83 +1104,83 @@ export default function App() {
                       <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">Processing Documents...</p>
                     </div>
                   ) : (
-                    /* GRID EDITOR */
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      
-                      {/* Hint Bar */}
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6 md:mb-8">
-                        <div className="bg-white px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-[10px] md:text-sm text-slate-500 font-medium">
-                          <MousePointerClick size={14} className="text-slate-400" />
-                          Tap to select pages for <span className="text-emerald-600 font-bold">Extraction</span> or <span className="text-rose-600 font-bold">Deletion</span>
-                        </div>
-                      </div>
-
-                      {/* The Grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-8 pb-6 md:pb-10">
-                        {pages.map((p, idx) => {
-                          const isSelected = selectedPages.has(p.id);
-                          return (
-                            <div 
-                              key={p.id}
-                              onClick={() => togglePage(p.id)}
-                              className={clsx(
-                                "group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out overflow-hidden bg-white",
-                                isSelected 
-                                  ? "ring-4 md:ring-[5px] ring-rose-500 shadow-xl shadow-rose-200 transform scale-[0.96]" 
-                                  : "shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 hover:border-rose-300"
-                              )}
-                            >
-                              {/* Selection Checkmark Overlay */}
-                              {isSelected && (
-                                <div className="absolute top-2 right-2 z-30 bg-rose-500 text-white rounded-full shadow-lg p-0.5">
-                                  <CheckCircle2 size={16} />
-                                </div>
-                              )}
-
-                              <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
-                                <img 
-                                  src={p.imageUrl} 
-                                  alt={`Page ${idx + 1}`} 
-                                  style={{ transform: `rotate(${p.rotation}deg)` }}
-                                  className={clsx(
-                                    "max-w-full max-h-full object-contain transition-transform duration-300 pointer-events-none",
-                                    isSelected && "opacity-80 brightness-95"
-                                  )} 
-                                  loading="lazy"
-                                />
-                              </div>
-
-                              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/80 to-transparent p-2 pt-6 flex flex-col justify-end z-20 pointer-events-none">
-                                <div className="text-white text-[9px] md:text-[11px] font-bold truncate drop-shadow-md">
-                                  {p.fileName}
-                                </div>
-                                <div className="text-slate-300 text-[8px] md:text-[10px] font-semibold drop-shadow-md">
-                                  Page {idx + 1} {p.isDocxRendered && "(DOCX)"}
-                                </div>
-                              </div>
+                    /* GRID EDITOR WITH DRAG & DROP */
+                    <DndContext
+                      sensors={sensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <SortableContext items={pages.map(p => p.id)} strategy={rectSortingStrategy}>
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                          
+                          {/* Hint Bar */}
+                          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6 md:mb-8">
+                            <div className="bg-white px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-[10px] md:text-sm text-slate-500 font-medium">
+                              <MousePointerClick size={14} className="text-slate-400" />
+                              Tap to select, drag handle to reorder
                             </div>
-                          );
-                        })}
-                        
-                        {/* Quick Add File Tile */}
-                        <div 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500"
-                        >
-                          <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                            <Plus size={24} />
                           </div>
-                          <span className="text-sm font-bold">Add Page</span>
-                        </div>
-                      </div>
 
-                    </div>
+                          {/* The Grid */}
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-8 pb-6 md:pb-10">
+                            {pages.map((p, idx) => (
+                              <SortablePage
+                                key={p.id}
+                                page={p}
+                                index={idx}
+                                isSelected={selectedPages.has(p.id)}
+                              />
+                            ))}
+                            
+                            {/* Quick Add File Tile */}
+                            <div 
+                              onClick={() => fileInputRef.current?.click()}
+                              className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500"
+                            >
+                              <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <Plus size={24} />
+                              </div>
+                              <span className="text-sm font-bold">Add Page</span>
+                            </div>
+                          </div>
+
+                        </div>
+                      </SortableContext>
+                    </DndContext>
                   )}
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* PREVIEW MODAL */}
+        {previewPage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+            onClick={() => setPreviewPage(null)}
+          >
+            <div className="relative max-w-5xl max-h-full bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <button
+                onClick={() => setPreviewPage(null)}
+                className="absolute top-2 right-2 z-10 bg-white/90 p-2 rounded-full shadow-lg hover:bg-rose-50 transition-colors"
+              >
+                <X size={20} />
+              </button>
+              <div className="p-4 max-h-[90vh] overflow-auto">
+                <img
+                  src={previewPage.imageUrl}
+                  alt="Preview"
+                  style={{ transform: `rotate(${previewPage.rotation}deg)` }}
+                  className="max-w-full max-h-[80vh] object-contain"
+                />
+              </div>
+              <div className="p-3 bg-slate-50 border-t border-slate-200 text-sm text-slate-600">
+                {previewPage.fileName} (Page {pages.findIndex(p => p.id === previewPage.id) + 1})
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* FEATURE HIGHLIGHTS */}
         <section className="mt-12 md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 px-2 md:px-0">
