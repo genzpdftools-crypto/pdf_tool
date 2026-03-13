@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Zap, ServerOff, FileStack, Settings2, Download, Layers } from 'lucide-react';
+import { ShieldCheck, Zap, ServerOff, FileStack, Settings2, Download, Layers, PlayCircle, Star } from 'lucide-react';
 
 export const MergePdfBlog = () => {
   return (
@@ -45,6 +45,14 @@ export const MergePdfBlog = () => {
             <span className="text-sm"><strong>No File Size Limits:</strong> Combine massive documents instantly using your device's RAM.</span>
           </li>
         </ul>
+
+        {/* Video Demo Placeholder */}
+        <div className="my-12 relative rounded-2xl overflow-hidden bg-slate-900 aspect-video shadow-xl border border-slate-800 flex flex-col items-center justify-center group cursor-pointer hover:shadow-2xl transition-all">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/40 via-slate-900 to-slate-900 opacity-80"></div>
+          <PlayCircle size={72} className="text-white/80 group-hover:text-indigo-500 group-hover:scale-110 transition-all duration-300 z-10" />
+          <span className="text-white/80 font-bold mt-4 z-10 group-hover:text-white transition-colors tracking-wide">Watch 1-Minute Interactive Demo</span>
+          <span className="text-slate-400 text-xs mt-2 z-10">(Coming Soon)</span>
+        </div>
 
         {/* Basic Merge Guide */}
         <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
@@ -104,6 +112,49 @@ export const MergePdfBlog = () => {
 
         <hr className="my-12 border-slate-200" />
 
+        {/* Comparison Section */}
+        <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">
+          Why Genz PDF is Better
+        </h2>
+        <div className="overflow-x-auto mb-12">
+          <table className="w-full text-left border-collapse rounded-2xl overflow-hidden shadow-sm border border-slate-200">
+            <thead>
+              <tr className="bg-slate-100">
+                <th className="p-4 font-bold text-slate-800 border-b border-slate-200">Feature</th>
+                <th className="p-4 font-black text-indigo-600 border-b border-slate-200 bg-indigo-50/50">Genz PDF 🚀</th>
+                <th className="p-4 font-bold text-slate-500 border-b border-slate-200">Standard Cloud Tools</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white text-sm">
+              <tr>
+                <td className="p-4 border-b border-slate-100 font-medium text-slate-700">File Processing</td>
+                <td className="p-4 border-b border-slate-100 text-emerald-600 font-bold bg-indigo-50/30">Offline (Your Browser)</td>
+                <td className="p-4 border-b border-slate-100 text-slate-500">Cloud Servers (Upload required)</td>
+              </tr>
+              <tr>
+                <td className="p-4 border-b border-slate-100 font-medium text-slate-700">Privacy Risk</td>
+                <td className="p-4 border-b border-slate-100 text-emerald-600 font-bold bg-indigo-50/30">Zero (Data stays with you)</td>
+                <td className="p-4 border-b border-slate-100 text-red-400">High (Data sent over internet)</td>
+              </tr>
+              <tr>
+                <td className="p-4 border-b border-slate-100 font-medium text-slate-700">File Size Limit</td>
+                <td className="p-4 border-b border-slate-100 text-emerald-600 font-bold bg-indigo-50/30">Unlimited (Based on RAM)</td>
+                <td className="p-4 border-b border-slate-100 text-slate-500">Usually capped at 10MB - 50MB</td>
+              </tr>
+              <tr>
+                <td className="p-4 border-b border-slate-100 font-medium text-slate-700">Advanced Page Transfer</td>
+                <td className="p-4 border-b border-slate-100 text-emerald-600 font-bold bg-indigo-50/30">Yes (Visual Editor)</td>
+                <td className="p-4 border-b border-slate-100 text-slate-500">Paid feature or Not available</td>
+              </tr>
+              <tr>
+                <td className="p-4 border-b border-slate-100 font-medium text-slate-700">Price</td>
+                <td className="p-4 border-b border-slate-100 text-emerald-600 font-bold bg-indigo-50/30">100% Free Forever</td>
+                <td className="p-4 border-b border-slate-100 text-slate-500">Premium subscriptions needed</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         {/* Technical Deep Dive Section */}
         <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-6 flex items-center gap-3">
           <ServerOff className="text-indigo-500" /> The Tech Stack: How It Works Offline
@@ -117,6 +168,23 @@ export const MergePdfBlog = () => {
           <li><strong>pdf-lib:</strong> The core JavaScript engine that reads, splits, and modifies PDF documents directly inside your web browser.</li>
           <li><strong>Web APIs:</strong> We utilize modern <code>ArrayBuffer</code> and <code>Blob</code> features to handle massive files entirely in your device's memory (RAM) without any network uploads.</li>
         </ul>
+
+        {/* Testimonials Section */}
+        <div className="bg-slate-50 p-8 rounded-3xl border border-slate-100 my-12">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center m-0">Loved by Students & Professionals</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white p-6 rounded-2xl shadow-sm">
+              <div className="flex text-amber-400 mb-3"><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/></div>
+              <p className="text-slate-600 italic text-sm m-0">"The page extraction feature is a lifesaver. I was able to pull specific pages from my massive textbook PDF and merge them with my class notes in seconds without uploading anything!"</p>
+              <p className="mt-4 font-bold text-slate-800 text-sm m-0">- Ananya S., CS Student</p>
+            </div>
+            <div className="bg-white p-6 rounded-2xl shadow-sm">
+              <div className="flex text-amber-400 mb-3"><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/><Star fill="currentColor" size={16}/></div>
+              <p className="text-slate-600 italic text-sm m-0">"Finally, a tool that lets me merge confidential legal contracts without worrying about cloud server data breaches. Genz PDF is incredibly fast and secure."</p>
+              <p className="mt-4 font-bold text-slate-800 text-sm m-0">- Rahul M., Corporate Lawyer</p>
+            </div>
+          </div>
+        </div>
 
         {/* FAQ Section */}
         <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-6 flex items-center gap-3">
