@@ -16,9 +16,25 @@ import {
   RefreshCw,
   ChevronDown,
   FilePlus,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Move
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Extended Page Data interface for the Continuous Editor
 interface PageData {
@@ -31,6 +47,83 @@ interface PageData {
   originalFile: File;
   fileName: string;
   isDocxRendered?: boolean;
+}
+
+interface SortablePageProps {
+  page: PageData;
+  idx: number;
+  isSelected: boolean;
+  togglePage: (id: string) => void;
+}
+
+// Drag & Drop Sortable Page Component
+function SortablePage({ page, idx, isSelected, togglePage }: SortablePageProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: page.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={() => togglePage(page.id)}
+      className={clsx(
+        "group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-grab active:cursor-grabbing transition-all duration-200 ease-out overflow-hidden bg-white touch-none",
+        isSelected
+          ? "ring-4 md:ring-[5px] ring-rose-500 shadow-xl shadow-rose-200"
+          : "shadow-sm border border-slate-200 hover:shadow-lg hover:border-rose-300",
+        isDragging && "ring-4 ring-indigo-500 shadow-2xl scale-105"
+      )}
+    >
+      {/* Selection Checkmark Overlay */}
+      {isSelected && (
+        <div className="absolute top-2 right-2 z-30 bg-rose-500 text-white rounded-full shadow-lg p-0.5">
+          <CheckCircle2 size={16} />
+        </div>
+      )}
+
+      {/* Drag Indicator hint */}
+      <div className="absolute top-2 left-2 z-30 bg-slate-900/40 text-white rounded-md p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        <Move size={14} />
+      </div>
+
+      <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
+        <img
+          src={page.imageUrl}
+          alt={`Page ${idx + 1}`}
+          style={{ transform: `rotate(${page.rotation}deg)` }}
+          className={clsx(
+            "max-w-full max-h-full object-contain transition-transform duration-300 pointer-events-none",
+            isSelected && "opacity-80 brightness-95"
+          )}
+          loading="lazy"
+        />
+      </div>
+
+      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/80 to-transparent p-2 pt-6 flex flex-col justify-end z-20 pointer-events-none">
+        <div className="text-white text-[9px] md:text-[11px] font-bold truncate drop-shadow-md">
+          {page.fileName}
+        </div>
+        <div className="text-slate-300 text-[8px] md:text-[10px] font-semibold drop-shadow-md">
+          Page {idx + 1} {page.isDocxRendered && "(DOCX)"}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function App() {
@@ -55,7 +148,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +158,28 @@ export default function App() {
       return crypto.randomUUID();
     }
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  };
+
+  // ---------- DND KIT SETUP ----------
+  // Distance constraint ensures click to select works without triggering drag
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, 
+      },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setPages((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
   };
 
   // ---------- DYNAMIC SCRIPT LOADERS ----------
@@ -133,7 +248,6 @@ export default function App() {
     upsertMeta('robots', 'index, follow');
     upsertMeta('viewport', 'width=device-width, initial-scale=1');
 
-    // Initialize PDF.js worker asynchronously
     loadPdfJs().then((pdfjsLib: any) => {
       const lib = pdfjsLib.default || pdfjsLib;
       if (lib?.GlobalWorkerOptions) {
@@ -303,20 +417,20 @@ export default function App() {
     return 'unknown';
   };
 
-  // ---------- DRAG & DROP HANDLERS ----------
+  // ---------- DRAG & DROP FILE UPLOAD HANDLERS ----------
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    setIsDraggingFile(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    setIsDraggingFile(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    setIsDraggingFile(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       processFiles(Array.from(e.dataTransfer.files));
     }
@@ -389,7 +503,6 @@ export default function App() {
 
   // ---------- DOWNLOAD GENERATORS ----------
   const downloadAsPdf = async () => {
-    // Sirf selected pages ko export karo (agar koi selected nahi hai toh sabko)
     const exportPages = selectedPages.size > 0 
       ? pages.filter(p => selectedPages.has(p.id)) 
       : pages;
@@ -398,7 +511,6 @@ export default function App() {
     setIsProcessing(true);
     
     try {
-      // Dynamically load pdf-lib to prevent dynamic require errors
       const PDFLib: any = await loadPdfLib();
       const { PDFDocument, degrees } = PDFLib;
 
@@ -437,7 +549,6 @@ export default function App() {
           const response = await fetch(rotatedSrc);
           const buf = await response.arrayBuffer();
           
-          // Check correct format via magic bytes taaki pdf-lib crash na ho (especially with PNGs)
           const uint8 = new Uint8Array(buf);
           const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
           
@@ -467,7 +578,6 @@ export default function App() {
       a.href = url;
       a.download = `genzpdf-edited-${Date.now()}.pdf`;
       
-      // Append element to body for Firefox/Safari support
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -482,7 +592,6 @@ export default function App() {
   };
 
   const downloadAsImages = async (format: 'jpeg' | 'png') => {
-    // Selective export for images too
     const exportPages = selectedPages.size > 0 
       ? pages.filter(p => selectedPages.has(p.id)) 
       : pages;
@@ -518,7 +627,6 @@ export default function App() {
         a.href = dataUrl;
         a.download = `page-${i + 1}.${format}`;
         
-        // Fix for firefox block
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -550,7 +658,7 @@ export default function App() {
         <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
             <Zap size={12} className="fill-rose-600" />
-            V4.0 • DOCX Canvas Integration
+            V5.0 • DOCX Canvas & Drag Reorder
           </div>
           <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
             Merge, Split & <br className="hidden md:block"/>
@@ -584,7 +692,7 @@ export default function App() {
                       onClick={() => fileInputRef.current?.click()}
                       className={clsx(
                         "flex-1 m-4 border-2 border-dashed rounded-[1rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
-                        isDragging ? "border-rose-500 bg-rose-50" : "border-rose-200 bg-rose-50/30 hover:bg-rose-50/60"
+                        isDraggingFile ? "border-rose-500 bg-rose-50" : "border-rose-200 bg-rose-50/30 hover:bg-rose-50/60"
                       )}
                     >
                       <input 
@@ -770,69 +878,45 @@ export default function App() {
                       {/* Hint Bar */}
                       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6 md:mb-8">
                         <div className="bg-white px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-[10px] md:text-sm text-slate-500 font-medium">
-                          <MousePointerClick size={14} className="text-slate-400" />
-                          Tap to select pages for <span className="text-emerald-600 font-bold">Extraction</span> or <span className="text-rose-600 font-bold">Deletion</span>
+                          <MousePointerClick size={14} className="text-slate-400 shrink-0" />
+                          <span>Tap to select or <span className="text-indigo-600 font-bold">Drag to Reorder</span> pages</span>
                         </div>
                       </div>
 
-                      {/* The Grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-8 pb-6 md:pb-10">
-                        {pages.map((p, idx) => {
-                          const isSelected = selectedPages.has(p.id);
-                          return (
-                            <div 
-                              key={p.id}
-                              onClick={() => togglePage(p.id)}
-                              className={clsx(
-                                "group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out overflow-hidden bg-white",
-                                isSelected 
-                                  ? "ring-4 md:ring-[5px] ring-rose-500 shadow-xl shadow-rose-200 transform scale-[0.96]" 
-                                  : "shadow-sm border border-slate-200 hover:shadow-lg hover:-translate-y-1 hover:border-rose-300"
-                              )}
-                            >
-                              {/* Selection Checkmark Overlay */}
-                              {isSelected && (
-                                <div className="absolute top-2 right-2 z-30 bg-rose-500 text-white rounded-full shadow-lg p-0.5">
-                                  <CheckCircle2 size={16} />
-                                </div>
-                              )}
-
-                              <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
-                                <img 
-                                  src={p.imageUrl} 
-                                  alt={`Page ${idx + 1}`} 
-                                  style={{ transform: `rotate(${p.rotation}deg)` }}
-                                  className={clsx(
-                                    "max-w-full max-h-full object-contain transition-transform duration-300 pointer-events-none",
-                                    isSelected && "opacity-80 brightness-95"
-                                  )} 
-                                  loading="lazy"
-                                />
-                              </div>
-
-                              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-slate-900/80 to-transparent p-2 pt-6 flex flex-col justify-end z-20 pointer-events-none">
-                                <div className="text-white text-[9px] md:text-[11px] font-bold truncate drop-shadow-md">
-                                  {p.fileName}
-                                </div>
-                                <div className="text-slate-300 text-[8px] md:text-[10px] font-semibold drop-shadow-md">
-                                  Page {idx + 1} {p.isDocxRendered && "(DOCX)"}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        
-                        {/* Quick Add File Tile */}
-                        <div 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500"
+                      {/* SORTABLE DND GRID */}
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <SortableContext
+                          items={pages.map(p => p.id)}
+                          strategy={rectSortingStrategy}
                         >
-                          <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                            <Plus size={24} />
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-8 pb-6 md:pb-10">
+                            {pages.map((p, idx) => (
+                              <SortablePage
+                                key={p.id}
+                                page={p}
+                                idx={idx}
+                                isSelected={selectedPages.has(p.id)}
+                                togglePage={togglePage}
+                              />
+                            ))}
+                            
+                            {/* Quick Add File Tile */}
+                            <div 
+                              onClick={() => fileInputRef.current?.click()}
+                              className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500"
+                            >
+                              <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <Plus size={24} />
+                              </div>
+                              <span className="text-sm font-bold">Add Page</span>
+                            </div>
                           </div>
-                          <span className="text-sm font-bold">Add Page</span>
-                        </div>
-                      </div>
+                        </SortableContext>
+                      </DndContext>
 
                     </div>
                   )}
