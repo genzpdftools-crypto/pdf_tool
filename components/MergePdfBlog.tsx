@@ -1,34 +1,116 @@
 import React from 'react';
 import { 
   ShieldCheck, Zap, ServerOff, FileStack, Settings2, Download, Layers, 
-  PlayCircle, Star, Scissors, Minimize2, Lock, Unlock, PenTool, Scaling, ArrowRightLeft 
+  PlayCircle, Star, Scissors, Minimize2, Lock, Unlock, PenTool, Scaling, ArrowRightLeft,
+  Youtube, Instagram, Twitter, Facebook, HelpCircle
 } from 'lucide-react';
 
 export const MergePdfBlog = () => {
   return (
     <>
-      {/* 🤖 SEO SCHEMA MARKUP FOR GOOGLE RICH SNIPPETS */}
+      {/* 🤖 SEO SCHEMA MARKUP FOR GOOGLE RICH SNIPPETS (HowTo & FAQ) */}
       <script type="application/ld+json">
         {JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "HowTo",
-          "name": "How to Merge PDF Files Offline Securely",
-          "description": "Step-by-step guide on how to combine PDF documents for free without uploading them to any server using Genz PDF.",
-          "step": [
+          "@graph": [
             {
-              "@type": "HowToStep",
-              "name": "Upload Your Files",
-              "text": "Drag and drop multiple PDF files into the tool."
+              "@type": "HowTo",
+              "name": "How to Merge PDF Files Offline Securely",
+              "description": "Step-by-step guide on how to combine PDF documents for free without uploading them to any server using Genz PDF.",
+              "step": [
+                {
+                  "@type": "HowToStep",
+                  "name": "Upload Your Files",
+                  "text": "Drag and drop multiple PDF files into the tool."
+                },
+                {
+                  "@type": "HowToStep",
+                  "name": "Rearrange the Order",
+                  "text": "Drag the files up or down to set them in your preferred order."
+                },
+                {
+                  "@type": "HowToStep",
+                  "name": "Merge and Download",
+                  "text": "Click the Merge Files button and download your combined document instantly."
+                }
+              ]
             },
             {
-              "@type": "HowToStep",
-              "name": "Rearrange the Order",
-              "text": "Drag the files up or down to set them in your preferred order."
-            },
-            {
-              "@type": "HowToStep",
-              "name": "Merge and Download",
-              "text": "Click the Merge Files button and download your combined document instantly."
+              "@type": "FAQPage",
+              "mainEntity": [
+                {
+                  "@type": "Question",
+                  "name": "Why is adding pages to PDFs still useful in 2026?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Even in 2026, as digital documentation evolves, combining contracts, assignment portfolios, and financial reports into a single, cohesive PDF remains the gold standard for professional sharing, legal compliance, and archiving."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I add pages to a PDF from another document?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes! Genz PDF's unique Advanced Page Transfer visual editor allows you to extract specific pages from a source document and precisely insert them anywhere into your target PDF."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "How do I add a blank page to a PDF online?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "With Genz PDF, you can easily drag and drop a blank PDF template file into your upload queue, reorder it to your preferred position, and hit merge to insert blank spaces precisely where you need them."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Is Genz PDF free to use?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Absolutely. Genz PDF is 100% free forever. There are no premium subscriptions, no annoying paywalls, no daily limits, and no hidden fees."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Does Genz PDF protect my files when adding pages?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes. We use a strict 100% Client-Side Architecture. Your files are processed entirely within your device's RAM and are never uploaded to our servers, making data breaches impossible."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I use Genz PDF if I'm in Europe or Latin America?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes, Genz PDF is accessible globally. Since we don't collect, upload, or process your files on external servers, we are fully compliant with GDPR and other international privacy laws by default."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "What's the best way to merge two PDFs and add pages?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Simply drag and drop your two PDFs into our upload zone, use the drag handles to reorder them if necessary, and click the big Merge button. If you need specific pages swapped, use our Set Target and Edit Pages tools."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Can I add pages to a PDF from my phone?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Yes! Genz PDF is fully responsive and works flawlessly on iOS (iPhone/iPad) and Android web browsers without needing to download any cumbersome apps."
+                  }
+                },
+                {
+                  "@type": "Question",
+                  "name": "Does Genz PDF work offline?",
+                  "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Because Genz PDF runs entirely in your browser using JavaScript, once the website initially loads, the actual merging and editing process happens locally. It does not require an active internet connection to process the files."
+                  }
+                }
+              ]
             }
           ]
         })}
@@ -44,19 +126,21 @@ export const MergePdfBlog = () => {
             How to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">Merge & Edit PDF Files</span> Like a Pro
           </h1>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Discover how to easily combine files, transfer specific pages between PDFs, and how our 100% secure, offline-browser technology protects your data.
+            Discover how to easily combine files, transfer specific pages between PDFs, and how our 100% secure, offline-browser technology protects your data in 2026.
           </p>
         </header>
 
-        {/* 📑 Table of Contents (Great for SEO Sitelinks) */}
+        {/* 📑 Table of Contents */}
         <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-12">
           <h3 className="font-bold text-slate-900 mb-4 uppercase tracking-wider text-sm">Table of Contents</h3>
           <ul className="space-y-2 text-indigo-600 font-medium text-sm">
             <li><a href="#exclusive-features" className="hover:underline">1. Exclusive Features of Genz PDF Merge</a></li>
             <li><a href="#standard-merge" className="hover:underline">2. Method 1: The Standard Merge</a></li>
             <li><a href="#advanced-transfer" className="hover:underline">3. Method 2: Advanced Page Transfer (Extract & Insert)</a></li>
-            <li><a href="#tech-stack" className="hover:underline">4. The Tech Stack: How It Works Offline</a></li>
-            <li><a href="#more-tools" className="hover:underline">5. Explore More Free PDF Tools</a></li>
+            <li><a href="#comparison" className="hover:underline">4. Why Genz PDF is Better (Comparison)</a></li>
+            <li><a href="#tech-stack" className="hover:underline">5. The Tech Stack: How It Works Offline</a></li>
+            <li><a href="#faq" className="hover:underline">6. Frequently Asked Questions (Ultimate 2026 Guide)</a></li>
+            <li><a href="#more-tools" className="hover:underline">7. Explore More Free PDF Tools</a></li>
           </ul>
         </div>
 
@@ -64,7 +148,7 @@ export const MergePdfBlog = () => {
         <div className="prose prose-lg prose-indigo max-w-none text-slate-700">
           
           {/* Core Features Overview */}
-          <h2 id="exclusive-features" className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
+          <h2 id="exclusive-features" className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3 scroll-mt-24">
             <Layers className="text-indigo-500" /> Exclusive Features of Genz PDF Merge
           </h2>
           <p>Unlike standard PDF tools that just stick files together, Genz PDF gives you full control over your documents without ever uploading them to a server:</p>
@@ -117,7 +201,7 @@ export const MergePdfBlog = () => {
 
           <hr className="my-10 border-slate-200" />
 
-          {/* Advanced Page Transfer Guide (The Unique Feature) */}
+          {/* Advanced Page Transfer Guide */}
           <h2 id="advanced-transfer" className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3 scroll-mt-24">
             <Settings2 className="text-indigo-500" /> Method 2: Advanced Page Transfer (Extract & Insert)
           </h2>
@@ -150,7 +234,7 @@ export const MergePdfBlog = () => {
           <hr className="my-12 border-slate-200" />
 
           {/* Comparison Section */}
-          <h2 className="text-2xl font-bold text-slate-900 mb-6 text-center">
+          <h2 id="comparison" className="text-2xl font-bold text-slate-900 mb-6 text-center scroll-mt-24">
             Why Genz PDF is Better
           </h2>
           <div className="overflow-x-auto mb-12">
@@ -201,7 +285,7 @@ export const MergePdfBlog = () => {
           <ul className="space-y-4 list-disc pl-6 mb-8 text-slate-600">
             <li><strong>React.js & Vite:</strong> Provides a smooth, ultra-fast user interface.</li>
             <li><strong>pdf-lib:</strong> The core JavaScript engine that reads, splits, and modifies PDF documents directly inside your web browser.</li>
-            <li><strong>Web APIs:</strong> We utilize modern <code>ArrayBuffer</code> and <code>Blob</code> features to handle massive files entirely in your device's memory.</li>
+            <li><strong>Web APIs:</strong> We utilize modern <code>ArrayBuffer</code> and <code>Blob</code> features to handle massive files entirely in your device's memory (RAM) without any network uploads.</li>
           </ul>
 
           {/* Testimonials Section */}
@@ -221,23 +305,78 @@ export const MergePdfBlog = () => {
             </div>
           </div>
 
-          {/* FAQ Section */}
-          <h2 className="text-2xl font-bold text-slate-900 mt-12 mb-6 flex items-center gap-3">
-            <ShieldCheck className="text-indigo-500" /> Frequently Asked Questions (FAQ)
+          <hr className="my-12 border-slate-200" />
+
+          {/* MEGA FAQ SECTION */}
+          <h2 id="faq" className="text-2xl font-bold text-slate-900 mt-12 mb-8 flex items-center gap-3 scroll-mt-24">
+            <HelpCircle className="text-indigo-500" /> Ultimate FAQ Guide (2026 Edition)
           </h2>
           
           <div className="space-y-6">
-            <div>
-              <h4 className="font-bold text-slate-800">Is my data really secure?</h4>
-              <p className="text-slate-600 mt-1">Absolutely. Because of our client-side architecture, your files are processed using your own device's hardware. We literally have no backend servers capable of storing your documents.</p>
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Why is adding pages to PDFs still useful in 2026?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Even in 2026, as digital documentation evolves, combining contracts, assignment portfolios, and financial reports into a single, cohesive PDF remains the gold standard for professional sharing, legal compliance, and archiving.</p>
             </div>
-            <div>
-              <h4 className="font-bold text-slate-800">Can I merge password-protected PDFs?</h4>
-              <p className="text-slate-600 mt-1">Our system detects encrypted PDFs and will alert you. You can easily use our integrated "Unlock PDF" tool from the menu to remove the password before merging or editing.</p>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Can I add pages to a PDF from another document?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Yes! Genz PDF's unique <strong>Advanced Page Transfer</strong> visual editor allows you to extract specific pages from a source document and precisely insert them exactly where you want in your target PDF.</p>
             </div>
-            <div>
-              <h4 className="font-bold text-slate-800">Will I lose quality when transferring pages?</h4>
-              <p className="text-slate-600 mt-1">No. Genz PDF copies the raw binary data of the pages. The resolution, text, and images remain exactly identical to your original uploaded file.</p>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">How do I add a blank page to a PDF online?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">With Genz PDF, you can easily drag and drop a blank PDF template file into your upload queue, reorder it to your preferred position, and hit merge to insert blank spaces precisely where you need them.</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Is Genz PDF free to use?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Absolutely. Genz PDF is <strong>100% free forever</strong>. There are no premium subscriptions, no annoying paywalls, no daily limits, and no hidden fees.</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Does Genz PDF protect my files when adding pages?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Yes. We use a strict 100% Client-Side Architecture. Your files are processed entirely within your device's RAM and are <strong>never uploaded to our servers</strong>, making data breaches impossible.</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Can I use Genz PDF if I'm in Europe or Latin America?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Yes, Genz PDF is accessible globally. Since we don't collect, upload, or process your files on external servers, we are fully compliant with GDPR and other international privacy laws by default.</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">What's the best way to merge two PDFs and add pages?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Simply drag and drop your two PDFs into our upload zone, use the drag handles to reorder them if necessary, and click the big 'Merge' button. If you need specific pages swapped, use our 'Set Target' and 'Edit Pages' tools.</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Can I add pages to a PDF from my phone?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Yes! Genz PDF is fully responsive and works flawlessly on iOS (iPhone/iPad) and Android web browsers without needing to download any cumbersome apps.</p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <h4 className="font-bold text-slate-800 m-0">Does Genz PDF work offline?</h4>
+              <p className="text-slate-600 mt-2 text-sm leading-relaxed m-0">Because Genz PDF runs entirely in your browser using JavaScript, once the website initially loads, the actual merging and editing process happens locally. It does not require an active internet connection to process the files.</p>
+            </div>
+
+            {/* Social Media Updates Section */}
+            <div className="bg-indigo-50 border border-indigo-100 p-6 rounded-2xl shadow-sm mt-8">
+              <h4 className="font-bold text-indigo-900 text-lg m-0 mb-3">How do I stay updated with new Genz PDF tools in 2026?</h4>
+              <p className="text-indigo-800 text-sm leading-relaxed m-0 mb-5">Follow our official channels to get the latest updates, tutorials, and new tool announcements:</p>
+              
+              <div className="flex flex-wrap gap-4">
+                <a href="https://www.youtube.com/channel/UCBV_lAS0ElDQv6Wu8kz5G8A" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-red-50 text-red-600 border border-red-100 rounded-lg shadow-sm transition-all text-sm font-bold no-underline">
+                  <Youtube size={18} /> YouTube
+                </a>
+                <a href="https://instagram.com/genzpdftool" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-pink-50 text-pink-600 border border-pink-100 rounded-lg shadow-sm transition-all text-sm font-bold no-underline">
+                  <Instagram size={18} /> Instagram
+                </a>
+                <a href="https://x.com/genzpdftool?s=20" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg shadow-sm transition-all text-sm font-bold no-underline">
+                  <Twitter size={18} /> Twitter / X
+                </a>
+                <a href="https://www.facebook.com/share/v/1AuVepXHUQ/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-blue-50 text-blue-600 border border-blue-100 rounded-lg shadow-sm transition-all text-sm font-bold no-underline">
+                  <Facebook size={18} /> Facebook
+                </a>
+              </div>
             </div>
           </div>
 
