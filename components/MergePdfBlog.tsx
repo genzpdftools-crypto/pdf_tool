@@ -1,5 +1,8 @@
 import React from 'react';
-import { ShieldCheck, Zap, ServerOff, FileStack, Settings2, Download, Layers, PlayCircle, Star, Scissors, Minimize2, Lock } from 'lucide-react';
+import { 
+  ShieldCheck, Zap, ServerOff, FileStack, Settings2, Download, Layers, 
+  PlayCircle, Star, Scissors, Minimize2, Lock, Unlock, PenTool, Scaling, ArrowRightLeft 
+} from 'lucide-react';
 
 export const MergePdfBlog = () => {
   return (
@@ -275,31 +278,65 @@ export const MergePdfBlog = () => {
 
           <hr className="my-12 border-slate-200" />
 
-          {/* 🔗 INTERNAL LINKING SECTION (Boosts SEO for other tools) */}
+          {/* 🔗 FULL INTERNAL LINKING SECTION (All 7 Tools Included) */}
           <h2 id="more-tools" className="text-2xl font-bold text-slate-900 mb-6 scroll-mt-24">
             Explore More Free PDF Tools
           </h2>
-          <p>Genz PDF offers a complete suite of professional, offline PDF tools. Once you are done merging, check out our other free utilities:</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-8">
-            <a href="/split-pdf" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all group no-underline">
-              <div className="p-3 bg-indigo-50 rounded-lg group-hover:bg-indigo-600 transition-colors"><Scissors size={24} className="text-indigo-600 group-hover:text-white" /></div>
+          <p>Genz PDF offers a complete suite of professional, offline tools. Check out our other free utilities:</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 my-8">
+            <a href="/split" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all group no-underline bg-white">
+              <div className="p-3 bg-indigo-50 rounded-lg group-hover:bg-indigo-600 transition-colors"><Scissors size={20} className="text-indigo-600 group-hover:text-white" /></div>
               <div>
-                <h4 className="m-0 font-bold text-slate-900 group-hover:text-indigo-600">Split PDF</h4>
-                <p className="m-0 text-xs text-slate-500 mt-1">Extract or remove specific pages.</p>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-indigo-600 leading-tight">Split PDF</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Extract or remove specific pages.</p>
               </div>
             </a>
-            <a href="/compress-pdf" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all group no-underline">
-              <div className="p-3 bg-emerald-50 rounded-lg group-hover:bg-emerald-600 transition-colors"><Minimize2 size={24} className="text-emerald-600 group-hover:text-white" /></div>
+            
+            <a href="/compress" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-emerald-400 hover:shadow-md transition-all group no-underline bg-white">
+              <div className="p-3 bg-emerald-50 rounded-lg group-hover:bg-emerald-600 transition-colors"><Minimize2 size={20} className="text-emerald-600 group-hover:text-white" /></div>
               <div>
-                <h4 className="m-0 font-bold text-slate-900 group-hover:text-emerald-600">Compress PDF</h4>
-                <p className="m-0 text-xs text-slate-500 mt-1">Reduce file size without losing quality.</p>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-emerald-600 leading-tight">Compress PDF</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Reduce file size instantly.</p>
               </div>
             </a>
-            <a href="/protect-pdf" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-indigo-400 hover:shadow-md transition-all group no-underline">
-              <div className="p-3 bg-rose-50 rounded-lg group-hover:bg-rose-600 transition-colors"><Lock size={24} className="text-rose-600 group-hover:text-white" /></div>
+            
+            <a href="/protect" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-rose-400 hover:shadow-md transition-all group no-underline bg-white">
+              <div className="p-3 bg-rose-50 rounded-lg group-hover:bg-rose-600 transition-colors"><Lock size={20} className="text-rose-600 group-hover:text-white" /></div>
               <div>
-                <h4 className="m-0 font-bold text-slate-900 group-hover:text-rose-600">Protect PDF</h4>
-                <p className="m-0 text-xs text-slate-500 mt-1">Add strong password encryption securely.</p>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-rose-600 leading-tight">Protect PDF</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Add secure passwords.</p>
+              </div>
+            </a>
+
+            <a href="/unlock" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-amber-400 hover:shadow-md transition-all group no-underline bg-white">
+              <div className="p-3 bg-amber-50 rounded-lg group-hover:bg-amber-500 transition-colors"><Unlock size={20} className="text-amber-600 group-hover:text-white" /></div>
+              <div>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-amber-500 leading-tight">Unlock PDF</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Remove PDF passwords.</p>
+              </div>
+            </a>
+
+            <a href="/signature" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all group no-underline bg-white">
+              <div className="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-500 transition-colors"><PenTool size={20} className="text-blue-600 group-hover:text-white" /></div>
+              <div>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-blue-500 leading-tight">Sign PDF</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Add your e-signature securely.</p>
+              </div>
+            </a>
+
+            <a href="/convert" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-fuchsia-400 hover:shadow-md transition-all group no-underline bg-white">
+              <div className="p-3 bg-fuchsia-50 rounded-lg group-hover:bg-fuchsia-500 transition-colors"><ArrowRightLeft size={20} className="text-fuchsia-600 group-hover:text-white" /></div>
+              <div>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-fuchsia-500 leading-tight">Convert PDF</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Convert PDF to Word, JPG, etc.</p>
+              </div>
+            </a>
+
+            <a href="/resize" className="flex items-center gap-4 p-4 rounded-xl border border-slate-200 hover:border-cyan-400 hover:shadow-md transition-all group no-underline bg-white md:col-span-2 lg:col-span-3 lg:max-w-sm mx-auto w-full">
+              <div className="p-3 bg-cyan-50 rounded-lg group-hover:bg-cyan-500 transition-colors"><Scaling size={20} className="text-cyan-600 group-hover:text-white" /></div>
+              <div>
+                <h4 className="m-0 font-bold text-slate-900 group-hover:text-cyan-500 leading-tight">Resize Image</h4>
+                <p className="m-0 text-[11px] text-slate-500 mt-1 leading-snug">Change image dimensions & KB accurately.</p>
               </div>
             </a>
           </div>
@@ -308,7 +345,7 @@ export const MergePdfBlog = () => {
           <div className="text-center mt-16 mb-8">
             <h3 className="text-xl font-bold text-slate-900 mb-4">Ready to try it out?</h3>
             <a 
-              href="/merge-pdf" 
+              href="/merge" 
               className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1 no-underline"
             >
               <FileStack size={20} />
