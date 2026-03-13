@@ -509,6 +509,7 @@ export const MergePdfBlog = () => {
               </p>
               <div className="flex justify-center sm:justify-start gap-4 mt-4">
                 <a href="https://www.linkedin.com/in/pintu-chauhan-ctuap/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-indigo-600 transition-colors"><Linkedin size={18} /></a>
+                <a href="https://www.linkedin.com/in/raushan-kumar-0b5340373/" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-indigo-600 transition-colors"><Linkedin size={18} /></a>
                 <a href="https://x.com/genzpdftool?s=20" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-indigo-600 transition-colors"><Twitter size={18} /></a>
               </div>
             </div>
