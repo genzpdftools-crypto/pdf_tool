@@ -66,18 +66,18 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 z-10"></div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          {/* ==================== MAIN GRID (5-4-3) ==================== */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
-            {/* ---------- BRAND COLUMN (span 5) – Organization Microdata ---------- */}
+          {/* ==================== MAIN GRID (4-3-3-2) ==================== */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 mb-16">
+            
+            {/* ---------- BRAND COLUMN (span 4) – Organization Microdata ---------- */}
             <div
-              className="md:col-span-5 space-y-6"
+              className="md:col-span-4 space-y-6"
               itemScope
               itemType="https://schema.org/Organization"
               itemID="#organization"
             >
               <a
                 href="/"
-                // 🟢 CHANGE: onClick hata diya hai
                 className="inline-flex items-center gap-3 group"
                 aria-label="Genz PDF – Home"
                 itemProp="url"
@@ -135,9 +135,9 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
               </div>
             </div>
 
-            {/* ---------- PRODUCT LINKS (span 4) – with microdata ---------- */}
+            {/* ---------- PRODUCT LINKS (span 3) – with microdata ---------- */}
             <nav
-              className="md:col-span-4"
+              className="md:col-span-3"
               aria-labelledby="footer-tools-heading"
               itemScope
               itemType="https://schema.org/SiteNavigationElement"
@@ -148,16 +148,16 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
               >
                 PRODUCT
               </h4>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <ul className="flex flex-col gap-3">
                 {[
                   { id: 'merge', label: 'Merge PDF', position: 1, url: '/merge-pdf' },
                   { id: 'split', label: 'Split PDF', position: 2, url: '/split-pdf' },
                   { id: 'convert', label: 'Convert PDF', position: 3, url: '/convert-pdf' },
                   { id: 'compress', label: 'Compress PDF', position: 4, url: '/compress-pdf' },
                   { id: 'resize', label: 'Resize PDF', position: 5, url: '/resize-pdf' },
-                  { id: 'protect', label: 'Protect PDF', position: 6, url: '/protect-pdf' }, // ✅ Added Protect PDF
-                  { id: 'signature', label: 'Sign PDF', position: 7, url: '/signature' }, // ✅ Added Sign PDF
-                  { id: 'unlock', label: 'Unlock PDF', position: 8, url: '/unlock' }, // ✅ Added Unlock PDF here
+                  { id: 'protect', label: 'Protect PDF', position: 6, url: '/protect-pdf' },
+                  { id: 'signature', label: 'Sign PDF', position: 7, url: '/signature' },
+                  { id: 'unlock', label: 'Unlock PDF', position: 8, url: '/unlock' },
                 ].map((item) => (
                   <li
                     key={item.id}
@@ -167,8 +167,7 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
                   >
                     <a
                       href={item.url}
-                      // 🟢 CHANGE: onClick hata diya hai
-                      className="group flex items-center justify-between p-3 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm transition-all duration-300"
+                      className="group flex items-center justify-between p-2 -ml-2 rounded-lg border border-transparent hover:border-slate-200 hover:bg-white hover:shadow-sm transition-all duration-300"
                       title={`Free tool to ${item.label.toLowerCase()}`}
                       itemProp="url"
                     >
@@ -203,7 +202,7 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
               >
                 Company
               </h4>
-              <ul className="space-y-2">
+              <ul className="space-y-4">
                 {[
                   { id: 'about', label: 'About Us', position: 1, url: '/about' },
                   { id: 'contact', label: 'Contact Support', position: 2, url: '/contact' },
@@ -218,7 +217,6 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
                   >
                     <a
                       href={item.url}
-                      // 🟢 CHANGE: onClick hata diya hai
                       className="inline-block text-sm text-slate-500 hover:text-slate-900 font-medium hover:translate-x-1 transition-transform duration-300"
                       itemProp="url"
                     >
@@ -229,6 +227,31 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
                 ))}
               </ul>
             </nav>
+
+            {/* ---------- BLOG LINKS (span 2) ---------- */}
+            <nav
+              className="md:col-span-2"
+              aria-labelledby="footer-blog-heading"
+            >
+              <h4
+                id="footer-blog-heading"
+                className="text-xs font-extrabold text-slate-900 uppercase tracking-[0.2em] mb-6"
+              >
+                Blog
+              </h4>
+              <ul className="space-y-4">
+                <li>
+                  <a
+                    href="/blog/merge-pdf"
+                    className="inline-block text-sm text-slate-500 hover:text-indigo-600 font-medium hover:translate-x-1 transition-transform duration-300"
+                  >
+                    How Merge PDF Works
+                  </a>
+                </li>
+                {/* Future blog posts can be added here */}
+              </ul>
+            </nav>
+
           </div>
 
           {/* ==================== BOTTOM BAR – Copyright + India + Developers ==================== */}
@@ -276,7 +299,7 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
             {/* ---------- Developer profiles (Person microdata) ---------- */}
             <div className="order-2 xl:order-3 flex items-center gap-4">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:block">
-                Develoved by
+                Developed by
               </span>
 
               <div className="flex -space-x-2 hover:space-x-1 transition-all duration-300">
