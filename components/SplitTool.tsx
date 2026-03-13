@@ -346,6 +346,31 @@ export default function App() {
     setError(null);
   };
 
+  // Helper function: Image rotate karne ke baad sahi dimensions secure karne ke liye
+  const getRotatedImageUrl = async (src: string, rot: number): Promise<string> => {
+    if (rot % 360 === 0) return src;
+    return new Promise<string>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(src);
+        if (rot % 180 !== 0) {
+          canvas.width = img.height;
+          canvas.height = img.width;
+        } else {
+          canvas.width = img.width;
+          canvas.height = img.height;
+        }
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        resolve(canvas.toDataURL('image/jpeg', 0.95));
+      };
+      img.src = src;
+    });
+  };
+
   // ---------- DOWNLOAD GENERATORS ----------
   const downloadAsPdf = async () => {
     if (pages.length === 0) return;
@@ -354,9 +379,16 @@ export default function App() {
     try {
       const finalPdf = await PDFDocument.create();
       const parsedPdfs = new Map<string, PDFDocument>();
+      
+      // Standard A4 Dimensions in points
+      const A4_WIDTH = 595.28;
+      const A4_HEIGHT = 841.89;
 
       for (const p of pages) {
-        // If it is a real PDF file
+        // Uniform page add karna
+        const page = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+
+        // Agar asli PDF file hai
         if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
           let sourcePdf = parsedPdfs.get(p.fileId);
           if (!sourcePdf) {
@@ -367,23 +399,40 @@ export default function App() {
           const [copiedPage] = await finalPdf.copyPages(sourcePdf, [p.pageIndex]);
           const currentRotation = copiedPage.getRotation().angle;
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
-          finalPdf.addPage(copiedPage);
+          
+          // PDF page ko A4 mein embed karke uniformly fit karna
+          const embeddedPdf = await finalPdf.embedPage(copiedPage);
+          const dims = embeddedPdf.scaleToFit(A4_WIDTH, A4_HEIGHT);
+          
+          page.drawPage(embeddedPdf, {
+            x: (A4_WIDTH - dims.width) / 2,
+            y: (A4_HEIGHT - dims.height) / 2,
+            width: dims.width,
+            height: dims.height,
+          });
 
         } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
-          // If it's an uploaded Image OR our generated DOCX Canvas Screenshot
-          const response = await fetch(p.imageUrl);
+          // Images aur DOCX screenshots ko embed karna
+          const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
+          const response = await fetch(rotatedSrc);
           const buf = await response.arrayBuffer();
           
           let img;
-          if (p.imageUrl.startsWith('data:image/png')) {
+          if (rotatedSrc.startsWith('data:image/png')) {
             img = await finalPdf.embedPng(buf);
           } else {
             img = await finalPdf.embedJpg(buf);
           }
           
-          const page = finalPdf.addPage([img.width, img.height]);
-          page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
-          page.setRotation(degrees(p.rotation));
+          // Images ko bhi A4 page par properly scale karke center mein lagana
+          const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
+          
+          page.drawImage(img, { 
+            x: (A4_WIDTH - dims.width) / 2, 
+            y: (A4_HEIGHT - dims.height) / 2, 
+            width: dims.width, 
+            height: dims.height 
+          });
         }
       }
 
@@ -553,11 +602,11 @@ export default function App() {
               /* ---------- EDITOR STATE ---------- */
               <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-500">
                 
-                {/* STICKY TOOLBAR */}
-                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-3 md:px-6 py-2 md:py-4 flex flex-col md:flex-row items-center justify-between shadow-sm transition-all gap-4">
+                {/* STICKY TOOLBAR (Responsive tweaks for Mobile/Tablet) */}
+                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all gap-3 sm:gap-4">
                   
                   {/* Left: Info */}
-                  <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full md:w-auto">
+                  <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full sm:w-auto">
                     <div className="bg-gradient-to-br from-rose-500 to-orange-500 p-1.5 md:p-2.5 rounded-lg md:rounded-xl text-white shadow-lg shadow-rose-200 shrink-0">
                       <FileText size={16} className="md:w-6 md:h-6" />
                     </div>
@@ -572,7 +621,7 @@ export default function App() {
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full md:w-auto">
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto">
                     
                     <input 
                       type="file" 
