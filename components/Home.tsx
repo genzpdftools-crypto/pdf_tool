@@ -310,7 +310,7 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
     {
       id: 'unlock',
       title: 'Unlock PDF',
-      desc: 'Apne PDF ke passwords aur edit/print restrictions ko aasani se remove karo.',
+      desc: 'Unlock PDF Online: Remove Passwords & Restrictions | Genz PDF',
       icon: Unlock,
       iconBg: 'bg-gradient-to-br from-purple-500 to-pink-600',
       shadow: 'hover:shadow-purple-500/20',
