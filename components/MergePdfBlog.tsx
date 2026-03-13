@@ -137,6 +137,53 @@ export const MergePdfBlog = () => {
             <p className="text-slate-600 mt-1">No. Genz PDF copies the raw binary data of the pages. The resolution, text, and images remain exactly identical to your original uploaded file.</p>
           </div>
         </div>
+
+        <hr className="my-12 border-slate-200" />
+
+        {/* Use Cases Section */}
+        <h2 className="text-2xl font-bold text-slate-900 mb-6">
+          Who Uses Genz PDF Merge?
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100">
+            <h4 className="font-bold text-slate-800 mb-2">🎓 For Students</h4>
+            <p className="text-sm text-slate-600 m-0">Combine lecture slides, assignment pages, and research papers into a single organized PDF before submission.</p>
+          </div>
+          <div className="bg-emerald-50/50 p-5 rounded-xl border border-emerald-100">
+            <h4 className="font-bold text-slate-800 mb-2">💼 For Professionals</h4>
+            <p className="text-sm text-slate-600 m-0">Stitch together monthly invoices, business reports, and portfolios into neat, shareable documents.</p>
+          </div>
+          <div className="bg-blue-50/50 p-5 rounded-xl border border-blue-100">
+            <h4 className="font-bold text-slate-800 mb-2">⚖️ For Legal & Finance</h4>
+            <p className="text-sm text-slate-600 m-0">Handle highly sensitive, confidential contracts safely. Since it's client-side, your files never touch a server.</p>
+          </div>
+        </div>
+
+        {/* Cross-Platform Compatibility */}
+        <div className="bg-slate-900 text-white p-8 rounded-2xl shadow-xl my-10 relative overflow-hidden">
+          <div className="relative z-10">
+            <h3 className="text-2xl font-black mb-3">Merge PDFs on Any Device</h3>
+            <p className="text-slate-300 text-sm md:text-base max-w-xl">
+              Whether you are on a Windows PC, Mac, Android phone, or iPhone, Genz PDF works flawlessly directly in your browser. <strong>No apps to install. No extensions required.</strong>
+            </p>
+          </div>
+          {/* Decorative background element */}
+          <div className="absolute -right-10 -bottom-10 opacity-20">
+            <Zap size={150} />
+          </div>
+        </div>
+
+        {/* Final CTA Button */}
+        <div className="text-center mt-16 mb-8">
+          <h3 className="text-xl font-bold text-slate-900 mb-4">Ready to try it out?</h3>
+          <a 
+            href="/merge-pdf" 
+            className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all hover:-translate-y-1"
+          >
+            <FileStack size={20} />
+            Go to Merge PDF Tool
+          </a>
+        </div>
       </div>
     </article>
   );
