@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as pdfjsLib from 'https://esm.sh/pdfjs-dist@3.11.174';
-import { PDFDocument, degrees } from 'https://esm.sh/pdf-lib@1.17.1';
 import {
   Loader2,
   Download,
@@ -69,7 +67,29 @@ export default function App() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   };
 
-  // ---------- DYNAMIC SCRIPT LOADER ----------
+  // ---------- DYNAMIC SCRIPT LOADERS ----------
+  const loadPdfJs = async () => {
+    if ((window as any).pdfjsLib) return (window as any).pdfjsLib;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => resolve((window as any).pdfjsLib);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
+  const loadPdfLib = async () => {
+    if ((window as any).PDFLib) return (window as any).PDFLib;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+      script.onload = () => resolve((window as any).PDFLib);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
   const loadMammoth = async () => {
     if ((window as any).mammoth) return (window as any).mammoth;
     return new Promise((resolve, reject) => {
@@ -94,12 +114,6 @@ export default function App() {
 
   // ---------- MASTER SEO INJECTION & PDF WORKER INIT ----------
   useEffect(() => {
-    const lib = (pdfjsLib as any).default || pdfjsLib;
-    if (lib?.GlobalWorkerOptions) {
-      lib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-
     document.title = SEO.title;
 
     const upsertMeta = (attr: string, value: string, isProperty = false) => {
@@ -118,6 +132,15 @@ export default function App() {
     upsertMeta('description', SEO.description);
     upsertMeta('robots', 'index, follow');
     upsertMeta('viewport', 'width=device-width, initial-scale=1');
+
+    // Initialize PDF.js worker asynchronously
+    loadPdfJs().then((pdfjsLib: any) => {
+      const lib = pdfjsLib.default || pdfjsLib;
+      if (lib?.GlobalWorkerOptions) {
+        lib.GlobalWorkerOptions.workerSrc =
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+    }).catch(console.error);
   }, []);
 
   // ---------- CORE FILE PROCESSING ----------
@@ -136,7 +159,8 @@ export default function App() {
 
         if (fileType === 'application/pdf') {
           const buff = await file.arrayBuffer();
-          const lib = (pdfjsLib as any).default || pdfjsLib;
+          const loadedPdfJs: any = await loadPdfJs();
+          const lib = loadedPdfJs.default || loadedPdfJs;
           const pdf = await lib.getDocument({ data: buff }).promise;
           const scale = window.devicePixelRatio > 1 ? 0.5 : 0.35;
 
@@ -365,7 +389,7 @@ export default function App() {
 
   // ---------- DOWNLOAD GENERATORS ----------
   const downloadAsPdf = async () => {
-    // FIX 1: Sirf selected pages ko export karo (agar koi selected nahi hai toh sabko)
+    // Sirf selected pages ko export karo (agar koi selected nahi hai toh sabko)
     const exportPages = selectedPages.size > 0 
       ? pages.filter(p => selectedPages.has(p.id)) 
       : pages;
@@ -374,8 +398,12 @@ export default function App() {
     setIsProcessing(true);
     
     try {
+      // Dynamically load pdf-lib to prevent dynamic require errors
+      const PDFLib: any = await loadPdfLib();
+      const { PDFDocument, degrees } = PDFLib;
+
       const finalPdf = await PDFDocument.create();
-      const parsedPdfs = new Map<string, PDFDocument>();
+      const parsedPdfs = new Map<string, any>();
       
       const A4_WIDTH = 595.28;
       const A4_HEIGHT = 841.89;
@@ -409,7 +437,7 @@ export default function App() {
           const response = await fetch(rotatedSrc);
           const buf = await response.arrayBuffer();
           
-          // FIX 2: Check correct format via magic bytes taaki pdf-lib crash na ho (especially with PNGs)
+          // Check correct format via magic bytes taaki pdf-lib crash na ho (especially with PNGs)
           const uint8 = new Uint8Array(buf);
           const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
           
@@ -439,7 +467,7 @@ export default function App() {
       a.href = url;
       a.download = `genzpdf-edited-${Date.now()}.pdf`;
       
-      // FIX 3: Append element to body for Firefox/Safari support
+      // Append element to body for Firefox/Safari support
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -454,7 +482,7 @@ export default function App() {
   };
 
   const downloadAsImages = async (format: 'jpeg' | 'png') => {
-    // FIX: Selective export for images too
+    // Selective export for images too
     const exportPages = selectedPages.size > 0 
       ? pages.filter(p => selectedPages.has(p.id)) 
       : pages;
