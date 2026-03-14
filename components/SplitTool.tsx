@@ -176,8 +176,11 @@ export default function App() {
   // Range Selection State
   const [rangeInput, setRangeInput] = useState('');
   
+  // Loading & Progress States
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progress, setProgress] = useState<{ current: number, total: number, status: string } | null>(null);
+  
   const [error, setError] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   
@@ -347,6 +350,7 @@ export default function App() {
     if (newFiles.length === 0) return;
     
     setIsLoading(true);
+    setProgress(null);
     setError(null);
     const newPages: PageData[] = [];
     let errorMessages: string[] = [];
@@ -362,8 +366,9 @@ export default function App() {
           const lib = loadedPdfJs.default || loadedPdfJs;
           
           const pdf = await lib.getDocument({ data: buff }).promise;
-          // SUPER IMPORTANT: Increased the scale significantly for HD zooming
           const scale = window.devicePixelRatio > 1 ? 2.0 : 1.5;
+
+          setProgress({ current: 0, total: pdf.numPages, status: `Extracting pages from ${file.name}...` });
 
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
@@ -385,6 +390,10 @@ export default function App() {
               originalFile: file,
               fileName: file.name
             });
+            
+            // Update progress & yield to UI to ensure smooth bar
+            setProgress({ current: i, total: pdf.numPages, status: `Extracting pages from ${file.name}...` });
+            await new Promise(res => setTimeout(res, 5));
           }
         } else if (fileType.startsWith('image/')) {
           const imageUrl = URL.createObjectURL(file);
@@ -399,6 +408,8 @@ export default function App() {
             fileName: file.name
           });
         } else if (file.name.toLowerCase().endsWith('.docx')) {
+          setProgress({ current: 0, total: 100, status: `Converting DOCX ${file.name}...` });
+          
           const mammoth: any = await loadMammoth();
           const html2canvas: any = await loadHtml2Canvas();
           const arrayBuffer = await file.arrayBuffer();
@@ -426,8 +437,10 @@ export default function App() {
           document.body.appendChild(container);
           await new Promise(res => setTimeout(res, 300));
 
+          setProgress({ current: 50, total: 100, status: `Rendering pages for ${file.name}...` });
+
           const fullCanvas = await html2canvas(container, {
-            scale: 2.0, // HD Scale for docs
+            scale: 2.0, 
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false
@@ -470,6 +483,9 @@ export default function App() {
               fileName: `${file.name} (Pg ${i + 1})`,
               isDocxRendered: true
             });
+            
+            setProgress({ current: 50 + Math.floor(((i + 1) / totalPages) * 50), total: 100, status: `Slicing pages for ${file.name}...` });
+            await new Promise(res => setTimeout(res, 5));
           }
         } else {
           errorMessages.push(`'${file.name}' ka format support nahi karta.`);
@@ -498,6 +514,7 @@ export default function App() {
     }
 
     setIsLoading(false);
+    setProgress(null);
   };
 
   const getExtensionType = (filename: string) => {
@@ -576,7 +593,7 @@ export default function App() {
   // Custom Range Selection Logic
   const applyRangeSelection = () => {
     if (!rangeInput.trim()) {
-      setSelectedPages(new Set()); // Agar input khali hai toh sab deselect kar do
+      setSelectedPages(new Set()); 
       return;
     }
     
@@ -597,7 +614,7 @@ export default function App() {
           const min = Math.max(1, Math.min(start, end));
           const max = Math.min(pages.length, Math.max(start, end));
           for (let i = min; i <= max; i++) {
-            newSelectedIndices.add(i - 1); // 0-based index ke liye -1 kiya
+            newSelectedIndices.add(i - 1); 
           }
         }
       } else {
@@ -662,6 +679,7 @@ export default function App() {
     setSelectedPages(new Set());
     setLastSelectedId(null);
     setError(null);
+    setProgress(null);
   };
 
   const getRotatedImageUrl = async (src: string, rot: number): Promise<string> => {
@@ -696,6 +714,7 @@ export default function App() {
 
     if (exportPages.length === 0) return;
     setIsProcessing(true);
+    setProgress({ current: 0, total: exportPages.length, status: 'Preparing PDF...' });
     
     try {
       const PDFLib: any = await loadPdfLib();
@@ -707,7 +726,9 @@ export default function App() {
       const A4_WIDTH = 595.28;
       const A4_HEIGHT = 841.89;
 
-      for (const p of exportPages) {
+      for (let i = 0; i < exportPages.length; i++) {
+        const p = exportPages[i];
+        
         if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
           let sourcePdf = parsedPdfs.get(p.fileId);
           if (!sourcePdf) {
@@ -718,10 +739,7 @@ export default function App() {
           const [copiedPage] = await finalPdf.copyPages(sourcePdf, [p.pageIndex]);
           const currentRotation = copiedPage.getRotation().angle;
           
-          // Set native rotation on the page directly
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
-          
-          // Add page natively instead of embedding inside an A4 page
           finalPdf.addPage(copiedPage);
 
         } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
@@ -750,7 +768,13 @@ export default function App() {
             height: dims.height 
           });
         }
+
+        setProgress({ current: i + 1, total: exportPages.length, status: 'Generating final PDF...' });
+        await new Promise(res => setTimeout(res, 10)); // Yield to keep UI smooth
       }
+
+      setProgress({ current: exportPages.length, total: exportPages.length, status: 'Finalizing Document...' });
+      await new Promise(res => setTimeout(res, 50)); // Tiny pause before heavy save operation
 
       const pdfBytes = await finalPdf.save();
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -770,6 +794,7 @@ export default function App() {
       setError('Error generating final PDF. Ensure files are valid.');
     } finally {
       setIsProcessing(false);
+      setProgress(null);
     }
   };
 
@@ -780,6 +805,7 @@ export default function App() {
 
     if (exportPages.length === 0) return;
     setIsProcessing(true);
+    setProgress({ current: 0, total: exportPages.length, status: `Exporting ${format.toUpperCase()} images...` });
     
     try {
       for (let i = 0; i < exportPages.length; i++) {
@@ -813,13 +839,15 @@ export default function App() {
         a.click();
         document.body.removeChild(a);
         
-        await new Promise(res => setTimeout(res, 250));
+        setProgress({ current: i + 1, total: exportPages.length, status: `Exporting ${format.toUpperCase()} images...` });
+        await new Promise(res => setTimeout(res, 100)); // Yield to UI
       }
     } catch (e) {
       console.error(e);
       setError(`Error downloading ${format.toUpperCase()} images.`);
     } finally {
       setIsProcessing(false);
+      setProgress(null);
     }
   };
 
@@ -833,6 +861,36 @@ export default function App() {
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-rose-200/20 rounded-full blur-[120px]" />
         <div className="absolute top-[20%] left-[-10%] w-[400px] h-[400px] bg-orange-100/30 rounded-full blur-[100px]" />
       </div>
+
+      {/* FULL-SCREEN PROCESSING OVERLAY FOR DOWNLOADS */}
+      {isProcessing && progress && (
+        <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-300 p-4">
+          <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-sm w-full text-center relative overflow-hidden transform transition-all scale-100">
+             {/* Top Progress Line */}
+             <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
+               <div 
+                 className="bg-rose-500 h-2 transition-all duration-300 ease-out" 
+                 style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+               ></div>
+             </div>
+             
+             <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <Loader2 className="w-8 h-8 text-rose-500 animate-spin" />
+             </div>
+             
+             <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 tracking-tight">
+               {progress.status}
+             </h3>
+             <p className="text-sm text-slate-500 font-medium mb-6">
+               Please wait, processing large files might take a few moments.
+             </p>
+             
+             <div className="inline-flex items-center justify-center px-4 py-2 bg-slate-50 border border-slate-100 text-slate-700 rounded-full text-sm font-bold shadow-inner">
+               <span className="text-rose-600 mr-1">{progress.current}</span> / {progress.total} Pages Done
+             </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 md:py-12">
         
@@ -1113,7 +1171,25 @@ export default function App() {
                         <div className="absolute inset-0 bg-rose-200 rounded-full blur-xl animate-pulse" />
                         <Loader2 className="relative z-10 w-8 h-8 md:w-16 md:h-16 animate-spin text-rose-600" />
                       </div>
-                      <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">Processing Documents in HD...</p>
+                      <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">
+                        {progress ? progress.status : 'Processing Documents in HD...'}
+                      </p>
+                      
+                      {/* Upload/Extract Progress Bar */}
+                      {progress && (
+                        <div className="w-64 max-w-full mt-4 animate-in fade-in">
+                          <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
+                            <span>{progress.current} of {progress.total} pages</span>
+                            <span className="text-rose-600">{Math.round((progress.current / progress.total) * 100)}%</span>
+                          </div>
+                          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden shadow-inner">
+                            <div 
+                              className="bg-rose-500 h-2 rounded-full transition-all duration-300 ease-out" 
+                              style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     /* GRID EDITOR */
