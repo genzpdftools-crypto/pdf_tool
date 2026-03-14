@@ -22,7 +22,9 @@ import {
   Eye,
   X,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Undo,
+  Redo
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -162,6 +164,8 @@ export default function App() {
 
   // ---------- STATE ----------
   const [pages, setPages] = useState<PageData[]>([]);
+  const [past, setPast] = useState<PageData[][]>([]);
+  const [future, setFuture] = useState<PageData[][]>([]);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
   const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
   
@@ -180,6 +184,50 @@ export default function App() {
   useEffect(() => {
     if (previewPage) setPreviewZoom(1);
   }, [previewPage]);
+
+  // Undo / Redo Functions
+  const undo = () => {
+    if (past.length === 0) return;
+    const previous = past[past.length - 1];
+    const newPast = past.slice(0, past.length - 1);
+    
+    setFuture([pages, ...future]);
+    setPast(newPast);
+    setPages(previous);
+    setSelectedPages(new Set());
+    setLastSelectedId(null);
+  };
+
+  const redo = () => {
+    if (future.length === 0) return;
+    const next = future[0];
+    const newFuture = future.slice(1);
+    
+    setPast([...past, pages]);
+    setFuture(newFuture);
+    setPages(next);
+    setSelectedPages(new Set());
+    setLastSelectedId(null);
+  };
+
+  // Keyboard Shortcuts for Undo/Redo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in an input field (good practice)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [pages, past, future]);
 
   // Safe UUID generator
   const generateId = () => {
@@ -205,7 +253,13 @@ export default function App() {
       setPages((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const next = arrayMove(items, oldIndex, newIndex);
+        
+        // Save to history (keep last 5 states)
+        setPast(p => [...p.slice(-4), items]);
+        setFuture([]);
+        
+        return next;
       });
     }
   };
@@ -427,7 +481,14 @@ export default function App() {
       }
     }
 
-    setPages(prev => [...prev, ...newPages]);
+    setPages(prev => {
+      const next = [...prev, ...newPages];
+      if (newPages.length > 0) {
+        setPast(p => [...p.slice(-4), prev]);
+        setFuture([]);
+      }
+      return next;
+    });
     
     if (errorMessages.length > 0) {
       setError(Array.from(new Set(errorMessages)).join(' | '));
@@ -510,27 +571,45 @@ export default function App() {
   const invertSelection = () => setSelectedPages(new Set(pages.filter(p => !selectedPages.has(p.id)).map(p => p.id)));
 
   const handleRotateSelected = () => {
-    setPages(prev => prev.map(p => 
-      selectedPages.has(p.id) ? { ...p, rotation: (p.rotation + 90) % 360 } : p
-    ));
+    if (selectedPages.size === 0) return;
+    setPages(prev => {
+      const next = prev.map(p => 
+        selectedPages.has(p.id) ? { ...p, rotation: (p.rotation + 90) % 360 } : p
+      );
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
   };
 
   const handleSplitKeepSelected = () => {
     if (selectedPages.size === 0) return;
-    setPages(prev => prev.filter(p => selectedPages.has(p.id)));
+    setPages(prev => {
+      const next = prev.filter(p => selectedPages.has(p.id));
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
     setSelectedPages(new Set());
     setLastSelectedId(null);
   };
 
   const handleDeleteSelected = () => {
     if (selectedPages.size === 0) return;
-    setPages(prev => prev.filter(p => !selectedPages.has(p.id)));
+    setPages(prev => {
+      const next = prev.filter(p => !selectedPages.has(p.id));
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
     setSelectedPages(new Set());
     setLastSelectedId(null);
   };
 
   const reset = () => {
     setPages([]);
+    setPast([]);
+    setFuture([]);
     setSelectedPages(new Set());
     setLastSelectedId(null);
     setError(null);
@@ -580,8 +659,6 @@ export default function App() {
       const A4_HEIGHT = 841.89;
 
       for (const p of exportPages) {
-        const page = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
-
         if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
           let sourcePdf = parsedPdfs.get(p.fileId);
           if (!sourcePdf) {
@@ -591,24 +668,16 @@ export default function App() {
           }
           const [copiedPage] = await finalPdf.copyPages(sourcePdf, [p.pageIndex]);
           const currentRotation = copiedPage.getRotation().angle;
+          
+          // Set native rotation on the page directly
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
           
-          const embeddedPdf = await finalPdf.embedPage(copiedPage);
-          
-          const scaleFactor = Math.min(A4_WIDTH / embeddedPdf.width, A4_HEIGHT / embeddedPdf.height);
-          const dims = {
-            width: embeddedPdf.width * scaleFactor,
-            height: embeddedPdf.height * scaleFactor
-          };
-          
-          page.drawPage(embeddedPdf, {
-            x: (A4_WIDTH - dims.width) / 2,
-            y: (A4_HEIGHT - dims.height) / 2,
-            width: dims.width,
-            height: dims.height,
-          });
+          // Add page natively instead of embedding inside an A4 page
+          finalPdf.addPage(copiedPage);
 
         } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
+          const page = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          
           const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
           const response = await fetch(rotatedSrc);
           const buf = await response.arrayBuffer();
@@ -869,6 +938,26 @@ export default function App() {
                           <button onClick={invertSelection} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Invert Selection</button>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Undo/Redo Actions */}
+                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
+                      <button
+                        onClick={undo}
+                        disabled={past.length === 0}
+                        className="p-1.5 md:p-2 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        title="Undo (Ctrl+Z)"
+                      >
+                        <Undo size={16} />
+                      </button>
+                      <button
+                        onClick={redo}
+                        disabled={future.length === 0}
+                        className="p-1.5 md:p-2 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                        title="Redo (Ctrl+Y)"
+                      >
+                        <Redo size={16} />
+                      </button>
                     </div>
 
                     {/* Contextual Actions */}
