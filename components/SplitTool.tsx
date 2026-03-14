@@ -176,12 +176,16 @@ export default function App() {
   // Range Selection State
   const [rangeInput, setRangeInput] = useState('');
   
+  // Quality & Performance States
+  const [isHighQuality, setIsHighQuality] = useState(true);
+  
   // Loading & Progress States
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<{ current: number, total: number, status: string } | null>(null);
   
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -352,13 +356,21 @@ export default function App() {
     setIsLoading(true);
     setProgress(null);
     setError(null);
+    setWarning(null); // Clear previous warnings
+    
     const newPages: PageData[] = [];
     let errorMessages: string[] = [];
+    let warningMessages: string[] = [];
 
     for (const file of newFiles) {
       try {
         const fileId = generateId();
         const fileType = file.type || getExtensionType(file.name);
+
+        // Heavy File Size Check (50MB)
+        if (file.size > 50 * 1024 * 1024) {
+          warningMessages.push(`'${file.name}' 50MB se badi hai.`);
+        }
 
         if (fileType === 'application/pdf') {
           const buff = await file.arrayBuffer();
@@ -366,7 +378,14 @@ export default function App() {
           const lib = loadedPdfJs.default || loadedPdfJs;
           
           const pdf = await lib.getDocument({ data: buff }).promise;
-          const scale = window.devicePixelRatio > 1 ? 2.0 : 1.5;
+          
+          // Apply Quality Toggle Setting for PDF Rendering
+          const scale = isHighQuality ? (window.devicePixelRatio > 1 ? 2.0 : 1.5) : 1.0;
+
+          // Huge PDF Pages Check (500+ Pages)
+          if (pdf.numPages > 500) {
+            warningMessages.push(`'${file.name}' mein ${pdf.numPages} pages hain.`);
+          }
 
           setProgress({ current: 0, total: pdf.numPages, status: `Extracting pages from ${file.name}...` });
 
@@ -439,8 +458,11 @@ export default function App() {
 
           setProgress({ current: 50, total: 100, status: `Rendering pages for ${file.name}...` });
 
+          // Apply Quality Toggle Setting for DOCX (HTML2Canvas)
+          const docxScale = isHighQuality ? 2.0 : 1.0;
+
           const fullCanvas = await html2canvas(container, {
-            scale: 2.0, 
+            scale: docxScale, 
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false
@@ -509,8 +531,13 @@ export default function App() {
       return next;
     });
     
+    // Set Combined Errors & Warnings
     if (errorMessages.length > 0) {
       setError(Array.from(new Set(errorMessages)).join(' | '));
+    }
+    
+    if (warningMessages.length > 0) {
+      setWarning(`${warningMessages.join(' ')} System memory load badh sakta hai. Agar browser slow perform kare toh kripya "Fast Mode" ON kar lein.`);
     }
 
     setIsLoading(false);
@@ -679,6 +706,7 @@ export default function App() {
     setSelectedPages(new Set());
     setLastSelectedId(null);
     setError(null);
+    setWarning(null);
     setProgress(null);
   };
 
@@ -1009,6 +1037,21 @@ export default function App() {
                   {/* Right: Actions */}
                   <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto">
                     
+                    {/* QUALITY TOGGLE */}
+                    <button
+                      onClick={() => setIsHighQuality(!isHighQuality)}
+                      className={clsx(
+                        "p-1.5 md:p-2 flex items-center gap-1.5 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold border",
+                        isHighQuality
+                          ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100"
+                          : "text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100"
+                      )}
+                      title={isHighQuality ? "High Quality rendering (may use more memory)" : "Fast Mode rendering (uses less memory)"}
+                    >
+                      <Zap size={16} className={isHighQuality ? "fill-rose-500" : ""} />
+                      <span className="hidden sm:inline">{isHighQuality ? "HD Mode" : "Fast Mode"}</span>
+                    </button>
+
                     <input 
                       type="file" 
                       multiple 
@@ -1158,7 +1201,25 @@ export default function App() {
                 {/* ERROR ALERT */}
                 {error && (
                   <div className="mx-3 mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2 text-sm font-medium animate-in slide-in-from-top-2">
-                    <AlertCircle size={16} /> {error}
+                    <AlertCircle size={16} className="shrink-0" /> 
+                    <span>{error}</span>
+                  </div>
+                )}
+                
+                {/* WARNING ALERT FOR HEAVY FILES */}
+                {warning && (
+                  <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-2 text-sm font-medium animate-in slide-in-from-top-2 relative">
+                    <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                    <div className="flex-1 pr-6">
+                      {warning}
+                    </div>
+                    <button 
+                      onClick={() => setWarning(null)} 
+                      className="absolute top-3 right-3 text-amber-500 hover:text-amber-800 transition-colors"
+                      title="Dismiss Warning"
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
 
@@ -1172,7 +1233,7 @@ export default function App() {
                         <Loader2 className="relative z-10 w-8 h-8 md:w-16 md:h-16 animate-spin text-rose-600" />
                       </div>
                       <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">
-                        {progress ? progress.status : 'Processing Documents in HD...'}
+                        {progress ? progress.status : (isHighQuality ? 'Processing Documents in HD...' : 'Processing Documents Fast...')}
                       </p>
                       
                       {/* Upload/Extract Progress Bar */}
