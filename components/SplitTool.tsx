@@ -20,7 +20,9 @@ import {
   Move,
   CheckSquare,
   Eye,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -111,10 +113,10 @@ function SortablePage({ page, idx, isSelected, onPageClick, onPreview }: Sortabl
           e.stopPropagation();
           onPreview(page);
         }}
-        className="absolute inset-0 m-auto w-10 h-10 bg-slate-900/60 backdrop-blur-sm text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:bg-rose-500 hover:scale-110 shadow-lg"
-        title="Preview Page"
+        className="absolute inset-0 m-auto w-12 h-12 bg-slate-900/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:bg-rose-500 hover:scale-110 shadow-2xl"
+        title="Magnify & Preview"
       >
-        <Eye size={20} />
+        <Eye size={24} />
       </button>
 
       <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
@@ -161,14 +163,23 @@ export default function App() {
   // ---------- STATE ----------
   const [pages, setPages] = useState<PageData[]>([]);
   const [selectedPages, setSelectedPages] = useState<Set<string>>(new Set());
-  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null); // For Shift+Click range selection
-  const [previewPage, setPreviewPage] = useState<PageData | null>(null); // For Full-Screen Preview
+  const [lastSelectedId, setLastSelectedId] = useState<string | null>(null);
+  
+  // Magnifier / Preview States
+  const [previewPage, setPreviewPage] = useState<PageData | null>(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset zoom when opening a new preview
+  useEffect(() => {
+    if (previewPage) setPreviewZoom(1);
+  }, [previewPage]);
 
   // Safe UUID generator
   const generateId = () => {
@@ -179,7 +190,6 @@ export default function App() {
   };
 
   // ---------- DND KIT SETUP ----------
-  // Distance constraint ensures click to select works without triggering drag
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -294,10 +304,9 @@ export default function App() {
           const loadedPdfJs: any = await loadPdfJs();
           const lib = loadedPdfJs.default || loadedPdfJs;
           
-          // Yeh function bina password wale PDFs process karega, 
-          // password-protected PDFs yahan error throw karenge
           const pdf = await lib.getDocument({ data: buff }).promise;
-          const scale = window.devicePixelRatio > 1 ? 0.5 : 0.35;
+          // SUPER IMPORTANT: Increased the scale significantly for HD zooming
+          const scale = window.devicePixelRatio > 1 ? 2.0 : 1.5;
 
           for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
@@ -361,7 +370,7 @@ export default function App() {
           await new Promise(res => setTimeout(res, 300));
 
           const fullCanvas = await html2canvas(container, {
-            scale: 1.5,
+            scale: 2.0, // HD Scale for docs
             useCORS: true,
             backgroundColor: '#ffffff',
             logging: false
@@ -410,7 +419,6 @@ export default function App() {
         }
       } catch (err: any) {
         console.error(`Error processing file ${file.name}:`, err);
-        // Password exception handling taaki crash prevent kiya ja sake
         if (err?.name === 'PasswordException' || err?.message?.toLowerCase().includes('password')) {
           errorMessages.push(`'${file.name}' password protected hai. Kripya isey unlock karein.`);
         } else {
@@ -468,7 +476,6 @@ export default function App() {
   // Shift+Click support for multiple selections
   const handlePageClick = (e: React.MouseEvent, id: string) => {
     if (e.shiftKey && lastSelectedId) {
-      // Find start and end indices
       const currentIndex = pages.findIndex(p => p.id === id);
       const lastIndex = pages.findIndex(p => p.id === lastSelectedId);
 
@@ -485,7 +492,6 @@ export default function App() {
         });
       }
     } else {
-      // Normal Toggle
       setSelectedPages(prev => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
@@ -499,17 +505,9 @@ export default function App() {
   // Mass Selection Helpers
   const selectAll = () => setSelectedPages(new Set(pages.map(p => p.id)));
   const deselectAll = () => setSelectedPages(new Set());
-  
-  // Odd pages usually mean visual Page 1, 3, 5 (index 0, 2, 4)
   const selectOdd = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 === 0).map(p => p.id)));
-  
-  // Even pages usually mean visual Page 2, 4, 6 (index 1, 3, 5)
   const selectEven = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 !== 0).map(p => p.id)));
-  
-  // Invert Selection
-  const invertSelection = () => {
-    setSelectedPages(new Set(pages.filter(p => !selectedPages.has(p.id)).map(p => p.id)));
-  };
+  const invertSelection = () => setSelectedPages(new Set(pages.filter(p => !selectedPages.has(p.id)).map(p => p.id)));
 
   const handleRotateSelected = () => {
     setPages(prev => prev.map(p => 
@@ -597,7 +595,6 @@ export default function App() {
           
           const embeddedPdf = await finalPdf.embedPage(copiedPage);
           
-          // PDFEmbeddedPage mein scaleToFit nahi hota, isliye manual width/height set kiya hai
           const scaleFactor = Math.min(A4_WIDTH / embeddedPdf.width, A4_HEIGHT / embeddedPdf.height);
           const dims = {
             width: embeddedPdf.width * scaleFactor,
@@ -725,7 +722,7 @@ export default function App() {
         <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
             <Zap size={12} className="fill-rose-600" />
-            V6.0 • Advanced Selection Tools & Drag Reorder
+            V6.0 • HD Zoom & Advanced Tools
           </div>
           <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
             Merge, Split & <br className="hidden md:block"/>
@@ -958,7 +955,7 @@ export default function App() {
                         <div className="absolute inset-0 bg-rose-200 rounded-full blur-xl animate-pulse" />
                         <Loader2 className="relative z-10 w-8 h-8 md:w-16 md:h-16 animate-spin text-rose-600" />
                       </div>
-                      <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">Processing Documents...</p>
+                      <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">Processing Documents in HD...</p>
                     </div>
                   ) : (
                     /* GRID EDITOR */
@@ -1097,36 +1094,68 @@ export default function App() {
 
       </div>
 
-      {/* FULL-SCREEN PREVIEW MODAL */}
+      {/* FULL-SCREEN MAGNIFIER / PREVIEW MODAL */}
       {previewPage && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md animate-in fade-in duration-200"
           onClick={() => setPreviewPage(null)}
         >
+          {/* Zoom & Info Controls Overlay */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-2 md:gap-4 bg-slate-800/90 p-2 md:px-4 md:py-3 rounded-full border border-slate-700/50 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <button 
+              onClick={() => setPreviewZoom(z => Math.max(0.5, z - 0.5))} 
+              className="text-white hover:text-rose-400 p-2 bg-slate-700/50 hover:bg-slate-700 rounded-full transition-colors"
+              title="Zoom Out"
+            >
+              <ZoomOut size={20} />
+            </button>
+            <div className="flex flex-col items-center justify-center text-white px-2 md:px-4">
+              <span className="text-xs md:text-sm font-bold text-rose-400">{Math.round(previewZoom * 100)}%</span>
+              <span className="text-[10px] opacity-60 hidden md:block">Click image to magnify</span>
+            </div>
+            <button 
+              onClick={() => setPreviewZoom(z => Math.min(4, z + 0.5))} 
+              className="text-white hover:text-emerald-400 p-2 bg-slate-700/50 hover:bg-slate-700 rounded-full transition-colors"
+              title="Zoom In"
+            >
+              <ZoomIn size={20} />
+            </button>
+          </div>
+
+          <div className="absolute top-4 left-4 z-[110] text-white/90 bg-slate-800/80 px-4 py-2 rounded-full shadow-lg backdrop-blur text-xs md:text-sm border border-slate-700/50 pointer-events-none">
+            <span className="font-bold text-rose-400">Page {previewPage.pageIndex + 1}</span>
+            <span className="mx-2 opacity-30">•</span> 
+            <span>{previewPage.fileName}</span> 
+          </div>
+
           <button
             onClick={() => setPreviewPage(null)}
-            className="absolute top-4 right-4 md:top-6 md:right-6 text-white/70 hover:text-white bg-slate-800/50 hover:bg-rose-500 p-2 rounded-full transition-all z-50"
+            className="absolute top-4 right-4 z-[110] text-white/70 hover:text-white bg-slate-800/50 hover:bg-rose-500 p-3 rounded-full transition-all shadow-lg"
+            title="Close Preview"
           >
             <X size={24} />
           </button>
           
-          <div 
-            className="relative max-w-5xl max-h-[90vh] w-full flex flex-col items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-slate-50 p-2 md:p-4 rounded-xl shadow-2xl relative overflow-hidden flex items-center justify-center w-auto max-w-full">
+          {/* Image Container setup for native scrolling when magnified */}
+          <div className="w-full h-full overflow-auto flex pt-16 pb-24 px-4 custom-scrollbar">
+            <div 
+              className="m-auto flex items-center justify-center transition-all duration-300 ease-out"
+              onClick={(e) => {
+                e.stopPropagation();
+                // Click to cycle zoom levels: 1x -> 2x -> 3x -> back to 1x
+                setPreviewZoom(z => z >= 3 ? 1 : z + 1);
+              }}
+              style={{ cursor: previewZoom >= 3 ? 'zoom-out' : 'zoom-in' }}
+            >
                <img
                  src={previewPage.imageUrl}
                  alt={previewPage.fileName}
-                 style={{ transform: `rotate(${previewPage.rotation}deg)` }}
-                 className="max-w-full max-h-[75vh] md:max-h-[80vh] object-contain transition-transform duration-300"
+                 style={{ 
+                   height: `${85 * previewZoom}vh`,
+                   transform: `rotate(${previewPage.rotation}deg)` 
+                 }}
+                 className="max-w-none object-contain shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-lg"
                />
-            </div>
-            <div className="mt-4 md:mt-6 text-white font-medium text-center bg-slate-800/50 px-4 py-2 rounded-full shadow-lg backdrop-blur-md border border-slate-700/50">
-              <span className="opacity-70">{previewPage.fileName}</span> 
-              <span className="mx-2 opacity-30">•</span> 
-              <span>Page {previewPage.pageIndex + 1}</span>
-              {previewPage.isDocxRendered && <span className="ml-2 text-rose-400">(DOCX)</span>}
             </div>
           </div>
         </div>
