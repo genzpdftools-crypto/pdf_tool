@@ -173,6 +173,9 @@ export default function App() {
   const [previewPage, setPreviewPage] = useState<PageData | null>(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   
+  // Range Selection State
+  const [rangeInput, setRangeInput] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -570,6 +573,52 @@ export default function App() {
   const selectEven = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 !== 0).map(p => p.id)));
   const invertSelection = () => setSelectedPages(new Set(pages.filter(p => !selectedPages.has(p.id)).map(p => p.id)));
 
+  // Custom Range Selection Logic
+  const applyRangeSelection = () => {
+    if (!rangeInput.trim()) {
+      setSelectedPages(new Set()); // Agar input khali hai toh sab deselect kar do
+      return;
+    }
+    
+    const parts = rangeInput.split(',');
+    const newSelectedIndices = new Set<number>();
+    
+    parts.forEach(part => {
+      const trimmed = part.trim();
+      if (!trimmed) return;
+      
+      // Range check for hyphen (e.g., 1-5)
+      if (trimmed.includes('-')) {
+        const [startStr, endStr] = trimmed.split('-');
+        const start = parseInt(startStr, 10);
+        const end = parseInt(endStr, 10);
+        
+        if (!isNaN(start) && !isNaN(end)) {
+          const min = Math.max(1, Math.min(start, end));
+          const max = Math.min(pages.length, Math.max(start, end));
+          for (let i = min; i <= max; i++) {
+            newSelectedIndices.add(i - 1); // 0-based index ke liye -1 kiya
+          }
+        }
+      } else {
+        // Single number check (e.g., 8)
+        const num = parseInt(trimmed, 10);
+        if (!isNaN(num) && num >= 1 && num <= pages.length) {
+          newSelectedIndices.add(num - 1);
+        }
+      }
+    });
+    
+    const newSelectedIds = new Set<string>();
+    newSelectedIndices.forEach(idx => {
+      if (pages[idx]) {
+        newSelectedIds.add(pages[idx].id);
+      }
+    });
+    
+    setSelectedPages(newSelectedIds);
+  };
+
   const handleRotateSelected = () => {
     if (selectedPages.size === 0) return;
     setPages(prev => {
@@ -938,6 +987,26 @@ export default function App() {
                           <button onClick={invertSelection} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Invert Selection</button>
                         </div>
                       </div>
+                    </div>
+
+                    {/* NEW: Range Input Tool */}
+                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200 focus-within:border-indigo-300 focus-within:ring-1 focus-within:ring-indigo-300 transition-all">
+                      <input
+                        type="text"
+                        placeholder="e.g. 1-5, 8"
+                        value={rangeInput}
+                        onChange={(e) => setRangeInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && applyRangeSelection()}
+                        className="w-20 md:w-28 text-xs md:text-sm px-2 py-1 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400"
+                        title="Enter page ranges (e.g. 1-3, 5)"
+                      />
+                      <button
+                        onClick={applyRangeSelection}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-600 text-xs font-bold rounded shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors"
+                        title="Apply Range"
+                      >
+                        Go
+                      </button>
                     </div>
 
                     {/* Undo/Redo Actions */}
