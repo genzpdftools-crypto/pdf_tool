@@ -1100,7 +1100,8 @@ export default function App() {
 
         {/* MAIN CARD */}
         <div className="relative z-10">
-          <div className="bg-white/60 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-rose-900/5 border border-white/60 overflow-hidden min-h-[400px] md:min-h-[500px] transition-all duration-500">
+          {/* REMOVED overflow-hidden from here and added flex-col relative */}
+          <div className="bg-white/60 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-rose-900/5 border border-white/60 min-h-[400px] md:min-h-[500px] transition-all duration-500 flex flex-col relative">
             
             {pages.length === 0 && !isLoading ? (
               /* ---------- UPLOAD STATE ---------- */
@@ -1175,7 +1176,7 @@ export default function App() {
               <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-500">
                 
                 {/* STICKY TOOLBAR */}
-                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all gap-3 sm:gap-4">
+                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all gap-3 sm:gap-4 rounded-t-[1.5rem] md:rounded-t-[2.5rem]">
                   
                   {/* Left: Info */}
                   <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full sm:w-auto">
@@ -1193,7 +1194,7 @@ export default function App() {
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto">
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto relative">
                     
                     {/* QUALITY TOGGLE */}
                     <button
@@ -1235,15 +1236,15 @@ export default function App() {
                         <CheckSquare size={16} /> <span className="hidden sm:inline">Select</span>
                         <ChevronDown size={14} className="opacity-70" />
                       </button>
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-44 sm:w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-[60]">
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 max-w-[90vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-[60]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select All</button>
-                          <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Deselect All</button>
+                          <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select All</button>
+                          <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Deselect All</button>
                           <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Odd Pages</button>
-                          <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Even Pages</button>
+                          <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Odd Pages</button>
+                          <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Even Pages</button>
                           <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Invert Selection</button>
+                          <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Invert Selection</button>
                         </div>
                       </div>
                     </div>
@@ -1252,11 +1253,11 @@ export default function App() {
                     <div className="flex items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200 focus-within:border-indigo-300 focus-within:ring-1 focus-within:ring-indigo-300 transition-all">
                       <input
                         type="text"
-                        placeholder="e.g. 1-5, 8"
+                        placeholder="e.g. 1-5"
                         value={rangeInput}
                         onChange={(e) => setRangeInput(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && applyRangeSelection()}
-                        className="w-20 md:w-28 text-xs md:text-sm px-2 py-1 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400"
+                        className="w-16 md:w-20 text-xs md:text-sm px-2 py-1 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400"
                         title="Enter page ranges (e.g. 1-3, 5)"
                       />
                       <button
@@ -1338,16 +1339,17 @@ export default function App() {
                         <ChevronDown size={14} className="opacity-70" />
                       </button>
                       
-                      <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[220px] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[60]">
+                      {/* Fixed Dropdown Position & Width */}
+                      <div className="absolute right-0 top-full mt-2 w-56 max-w-[85vw] bg-white rounded-xl shadow-2xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-[100]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            <FileText size={16} className="shrink-0" /> Export as PDF
+                          <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
+                            <FileText size={16} className="shrink-0" /> <span className="truncate">Export as PDF</span>
                           </button>
-                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            <ImageIcon size={16} className="shrink-0" /> Export as JPGs
+                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
+                            <ImageIcon size={16} className="shrink-0" /> <span className="truncate">Export as JPGs</span>
                           </button>
-                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            <ImageIcon size={16} className="shrink-0" /> Export as PNGs
+                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
+                            <ImageIcon size={16} className="shrink-0" /> <span className="truncate">Export as PNGs</span>
                           </button>
 
                           <div className="h-px bg-slate-100 my-1"></div>
@@ -1355,11 +1357,11 @@ export default function App() {
                           {/* Bulk Split Settings */}
                           <div className="px-2 sm:px-3 py-1">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bulk Split (Fixed Chunks)</p>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5 mt-1">
                               <input
                                 type="number"
                                 min="1"
-                                placeholder="Pages/PDF"
+                                placeholder="Pages"
                                 value={chunkSize}
                                 onChange={(e) => setChunkSize(e.target.value)}
                                 className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
@@ -1367,7 +1369,7 @@ export default function App() {
                               <button
                                 onClick={downloadAsChunks}
                                 disabled={!chunkSize || isProcessing}
-                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded shadow-sm border border-rose-200 transition-colors disabled:opacity-50"
+                                className="px-2 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded shadow-sm border border-rose-200 transition-colors disabled:opacity-50 shrink-0"
                               >
                                 Split
                               </button>
@@ -1407,7 +1409,8 @@ export default function App() {
                 )}
 
                 {/* MAIN CONTENT AREA */}
-                <div className="p-3 md:p-10 bg-slate-50/50 flex-1 overflow-y-auto min-h-[50vh] md:min-h-[60vh]">
+                {/* ADDED: rounded-b styling to keep corners since overflow-hidden is removed from parent */}
+                <div className="p-3 md:p-10 bg-slate-50/50 flex-1 overflow-y-auto min-h-[50vh] md:min-h-[60vh] rounded-b-[1.5rem] md:rounded-b-[2.5rem]">
                   
                   {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-12 md:py-32">
