@@ -173,8 +173,9 @@ export default function App() {
   const [previewPage, setPreviewPage] = useState<PageData | null>(null);
   const [previewZoom, setPreviewZoom] = useState(1);
   
-  // Range Selection State
+  // Range & Bulk Selection States
   const [rangeInput, setRangeInput] = useState('');
+  const [chunkSize, setChunkSize] = useState<string>(''); // NEW: For Fixed Chunk Splitting
   
   // Quality & Performance States
   const [isHighQuality, setIsHighQuality] = useState(true);
@@ -319,7 +320,7 @@ export default function App() {
     });
   };
 
-  // ZIP loader add kiya gaya hai images bundle karne ke liye
+  // ZIP loader add kiya gaya hai images/bulk PDFs bundle karne ke liye
   const loadJSZip = async () => {
     if ((window as any).JSZip) return (window as any).JSZip;
     return new Promise((resolve, reject) => {
@@ -720,6 +721,7 @@ export default function App() {
     setError(null);
     setWarning(null);
     setProgress(null);
+    setChunkSize('');
   };
 
   const getRotatedImageUrl = async (src: string, rot: number): Promise<string> => {
@@ -927,6 +929,114 @@ export default function App() {
     }
   };
 
+  // NEW: Download Bulk Split Chunks as ZIP
+  const downloadAsChunks = async () => {
+    const size = parseInt(chunkSize, 10);
+    if (isNaN(size) || size <= 0) {
+      setError('Kripya split karne ke liye ek valid number daalein (jaise ki 10).');
+      return;
+    }
+
+    const exportPages = selectedPages.size > 0 
+      ? pages.filter(p => selectedPages.has(p.id)) 
+      : pages;
+
+    if (exportPages.length === 0) return;
+    
+    setIsProcessing(true);
+    setProgress({ current: 0, total: exportPages.length, status: 'Preparing Bulk Split...' });
+
+    try {
+      const PDFLib: any = await loadPdfLib();
+      const { PDFDocument, degrees } = PDFLib;
+      const JSZip: any = await loadJSZip();
+      
+      const zip = new JSZip();
+      const pdfFolder = zip.folder(`genzpdf-split-${Date.now()}`);
+      
+      const A4_WIDTH = 595.28;
+      const A4_HEIGHT = 841.89;
+      const parsedPdfs = new Map<string, any>();
+
+      let processedCount = 0;
+      let chunkIndex = 1;
+
+      // Loop over pages in chunks
+      for (let i = 0; i < exportPages.length; i += size) {
+        const chunkPages = exportPages.slice(i, i + size);
+        const chunkPdf = await PDFDocument.create();
+
+        for (const p of chunkPages) {
+          if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
+            let sourcePdf = parsedPdfs.get(p.fileId);
+            if (!sourcePdf) {
+              const buf = await p.originalFile.arrayBuffer();
+              sourcePdf = await PDFDocument.load(buf);
+              parsedPdfs.set(p.fileId, sourcePdf);
+            }
+            const [copiedPage] = await chunkPdf.copyPages(sourcePdf, [p.pageIndex]);
+            const currentRotation = copiedPage.getRotation().angle;
+            
+            copiedPage.setRotation(degrees(currentRotation + p.rotation));
+            chunkPdf.addPage(copiedPage);
+
+          } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
+            const page = chunkPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+            
+            const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
+            const response = await fetch(rotatedSrc);
+            const buf = await response.arrayBuffer();
+            
+            const uint8 = new Uint8Array(buf);
+            const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
+            
+            let img = isPng ? await chunkPdf.embedPng(buf) : await chunkPdf.embedJpg(buf);
+            const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
+            
+            page.drawImage(img, { 
+              x: (A4_WIDTH - dims.width) / 2, 
+              y: (A4_HEIGHT - dims.height) / 2, 
+              width: dims.width, 
+              height: dims.height 
+            });
+          }
+          
+          processedCount++;
+          setProgress({ current: processedCount, total: exportPages.length, status: `Generating PDF part ${chunkIndex}...` });
+          await new Promise(res => setTimeout(res, 10)); // Yield to keep UI smooth
+        }
+
+        const pdfBytes = await chunkPdf.save();
+        if (pdfFolder) {
+          pdfFolder.file(`part-${chunkIndex}.pdf`, pdfBytes);
+        }
+        chunkIndex++;
+      }
+
+      setProgress({ current: exportPages.length, total: exportPages.length, status: `Zipping ${chunkIndex - 1} PDFs...` });
+      await new Promise(res => setTimeout(res, 50)); 
+
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      
+      const a = document.createElement('a');
+      a.href = zipUrl;
+      a.download = `genzpdf-bulk-split-${Date.now()}.zip`;
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      URL.revokeObjectURL(zipUrl);
+    } catch (e) {
+      console.error(e);
+      setError('Bulk Split generate karne mein error aaya.');
+    } finally {
+      setIsProcessing(false);
+      setProgress(null);
+    }
+  };
+
   // ---------- RENDER ----------
   return (
     <div className="min-h-screen bg-[#FDF8F6] font-sans text-slate-900 selection:bg-rose-100 selection:text-rose-700 pb-10 md:pb-20">
@@ -974,7 +1084,7 @@ export default function App() {
         <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
             <Zap size={12} className="fill-rose-600" />
-            V6.0 • HD Zoom & Advanced Tools
+            V6.0 • HD Zoom & Bulk Tools
           </div>
           <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
             Merge, Split & <br className="hidden md:block"/>
@@ -1217,7 +1327,7 @@ export default function App() {
                       <RefreshCcw size={16} />
                     </button>
 
-                    {/* RESPONSIVE: Download Dropdown */}
+                    {/* RESPONSIVE: Download Dropdown with Bulk Split */}
                     <div className="relative group inline-block">
                       <button
                         disabled={pages.length === 0 || isProcessing}
@@ -1228,7 +1338,7 @@ export default function App() {
                         <ChevronDown size={14} className="opacity-70" />
                       </button>
                       
-                      <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-44 sm:w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[60]">
+                      <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[220px] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[60]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
                           <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
                             <FileText size={16} className="shrink-0" /> Export as PDF
@@ -1239,6 +1349,31 @@ export default function App() {
                           <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
                             <ImageIcon size={16} className="shrink-0" /> Export as PNGs
                           </button>
+
+                          <div className="h-px bg-slate-100 my-1"></div>
+                          
+                          {/* Bulk Split Settings */}
+                          <div className="px-2 sm:px-3 py-1">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bulk Split (Fixed Chunks)</p>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="Pages/PDF"
+                                value={chunkSize}
+                                onChange={(e) => setChunkSize(e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
+                              />
+                              <button
+                                onClick={downloadAsChunks}
+                                disabled={!chunkSize || isProcessing}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded shadow-sm border border-rose-200 transition-colors disabled:opacity-50"
+                              >
+                                Split
+                              </button>
+                            </div>
+                          </div>
+
                         </div>
                       </div>
                     </div>
