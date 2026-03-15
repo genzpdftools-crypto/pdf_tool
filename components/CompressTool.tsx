@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { FileUploader } from './FileUploader';
 import { clsx } from 'clsx';
+import SEO from './SEO'; // Humara naya Master SEO Component
 
 /**
  * 🚀 PROFESSIONAL COMPRESS TOOL – REDESIGNED & SEO‑OPTIMIZED
@@ -34,7 +35,7 @@ export const CompressTool: React.FC = () => {
   const TOOL_NAME = 'Free PDF & Image Compressor – Reduce File Size Instantly';
   const TOOL_DESCRIPTION =
     'Compress PDF, JPG, PNG and WebP files directly in your browser. 100% secure, no upload, no file size limits. Get the smallest file without visible quality loss.';
-  const CANONICAL_URL = 'https://genzpdf.com'; // 🔁 Replace with your actual URL
+  const CANONICAL_URL = 'https://genzpdf.com/compress-pdf'; // 🔁 Replace with your actual URL
   const SITE_NAME = 'Genz PDF'; // 🔁 Replace
 
   // ---------- STATE ----------
@@ -89,76 +90,8 @@ export const CompressTool: React.FC = () => {
     initPdfWorker();
   }, []);
 
-  // ---------- ✅ COMPLETE SEO META TAGS (dynamic title + static) ----------
-  useEffect(() => {
-    document.title = file ? `Compress ${file.name} - ${TOOL_NAME}` : TOOL_NAME;
-
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute('content', TOOL_DESCRIPTION);
-
-    const setOrCreateMeta = (selector: string, attributes: Record<string, string>) => {
-      let meta = document.querySelector(selector);
-      if (!meta) {
-        meta = document.createElement('meta');
-        document.head.appendChild(meta);
-      }
-      Object.entries(attributes).forEach(([key, val]) => meta!.setAttribute(key, val));
-    };
-
-    setOrCreateMeta('meta[property="og:title"]', { property: 'og:title', content: TOOL_NAME });
-    setOrCreateMeta('meta[property="og:description"]', {
-      property: 'og:description',
-      content: TOOL_DESCRIPTION,
-    });
-    setOrCreateMeta('meta[property="og:url"]', { property: 'og:url', content: CANONICAL_URL });
-    setOrCreateMeta('meta[property="og:type"]', { property: 'og:type', content: 'website' });
-    setOrCreateMeta('meta[property="og:image"]', {
-      property: 'og:image',
-      content: 'https://yourdomain.com/og-image.jpg', // 🔁
-    });
-
-    setOrCreateMeta('meta[name="twitter:card"]', { name: 'twitter:card', content: 'summary_large_image' });
-    setOrCreateMeta('meta[name="twitter:title"]', { name: 'twitter:title', content: TOOL_NAME });
-    setOrCreateMeta('meta[name="twitter:description"]', {
-      name: 'twitter:description',
-      content: TOOL_DESCRIPTION,
-    });
-    setOrCreateMeta('meta[name="twitter:image"]', {
-      name: 'twitter:image',
-      content: 'https://yourdomain.com/twitter-image.jpg', // 🔁
-    });
-
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', CANONICAL_URL);
-
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) {
-      robots = document.createElement('meta');
-      robots.setAttribute('name', 'robots');
-      document.head.appendChild(robots);
-    }
-    robots.setAttribute('content', 'index, follow');
-
-    let themeColor = document.querySelector('meta[name="theme-color"]');
-    if (!themeColor) {
-      themeColor = document.createElement('meta');
-      themeColor.setAttribute('name', 'theme-color');
-      document.head.appendChild(themeColor);
-    }
-    themeColor.setAttribute('content', '#f97316');
-  }, [file]);
-
   // ---------- ✅ STRUCTURED DATA (JSON‑LD) – FAQ + SoftwareApplication ----------
+  // Isko maine nahi hataya kyunki isme tumhare specific FAQ aur Rating schema hai jo Google ranking ke liye mast hai
   useEffect(() => {
     const scriptId = 'json-ld-compressor';
     let scriptTag = document.getElementById(scriptId) as HTMLScriptElement | null;
@@ -238,7 +171,7 @@ export const CompressTool: React.FC = () => {
           isPartOf: {
             '@type': 'WebSite',
             name: SITE_NAME,
-            url: 'https://yourdomain.com', // 🔁
+            url: 'https://genzpdf.com', // 🔁
           },
         },
       ],
@@ -444,6 +377,15 @@ export const CompressTool: React.FC = () => {
   // ---------- RICH UI (redesigned, mobile‑optimized) ----------
   return (
     <div className="w-full max-w-5xl mx-auto px-3 py-4 sm:px-4 sm:py-8 font-sans text-slate-900">
+      
+      {/* ===== YAHAN HUMNE APNA MASTER SEO COMPONENT LAGA DIYA ===== */}
+      <SEO 
+        title={file ? `Compress ${file.name} - ${TOOL_NAME}` : TOOL_NAME} 
+        description={TOOL_DESCRIPTION} 
+        url="/compress-pdf" 
+        type="website" // type "website" rakha hai kyunki custom Software schema tumhare useEffect me niche se aayega
+      />
+
       {/* ===== HERO HEADER ===== */}
       <header className="text-center mb-8 md:mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-100 text-orange-700 text-[10px] md:text-xs font-bold uppercase tracking-wide mb-4 md:mb-6">
