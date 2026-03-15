@@ -26,7 +26,8 @@ import {
   Undo,
   Redo,
   Copy,
-  File as FileIcon
+  File as FileIcon,
+  ArrowDownAZ
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -280,7 +281,7 @@ export default function App() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pages, past, future, selectedPages]); // selectedPages dependency mein add karna zaroori tha
+  }, [pages, past, future, selectedPages]);
 
   // Safe UUID generator
   const generateId = () => {
@@ -294,7 +295,7 @@ export default function App() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   };
 
-  // ---------- NEW FEATURES: DUPLICATE & ADD BLANK PAGE ----------
+  // ---------- NEW FEATURES: DUPLICATE, BLANK PAGE & SORT ----------
 
   const handleDuplicatePage = (pageToDuplicate: PageData) => {
     setPages(prev => {
@@ -359,6 +360,20 @@ export default function App() {
       console.error("Blank Page generation me error: ", err);
       setError("Blank page add karne mein kuch dikkat aayi.");
     }
+  };
+
+  const handleSortAZ = () => {
+    if (pages.length <= 1) return;
+    setPages(prev => {
+      // Numeric true ensures that 'Image10' comes after 'Image2' naturally
+      const next = [...prev].sort((a, b) => 
+        a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' })
+      );
+      
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
   };
 
   // ---------- DND KIT SETUP ----------
@@ -1469,7 +1484,7 @@ export default function App() {
                       accept=".pdf,.jpg,.jpeg,.png,.docx"
                     />
                     
-                    {/* ADD FILES & BLANK PAGE BUTTONS */}
+                    {/* ADD FILES, BLANK PAGE & SORT BUTTONS */}
                     <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
                       <button 
                         onClick={() => fileInputRef.current?.click()}
@@ -1484,6 +1499,14 @@ export default function App() {
                         title="Add Blank Page"
                       >
                         <FileIcon size={16} /> <span className="hidden sm:inline">Blank</span>
+                      </button>
+                      <button 
+                        onClick={handleSortAZ}
+                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold disabled:opacity-50"
+                        title="Sort Pages A-Z"
+                        disabled={pages.length <= 1}
+                      >
+                        <ArrowDownAZ size={16} /> <span className="hidden sm:inline">Sort A-Z</span>
                       </button>
                     </div>
 
