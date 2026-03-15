@@ -24,7 +24,9 @@ import {
   ZoomIn,
   ZoomOut,
   Undo,
-  Redo
+  Redo,
+  Copy,
+  File
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -64,10 +66,11 @@ interface SortablePageProps {
   isSelected: boolean;
   onPageClick: (e: React.MouseEvent, id: string) => void;
   onPreview: (page: PageData) => void;
+  onDuplicate: (page: PageData) => void;
 }
 
 // Drag & Drop Sortable Page Component
-function SortablePage({ page, idx, isSelected, onPageClick, onPreview }: SortablePageProps) {
+function SortablePage({ page, idx, isSelected, onPageClick, onPreview, onDuplicate }: SortablePageProps) {
   const {
     attributes,
     listeners,
@@ -111,17 +114,32 @@ function SortablePage({ page, idx, isSelected, onPageClick, onPreview }: Sortabl
         <Move size={14} />
       </div>
 
-      {/* Preview Button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onPreview(page);
-        }}
-        className="absolute inset-0 m-auto w-12 h-12 bg-slate-900/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all z-40 hover:bg-rose-500 hover:scale-110 shadow-2xl"
-        title="Magnify & Preview"
-      >
-        <Eye size={24} />
-      </button>
+      {/* Center Actions: Preview & Duplicate */}
+      <div className="absolute inset-0 m-auto flex items-center justify-center gap-2 md:gap-3 opacity-0 group-hover:opacity-100 transition-all z-40 pointer-events-none">
+        {/* Preview Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onPreview(page);
+          }}
+          className="w-10 h-10 md:w-12 md:h-12 bg-slate-900/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-rose-500 hover:scale-110 shadow-2xl pointer-events-auto transition-transform"
+          title="Magnify & Preview"
+        >
+          <Eye size={20} className="md:w-6 md:h-6" />
+        </button>
+        
+        {/* Duplicate Button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate(page);
+          }}
+          className="w-10 h-10 md:w-12 md:h-12 bg-slate-900/70 backdrop-blur-sm text-white rounded-full flex items-center justify-center hover:bg-emerald-500 hover:scale-110 shadow-2xl pointer-events-auto transition-transform"
+          title="Duplicate Page"
+        >
+          <Copy size={18} className="md:w-5 md:h-5" />
+        </button>
+      </div>
 
       <div className="absolute inset-0 flex items-center justify-center p-2 bg-slate-50">
         <img
@@ -248,6 +266,73 @@ export default function App() {
       return crypto.randomUUID();
     }
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
+  };
+
+  // ---------- NEW FEATURES: DUPLICATE & ADD BLANK PAGE ----------
+
+  const handleDuplicatePage = (pageToDuplicate: PageData) => {
+    setPages(prev => {
+      const index = prev.findIndex(p => p.id === pageToDuplicate.id);
+      if (index === -1) return prev;
+      
+      // Page ki nayi ID aur naam generate karo taaki react map me conflict na aaye
+      const newPage: PageData = {
+        ...pageToDuplicate,
+        id: generateId(),
+        fileName: `${pageToDuplicate.fileName} (Copy)`
+      };
+      
+      const next = [...prev];
+      next.splice(index + 1, 0, newPage); // Original page ke theek baad insert karo
+
+      // History maintain karo Undo/Redo ke liye
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
+  };
+
+  const handleAddBlankPage = () => {
+    // Ek temporary white canvas generate karo
+    const canvas = document.createElement('canvas');
+    canvas.width = 595; // A4 standard width
+    canvas.height = 842; // A4 standard height
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    const dataUrl = canvas.toDataURL('image/jpeg');
+
+    // Dummy File create karna taaki download logic tut na jaye
+    const byteString = atob(dataUrl.split(',')[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    const blob = new Blob([ab], { type: 'image/jpeg' });
+    const dummyFile = new File([blob], "Blank Page.jpg", { type: "image/jpeg" });
+
+    const newPage: PageData = {
+      id: generateId(),
+      fileId: generateId(),
+      fileType: 'image/jpeg',
+      pageIndex: 0,
+      imageUrl: dataUrl,
+      rotation: 0,
+      originalFile: dummyFile,
+      fileName: "Blank Page",
+      width: 595,
+      height: 842
+    };
+
+    setPages(prev => {
+      const next = [...prev, newPage]; // List ke aakhir me blank page jod diya
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
   };
 
   // ---------- DND KIT SETUP ----------
@@ -1248,7 +1333,7 @@ export default function App() {
                       title={isHighQuality ? "High Quality rendering (may use more memory)" : "Fast Mode rendering (uses less memory)"}
                     >
                       <Zap size={16} className={isHighQuality ? "fill-rose-500" : ""} />
-                      <span className="hidden sm:inline">{isHighQuality ? "HD Mode" : "Fast Mode"}</span>
+                      <span className="hidden lg:inline">{isHighQuality ? "HD Mode" : "Fast Mode"}</span>
                     </button>
 
                     <input 
@@ -1259,13 +1344,24 @@ export default function App() {
                       onChange={handleHiddenFileInput}
                       accept=".pdf,.jpg,.jpeg,.png,.docx"
                     />
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold"
-                      title="Add More Files"
-                    >
-                      <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
-                    </button>
+                    
+                    {/* ADD FILES & BLANK PAGE BUTTONS */}
+                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
+                      <button 
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
+                        title="Add More Files"
+                      >
+                        <Plus size={16} /> <span className="hidden sm:inline">Files</span>
+                      </button>
+                      <button 
+                        onClick={handleAddBlankPage}
+                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
+                        title="Add Blank Page"
+                      >
+                        <File size={16} /> <span className="hidden sm:inline">Blank</span>
+                      </button>
+                    </div>
 
                     {/* RESPONSIVE: Selection Tools Dropdown (With Landscape & Portrait) */}
                     <div className="relative group inline-block">
@@ -1283,7 +1379,6 @@ export default function App() {
                           
                           <div className="h-px bg-slate-100 my-1"></div>
                           
-                          {/* Naya Landscape aur Portrait Feature */}
                           <button onClick={selectLandscape} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Landscape Pages</button>
                           <button onClick={selectPortrait} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Portrait Pages</button>
                           
@@ -1388,16 +1483,16 @@ export default function App() {
                       </button>
                       
                       {/* Fixed Dropdown Position & Width */}
-                      <div className="absolute right-0 top-full mt-2 w-56 max-w-[85vw] bg-white rounded-xl shadow-2xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-[100]">
+                      <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[220px] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[100]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <FileText size={16} className="shrink-0" /> <span className="truncate">Export as PDF</span>
+                          <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            <FileText size={16} className="shrink-0" /> Export as PDF
                           </button>
-                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <ImageIcon size={16} className="shrink-0" /> <span className="truncate">Export as JPGs</span>
+                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            <ImageIcon size={16} className="shrink-0" /> Export as JPGs
                           </button>
-                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <ImageIcon size={16} className="shrink-0" /> <span className="truncate">Export as PNGs</span>
+                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            <ImageIcon size={16} className="shrink-0" /> Export as PNGs
                           </button>
 
                           <div className="h-px bg-slate-100 my-1"></div>
@@ -1405,7 +1500,7 @@ export default function App() {
                           {/* Bulk Split Settings */}
                           <div className="px-2 sm:px-3 py-1">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Bulk Split (Fixed Chunks)</p>
-                            <div className="flex items-center gap-1.5 mt-1">
+                            <div className="flex items-center gap-2 mt-1">
                               <input
                                 type="number"
                                 min="1"
@@ -1517,6 +1612,7 @@ export default function App() {
                                 isSelected={selectedPages.has(p.id)}
                                 onPageClick={handlePageClick}
                                 onPreview={setPreviewPage}
+                                onDuplicate={handleDuplicatePage}
                               />
                             ))}
                             
@@ -1528,7 +1624,18 @@ export default function App() {
                               <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                                 <Plus size={24} />
                               </div>
-                              <span className="text-sm font-bold">Add Page</span>
+                              <span className="text-sm font-bold">Add File</span>
+                            </div>
+
+                            {/* Quick Add Blank Tile */}
+                            <div 
+                              onClick={handleAddBlankPage}
+                              className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-emerald-50 hover:border-emerald-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500"
+                            >
+                              <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <File size={24} />
+                              </div>
+                              <span className="text-sm font-bold">Add Blank</span>
                             </div>
                           </div>
                         </SortableContext>
