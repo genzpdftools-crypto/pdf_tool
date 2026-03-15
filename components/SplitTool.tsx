@@ -1116,7 +1116,7 @@ export default function App() {
                       <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
                     </button>
 
-                    {/* NEW: Selection Tools Dropdown */}
+                    {/* RESPONSIVE: Selection Tools Dropdown */}
                     <div className="relative group inline-block">
                       <button
                         disabled={pages.length === 0}
@@ -1125,20 +1125,20 @@ export default function App() {
                         <CheckSquare size={16} /> <span className="hidden sm:inline">Select</span>
                         <ChevronDown size={14} className="opacity-70" />
                       </button>
-                      <div className="absolute left-0 sm:-left-12 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-50">
-                        <div className="p-2 flex flex-col gap-1">
-                          <button onClick={selectAll} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select All</button>
-                          <button onClick={deselectAll} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Deselect All</button>
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-44 sm:w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-[60]">
+                        <div className="p-1.5 sm:p-2 flex flex-col gap-1">
+                          <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select All</button>
+                          <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Deselect All</button>
                           <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={selectOdd} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Odd Pages</button>
-                          <button onClick={selectEven} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Even Pages</button>
+                          <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Odd Pages</button>
+                          <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Even Pages</button>
                           <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={invertSelection} className="text-left px-3 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Invert Selection</button>
+                          <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Invert Selection</button>
                         </div>
                       </div>
                     </div>
 
-                    {/* NEW: Range Input Tool */}
+                    {/* Range Input Tool */}
                     <div className="flex items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200 focus-within:border-indigo-300 focus-within:ring-1 focus-within:ring-indigo-300 transition-all">
                       <input
                         type="text"
@@ -1217,7 +1217,7 @@ export default function App() {
                       <RefreshCcw size={16} />
                     </button>
 
-                    {/* Download Dropdown */}
+                    {/* RESPONSIVE: Download Dropdown */}
                     <div className="relative group inline-block">
                       <button
                         disabled={pages.length === 0 || isProcessing}
@@ -1228,16 +1228,16 @@ export default function App() {
                         <ChevronDown size={14} className="opacity-70" />
                       </button>
                       
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50">
-                        <div className="p-2 flex flex-col gap-1">
-                          <button onClick={downloadAsPdf} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <FileText size={16} /> Export as PDF
+                      <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-44 sm:w-48 bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[60]">
+                        <div className="p-1.5 sm:p-2 flex flex-col gap-1">
+                          <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            <FileText size={16} className="shrink-0" /> Export as PDF
                           </button>
-                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <ImageIcon size={16} /> Export as JPGs
+                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            <ImageIcon size={16} className="shrink-0" /> Export as JPGs
                           </button>
-                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-3 w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors">
-                            <ImageIcon size={16} /> Export as PNGs
+                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                            <ImageIcon size={16} className="shrink-0" /> Export as PNGs
                           </button>
                         </div>
                       </div>
