@@ -319,6 +319,18 @@ export default function App() {
     });
   };
 
+  // ZIP loader add kiya gaya hai images bundle karne ke liye
+  const loadJSZip = async () => {
+    if ((window as any).JSZip) return (window as any).JSZip;
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+      script.onload = () => resolve((window as any).JSZip);
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  };
+
   // ---------- MASTER SEO INJECTION & PDF WORKER INIT ----------
   useEffect(() => {
     document.title = SEO.title;
@@ -833,9 +845,20 @@ export default function App() {
 
     if (exportPages.length === 0) return;
     setIsProcessing(true);
-    setProgress({ current: 0, total: exportPages.length, status: `Exporting ${format.toUpperCase()} images...` });
+    setProgress({ current: 0, total: exportPages.length, status: `Preparing ${format.toUpperCase()} images...` });
     
     try {
+      const isMultiple = exportPages.length > 1;
+      let zip: any;
+      let imgFolder: any;
+
+      // Agar multiple images hain toh JSZip load karein
+      if (isMultiple) {
+        const JSZip: any = await loadJSZip();
+        zip = new JSZip();
+        imgFolder = zip.folder(`genzpdf-images-${Date.now()}`);
+      }
+
       for (let i = 0; i < exportPages.length; i++) {
         const p = exportPages[i];
         const img = new Image();
@@ -858,18 +881,43 @@ export default function App() {
         ctx.rotate((p.rotation * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
 
-        const dataUrl = canvas.toDataURL(`image/${format}`);
-        const a = document.createElement('a');
-        a.href = dataUrl;
-        a.download = `page-${i + 1}.${format}`;
+        if (isMultiple && imgFolder) {
+          // Add image to ZIP as Blob
+          const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, `image/${format}`));
+          if (blob) {
+            imgFolder.file(`page-${i + 1}.${format}`, blob);
+          }
+        } else {
+          // Single Image Download
+          const dataUrl = canvas.toDataURL(`image/${format}`);
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `page-${i + 1}.${format}`;
+          
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
         
+        setProgress({ current: i + 1, total: exportPages.length, status: `Processing page ${i + 1}...` });
+        await new Promise(res => setTimeout(res, 50)); // Yield to UI
+      }
+
+      // Generate and Download ZIP file
+      if (isMultiple && zip) {
+        setProgress({ current: exportPages.length, total: exportPages.length, status: `Creating ZIP file...` });
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const zipUrl = URL.createObjectURL(zipBlob);
+        
+        const a = document.createElement('a');
+        a.href = zipUrl;
+        a.download = `genzpdf-images-${Date.now()}.zip`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        
-        setProgress({ current: i + 1, total: exportPages.length, status: `Exporting ${format.toUpperCase()} images...` });
-        await new Promise(res => setTimeout(res, 100)); // Yield to UI
+        URL.revokeObjectURL(zipUrl);
       }
+
     } catch (e) {
       console.error(e);
       setError(`Error downloading ${format.toUpperCase()} images.`);
