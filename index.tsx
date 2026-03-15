@@ -5,10 +5,10 @@ if (typeof window !== 'undefined') {
   window.Buffer = window.Buffer || Buffer;
 }
 
-// ... baaki ka aapka purana index.tsx ka code
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { HelmetProvider } from 'react-helmet-async'; // SEO ke liye naya import
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -18,6 +18,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <HelmetProvider>    {/* App ko SEO provider ke andar wrap kiya */}
+      <App />
+    </HelmetProvider>
   </React.StrictMode>
 );
