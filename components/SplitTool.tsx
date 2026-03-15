@@ -26,7 +26,7 @@ import {
   Undo,
   Redo,
   Copy,
-  File
+  File as FileIcon
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -53,7 +53,7 @@ interface PageData {
   pageIndex: number;
   imageUrl: string;
   rotation: number;
-  originalFile: File;
+  originalFile: File | any; // Any allowed for dummy blob
   fileName: string;
   isDocxRendered?: boolean;
   width?: number; // Naya property aspect ratio check karne ke liye
@@ -195,7 +195,7 @@ export default function App() {
   
   // Range & Bulk Selection States
   const [rangeInput, setRangeInput] = useState('');
-  const [chunkSize, setChunkSize] = useState<string>(''); // NEW: For Fixed Chunk Splitting
+  const [chunkSize, setChunkSize] = useState<string>(''); // For Fixed Chunk Splitting
   
   // Quality & Performance States
   const [isHighQuality, setIsHighQuality] = useState(true);
@@ -262,8 +262,12 @@ export default function App() {
 
   // Safe UUID generator
   const generateId = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
+    try {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+    } catch (e) {
+      // Fallback below if crypto throws an error in strict environments
     }
     return Date.now().toString(36) + Math.random().toString(36).substring(2);
   };
@@ -293,46 +297,46 @@ export default function App() {
   };
 
   const handleAddBlankPage = () => {
-    // Ek temporary white canvas generate karo
-    const canvas = document.createElement('canvas');
-    canvas.width = 595; // A4 standard width
-    canvas.height = 842; // A4 standard height
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    try {
+      // Ek temporary white canvas generate karo
+      const canvas = document.createElement('canvas');
+      canvas.width = 595; // A4 standard width
+      canvas.height = 842; // A4 standard height
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      const dataUrl = canvas.toDataURL('image/jpeg', 1.0);
+
+      // Dummy Blob create karna - pehle wala 'new File()' method older mobile browsers me crash hota tha.
+      const dummyBlob = new Blob([''], { type: 'image/jpeg' }) as any;
+      dummyBlob.name = "Blank Page.jpg";
+      dummyBlob.lastModified = Date.now();
+
+      const newPage: PageData = {
+        id: generateId(),
+        fileId: generateId(),
+        fileType: 'image/jpeg',
+        pageIndex: 0,
+        imageUrl: dataUrl,
+        rotation: 0,
+        originalFile: dummyBlob,
+        fileName: "Blank Page",
+        width: 595,
+        height: 842
+      };
+
+      setPages(prev => {
+        const next = [...prev, newPage]; // List ke aakhir me blank page jod diya
+        setPast(p => [...p.slice(-4), prev]);
+        setFuture([]);
+        return next;
+      });
+    } catch (err) {
+      console.error("Blank Page generation me error: ", err);
+      setError("Blank page add karne mein kuch dikkat aayi.");
     }
-    const dataUrl = canvas.toDataURL('image/jpeg');
-
-    // Dummy File create karna taaki download logic tut na jaye
-    const byteString = atob(dataUrl.split(',')[1]);
-    const ab = new ArrayBuffer(byteString.length);
-    const ia = new Uint8Array(ab);
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i);
-    }
-    const blob = new Blob([ab], { type: 'image/jpeg' });
-    const dummyFile = new File([blob], "Blank Page.jpg", { type: "image/jpeg" });
-
-    const newPage: PageData = {
-      id: generateId(),
-      fileId: generateId(),
-      fileType: 'image/jpeg',
-      pageIndex: 0,
-      imageUrl: dataUrl,
-      rotation: 0,
-      originalFile: dummyFile,
-      fileName: "Blank Page",
-      width: 595,
-      height: 842
-    };
-
-    setPages(prev => {
-      const next = [...prev, newPage]; // List ke aakhir me blank page jod diya
-      setPast(p => [...p.slice(-4), prev]);
-      setFuture([]);
-      return next;
-    });
   };
 
   // ---------- DND KIT SETUP ----------
@@ -896,7 +900,7 @@ export default function App() {
       for (let i = 0; i < exportPages.length; i++) {
         const p = exportPages[i];
         
-        if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
+        if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
           let sourcePdf = parsedPdfs.get(p.fileId);
           if (!sourcePdf) {
             const buf = await p.originalFile.arrayBuffer();
@@ -909,7 +913,7 @@ export default function App() {
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
           finalPdf.addPage(copiedPage);
 
-        } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
+        } else if (p.fileType.startsWith('image/') || p.isDocxRendered || p.fileName === "Blank Page") {
           const page = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
           
           const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
@@ -1092,7 +1096,7 @@ export default function App() {
         const chunkPdf = await PDFDocument.create();
 
         for (const p of chunkPages) {
-          if (p.fileType === 'application/pdf' && !p.isDocxRendered) {
+          if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
             let sourcePdf = parsedPdfs.get(p.fileId);
             if (!sourcePdf) {
               const buf = await p.originalFile.arrayBuffer();
@@ -1105,7 +1109,7 @@ export default function App() {
             copiedPage.setRotation(degrees(currentRotation + p.rotation));
             chunkPdf.addPage(copiedPage);
 
-          } else if (p.fileType.startsWith('image/') || p.isDocxRendered) {
+          } else if (p.fileType.startsWith('image/') || p.isDocxRendered || p.fileName === "Blank Page") {
             const page = chunkPdf.addPage([A4_WIDTH, A4_HEIGHT]);
             
             const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
@@ -1359,7 +1363,7 @@ export default function App() {
                         className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
                         title="Add Blank Page"
                       >
-                        <File size={16} /> <span className="hidden sm:inline">Blank</span>
+                        <FileIcon size={16} /> <span className="hidden sm:inline">Blank</span>
                       </button>
                     </div>
 
@@ -1633,7 +1637,7 @@ export default function App() {
                               className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-emerald-50 hover:border-emerald-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500"
                             >
                               <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                <File size={24} />
+                                <FileIcon size={24} />
                               </div>
                               <span className="text-sm font-bold">Add Blank</span>
                             </div>
