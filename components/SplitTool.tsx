@@ -27,7 +27,8 @@ import {
   Redo,
   Copy,
   File as FileIcon,
-  ArrowDownAZ
+  ArrowDownAZ,
+  ArrowDownZA
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import {
@@ -368,6 +369,20 @@ export default function App() {
       // Numeric true ensures that 'Image10' comes after 'Image2' naturally
       const next = [...prev].sort((a, b) => 
         a.fileName.localeCompare(b.fileName, undefined, { numeric: true, sensitivity: 'base' })
+      );
+      
+      setPast(p => [...p.slice(-4), prev]);
+      setFuture([]);
+      return next;
+    });
+  };
+
+  const handleSortZA = () => {
+    if (pages.length <= 1) return;
+    setPages(prev => {
+      // Reverse sorting logic (b compare a)
+      const next = [...prev].sort((a, b) => 
+        b.fileName.localeCompare(a.fileName, undefined, { numeric: true, sensitivity: 'base' })
       );
       
       setPast(p => [...p.slice(-4), prev]);
@@ -1506,7 +1521,15 @@ export default function App() {
                         title="Sort Pages A-Z"
                         disabled={pages.length <= 1}
                       >
-                        <ArrowDownAZ size={16} /> <span className="hidden sm:inline">Sort A-Z</span>
+                        <ArrowDownAZ size={16} /> <span className="hidden sm:inline">A-Z</span>
+                      </button>
+                      <button 
+                        onClick={handleSortZA}
+                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold disabled:opacity-50"
+                        title="Sort Pages Z-A"
+                        disabled={pages.length <= 1}
+                      >
+                        <ArrowDownZA size={16} /> <span className="hidden sm:inline">Z-A</span>
                       </button>
                     </div>
 
