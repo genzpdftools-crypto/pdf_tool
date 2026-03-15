@@ -242,10 +242,10 @@ export default function App() {
     setLastSelectedId(null);
   };
 
-  // Keyboard Shortcuts for Undo/Redo
+  // Keyboard Shortcuts for Undo/Redo & Selection Features
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input field (good practice)
+      // Ignore if typing in an input field (good practice taaki type karte time pages delete na hon)
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -255,11 +255,32 @@ export default function App() {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         redo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault(); // Browser ka default select (text hilight) hone se roko
+        setSelectedPages(new Set(pages.map(p => p.id)));
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setSelectedPages(new Set());
+        setLastSelectedId(null);
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Sirf tab delete karo jab kuch pages select ho chuke hon
+        if (selectedPages.size > 0) {
+          e.preventDefault();
+          setPages(prev => {
+            const next = prev.filter(p => !selectedPages.has(p.id));
+            setPast(p => [...p.slice(-4), prev]);
+            setFuture([]);
+            return next;
+          });
+          setSelectedPages(new Set());
+          setLastSelectedId(null);
+        }
       }
     };
+    
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [pages, past, future]);
+  }, [pages, past, future, selectedPages]); // selectedPages dependency mein add karna zaroori tha
 
   // Safe UUID generator
   const generateId = () => {
