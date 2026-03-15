@@ -198,10 +198,13 @@ export default function App() {
   // Range & Bulk Selection States
   const [rangeInput, setRangeInput] = useState('');
   const [chunkSize, setChunkSize] = useState<string>(''); // For Fixed Chunk Splitting (Pages)
-  const [chunkMbSize, setChunkMbSize] = useState<string>(''); // NAYA: For Splitting by Max MB Size
+  const [chunkMbSize, setChunkMbSize] = useState<string>(''); // For Splitting by Max MB Size
   
   // Quality & Performance States
   const [isHighQuality, setIsHighQuality] = useState(true);
+  
+  // Settings States
+  const [addPageNumbers, setAddPageNumbers] = useState(false); // NAYA: Toggle for Page Numbers
   
   // Loading & Progress States
   const [isLoading, setIsLoading] = useState(false);
@@ -930,6 +933,29 @@ export default function App() {
     });
   };
 
+  // NAYA: Helper Function for Drawing Page Numbers
+  const addPageNumberToPDFLibPage = async (page: any, pageNumber: number, PDFLib: any) => {
+    if (!addPageNumbers) return;
+
+    const { rgb, StandardFonts } = PDFLib;
+    // Embed the standard Helvetica font to draw text
+    const font = await page.doc.embedFont(StandardFonts.Helvetica);
+    const { width, height } = page.getSize();
+    const fontSize = 12;
+    const text = `Page ${pageNumber}`;
+    
+    // Calculate text width to center it
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+    
+    page.drawText(text, {
+      x: width / 2 - textWidth / 2,
+      y: 20, // 20 units from the bottom
+      size: fontSize,
+      font: font,
+      color: rgb(0, 0, 0), // Black color
+    });
+  };
+
   // ---------- DOWNLOAD GENERATORS ----------
   const downloadAsPdf = async () => {
     const exportPages = selectedPages.size > 0 
@@ -952,6 +978,7 @@ export default function App() {
 
       for (let i = 0; i < exportPages.length; i++) {
         const p = exportPages[i];
+        let targetPage; // Store reference to the added page to draw number on it
         
         if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
           let sourcePdf = parsedPdfs.get(p.fileId);
@@ -964,10 +991,10 @@ export default function App() {
           const currentRotation = copiedPage.getRotation().angle;
           
           copiedPage.setRotation(degrees(currentRotation + p.rotation));
-          finalPdf.addPage(copiedPage);
+          targetPage = finalPdf.addPage(copiedPage);
 
         } else if (p.fileType.startsWith('image/') || p.isDocxRendered || p.fileName === "Blank Page") {
-          const page = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          targetPage = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
           
           const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
           const response = await fetch(rotatedSrc);
@@ -985,12 +1012,17 @@ export default function App() {
           
           const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
           
-          page.drawImage(img, { 
+          targetPage.drawImage(img, { 
             x: (A4_WIDTH - dims.width) / 2, 
             y: (A4_HEIGHT - dims.height) / 2, 
             width: dims.width, 
             height: dims.height 
           });
+        }
+
+        // Draw page number on the newly added targetPage
+        if (targetPage) {
+           await addPageNumberToPDFLibPage(targetPage, i + 1, PDFLib);
         }
 
         setProgress({ current: i + 1, total: exportPages.length, status: 'Generating final PDF...' });
@@ -1065,6 +1097,34 @@ export default function App() {
         ctx.rotate((p.rotation * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
 
+        // NAYA: Draw Page Numbers on Images
+        if (addPageNumbers) {
+           ctx.save();
+           // Reset translation and rotation for drawing text straight at the bottom
+           ctx.setTransform(1, 0, 0, 1, 0, 0); 
+           const fontSize = Math.max(16, Math.floor(canvas.height * 0.02)); // dynamic font size
+           ctx.font = `${fontSize}px Arial, Helvetica, sans-serif`;
+           ctx.fillStyle = 'black';
+           ctx.textAlign = 'center';
+           ctx.textBaseline = 'bottom';
+           const text = `Page ${i + 1}`;
+           
+           // Draw a small white background behind text for readability
+           const textWidth = ctx.measureText(text).width;
+           const padding = fontSize * 0.5;
+           ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+           ctx.fillRect(
+             canvas.width / 2 - textWidth / 2 - padding, 
+             canvas.height - fontSize - padding * 2, 
+             textWidth + padding * 2, 
+             fontSize + padding * 2
+           );
+
+           ctx.fillStyle = 'black';
+           ctx.fillText(text, canvas.width / 2, canvas.height - padding);
+           ctx.restore();
+        }
+
         if (isMultiple && imgFolder) {
           // Add image to ZIP as Blob
           const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, `image/${format}`));
@@ -1111,11 +1171,13 @@ export default function App() {
     }
   };
 
-  // NAYA: Helper Function for Appending Pages correctly (shared by size and chunk split)
-  const appendPageToDoc = async (doc: any, p: PageData, parsedPdfs: Map<string, any>, PDFLib: any) => {
+  // Helper Function for Appending Pages correctly (shared by size and chunk split)
+  // Need to pass page number so the number logic knows what to print
+  const appendPageToDoc = async (doc: any, p: PageData, parsedPdfs: Map<string, any>, PDFLib: any, absolutePageIndex: number) => {
     const { PDFDocument, degrees } = PDFLib;
     const A4_WIDTH = 595.28;
     const A4_HEIGHT = 841.89;
+    let targetPage;
 
     if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
       let sourcePdf = parsedPdfs.get(p.fileId);
@@ -1127,9 +1189,9 @@ export default function App() {
       const [copiedPage] = await doc.copyPages(sourcePdf, [p.pageIndex]);
       const currentRotation = copiedPage.getRotation().angle;
       copiedPage.setRotation(degrees(currentRotation + p.rotation));
-      doc.addPage(copiedPage);
+      targetPage = doc.addPage(copiedPage);
     } else {
-      const page = doc.addPage([A4_WIDTH, A4_HEIGHT]);
+      targetPage = doc.addPage([A4_WIDTH, A4_HEIGHT]);
       const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
       const response = await fetch(rotatedSrc);
       const buf = await response.arrayBuffer();
@@ -1137,12 +1199,16 @@ export default function App() {
       const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
       let img = isPng ? await doc.embedPng(buf) : await doc.embedJpg(buf);
       const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
-      page.drawImage(img, { 
+      targetPage.drawImage(img, { 
         x: (A4_WIDTH - dims.width) / 2, 
         y: (A4_HEIGHT - dims.height) / 2, 
         width: dims.width, 
         height: dims.height 
       });
+    }
+
+    if (targetPage) {
+        await addPageNumberToPDFLibPage(targetPage, absolutePageIndex + 1, PDFLib);
     }
   };
 
@@ -1180,8 +1246,10 @@ export default function App() {
         const chunkPages = exportPages.slice(i, i + size);
         const chunkPdf = await PDFDocument.create();
 
-        for (const p of chunkPages) {
-          await appendPageToDoc(chunkPdf, p, parsedPdfs, PDFLib);
+        for (let j = 0; j < chunkPages.length; j++) {
+          const p = chunkPages[j];
+          const absoluteIndex = i + j; // Use overall index for continuous numbering if desired, or reset per chunk. Using overall here.
+          await appendPageToDoc(chunkPdf, p, parsedPdfs, PDFLib, absoluteIndex);
           
           processedCount++;
           setProgress({ current: processedCount, total: exportPages.length, status: `Generating PDF part ${chunkIndex}...` });
@@ -1254,7 +1322,7 @@ export default function App() {
       for (let i = 0; i < exportPages.length; i++) {
         const p = exportPages[i];
         
-        await appendPageToDoc(currentPdf, p, parsedPdfs, PDFLib);
+        await appendPageToDoc(currentPdf, p, parsedPdfs, PDFLib, i);
         addedPagesCount++;
 
         const currentBytes = await currentPdf.save();
@@ -1274,7 +1342,7 @@ export default function App() {
 
             // Naya chunk start karo aur wapas yehi aakhri page daalo
             currentPdf = await PDFDocument.create();
-            await appendPageToDoc(currentPdf, p, parsedPdfs, PDFLib);
+            await appendPageToDoc(currentPdf, p, parsedPdfs, PDFLib, i);
             lastValidBytes = await currentPdf.save();
             addedPagesCount = 1;
           }
@@ -1655,6 +1723,21 @@ export default function App() {
                       {/* Fixed Dropdown Position & Width for Bulk Split Settings */}
                       <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[260px] max-w-[85vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[100]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
+                          {/* NAYA: Add Page Numbers Checkbox */}
+                          <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
+                            <div className="relative flex items-center">
+                              <input 
+                                type="checkbox" 
+                                checked={addPageNumbers} 
+                                onChange={(e) => setAddPageNumbers(e.target.checked)}
+                                className="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded focus:ring-rose-500 checked:bg-rose-500 checked:border-rose-500 transition-all"
+                              />
+                              <CheckSquare size={12} className="absolute inset-0 m-auto text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
+                            </div>
+                            <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Page Numbers</span>
+                          </label>
+                          <div className="h-px bg-slate-100 my-1"></div>
+
                           <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
                             <FileText size={16} className="shrink-0" /> Export as PDF
                           </button>
