@@ -54,6 +54,8 @@ interface PageData {
   originalFile: File;
   fileName: string;
   isDocxRendered?: boolean;
+  width?: number; // Naya property aspect ratio check karne ke liye
+  height?: number; // Naya property aspect ratio check karne ke liye
 }
 
 interface SortablePageProps {
@@ -420,7 +422,9 @@ export default function App() {
               imageUrl: canvas.toDataURL(),
               rotation: 0,
               originalFile: file,
-              fileName: file.name
+              fileName: file.name,
+              width: canvas.width,
+              height: canvas.height // Height aur Width save kar rahe hain Smart Selection ke liye
             });
             
             // Update progress & yield to UI to ensure smooth bar
@@ -429,6 +433,12 @@ export default function App() {
           }
         } else if (fileType.startsWith('image/')) {
           const imageUrl = URL.createObjectURL(file);
+          
+          // Image ka actual height width pata karne ke liye load karna padega
+          const img = new Image();
+          img.src = imageUrl;
+          await new Promise((res) => { img.onload = res; });
+          
           newPages.push({
             id: generateId(),
             fileId,
@@ -437,7 +447,9 @@ export default function App() {
             imageUrl,
             rotation: 0,
             originalFile: file,
-            fileName: file.name
+            fileName: file.name,
+            width: img.width,
+            height: img.height // Height aur Width save kar rahe hain Smart Selection ke liye
           });
         } else if (file.name.toLowerCase().endsWith('.docx')) {
           setProgress({ current: 0, total: 100, status: `Converting DOCX ${file.name}...` });
@@ -516,7 +528,9 @@ export default function App() {
               rotation: 0,
               originalFile: file,
               fileName: `${file.name} (Pg ${i + 1})`,
-              isDocxRendered: true
+              isDocxRendered: true,
+              width: A4_WIDTH,
+              height: A4_HEIGHT // Fixed A4 height aur width save kar rahe hain
             });
             
             setProgress({ current: 50 + Math.floor(((i + 1) / totalPages) * 50), total: 100, status: `Slicing pages for ${file.name}...` });
@@ -629,6 +643,32 @@ export default function App() {
   const selectOdd = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 === 0).map(p => p.id)));
   const selectEven = () => setSelectedPages(new Set(pages.filter((_, i) => i % 2 !== 0).map(p => p.id)));
   const invertSelection = () => setSelectedPages(new Set(pages.filter(p => !selectedPages.has(p.id)).map(p => p.id)));
+
+  // Naya Feature: Smart Landscape & Portrait Selection
+  const selectLandscape = () => {
+    const landscapeIds = pages.filter(p => {
+      const w = p.width || 1;
+      const h = p.height || 1;
+      // Agar user ne page rotate kiya hai (e.g. 90deg), toh current visual width aur height swap ho jayegi
+      const isRotatedSides = p.rotation % 180 !== 0;
+      const currentW = isRotatedSides ? h : w;
+      const currentH = isRotatedSides ? w : h;
+      return currentW > currentH;
+    }).map(p => p.id);
+    setSelectedPages(new Set(landscapeIds));
+  };
+
+  const selectPortrait = () => {
+    const portraitIds = pages.filter(p => {
+      const w = p.width || 1;
+      const h = p.height || 1;
+      const isRotatedSides = p.rotation % 180 !== 0;
+      const currentW = isRotatedSides ? h : w;
+      const currentH = isRotatedSides ? w : h;
+      return currentH >= currentW; // Square ko hum Portrait maan lenge fallback mein
+    }).map(p => p.id);
+    setSelectedPages(new Set(portraitIds));
+  };
 
   // Custom Range Selection Logic
   const applyRangeSelection = () => {
@@ -929,7 +969,7 @@ export default function App() {
     }
   };
 
-  // NEW: Download Bulk Split Chunks as ZIP
+  // Download Bulk Split Chunks as ZIP
   const downloadAsChunks = async () => {
     const size = parseInt(chunkSize, 10);
     if (isNaN(size) || size <= 0) {
@@ -1227,7 +1267,7 @@ export default function App() {
                       <Plus size={16} /> <span className="hidden sm:inline">Add Files</span>
                     </button>
 
-                    {/* RESPONSIVE: Selection Tools Dropdown */}
+                    {/* RESPONSIVE: Selection Tools Dropdown (With Landscape & Portrait) */}
                     <div className="relative group inline-block">
                       <button
                         disabled={pages.length === 0}
@@ -1238,13 +1278,21 @@ export default function App() {
                       </button>
                       <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 max-w-[90vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-[60]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select All</button>
-                          <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Deselect All</button>
+                          <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select All</button>
+                          <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Deselect All</button>
+                          
                           <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Odd Pages</button>
-                          <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Select Even Pages</button>
+                          
+                          {/* Naya Landscape aur Portrait Feature */}
+                          <button onClick={selectLandscape} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Landscape Pages</button>
+                          <button onClick={selectPortrait} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Portrait Pages</button>
+                          
                           <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors">Invert Selection</button>
+                          
+                          <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Odd Pages</button>
+                          <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Even Pages</button>
+                          <div className="h-px bg-slate-100 my-1"></div>
+                          <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Invert Selection</button>
                         </div>
                       </div>
                     </div>
