@@ -204,7 +204,9 @@ export default function App() {
   const [isHighQuality, setIsHighQuality] = useState(true);
   
   // Settings States
-  const [addPageNumbers, setAddPageNumbers] = useState(false); // NAYA: Toggle for Page Numbers
+  const [addPageNumbers, setAddPageNumbers] = useState(false); // Toggle for Page Numbers
+  const [enableWatermark, setEnableWatermark] = useState(false); // Toggle for Watermark
+  const [watermarkText, setWatermarkText] = useState(''); // Custom Watermark Text
   
   // Loading & Progress States
   const [isLoading, setIsLoading] = useState(false);
@@ -907,6 +909,8 @@ export default function App() {
     setProgress(null);
     setChunkSize('');
     setChunkMbSize('');
+    setWatermarkText('');
+    setEnableWatermark(false);
   };
 
   const getRotatedImageUrl = async (src: string, rot: number): Promise<string> => {
@@ -933,27 +937,102 @@ export default function App() {
     });
   };
 
-  // NAYA: Helper Function for Drawing Page Numbers
+  // Helper Function for Drawing Page Numbers
   const addPageNumberToPDFLibPage = async (page: any, pageNumber: number, PDFLib: any) => {
     if (!addPageNumbers) return;
 
     const { rgb, StandardFonts } = PDFLib;
-    // Embed the standard Helvetica font to draw text
     const font = await page.doc.embedFont(StandardFonts.Helvetica);
     const { width, height } = page.getSize();
     const fontSize = 12;
     const text = `Page ${pageNumber}`;
     
-    // Calculate text width to center it
     const textWidth = font.widthOfTextAtSize(text, fontSize);
     
     page.drawText(text, {
       x: width / 2 - textWidth / 2,
-      y: 20, // 20 units from the bottom
+      y: 20, 
       size: fontSize,
       font: font,
-      color: rgb(0, 0, 0), // Black color
+      color: rgb(0, 0, 0),
     });
+  };
+
+  // NAYA: Helper Function for Drawing Custom Watermark
+  const addWatermarkToPDFLibPage = async (page: any, text: string, PDFLib: any) => {
+    if (!text.trim()) return;
+
+    const { rgb, degrees, StandardFonts } = PDFLib;
+    const font = await page.doc.embedFont(StandardFonts.HelveticaBold);
+    const { width, height } = page.getSize();
+    
+    // Dynamic font sizing based on page width
+    let fontSize = 60;
+    let textWidth = font.widthOfTextAtSize(text, fontSize);
+    
+    const maxDiagonal = Math.sqrt(width * width + height * height) * 0.8;
+    if (textWidth > maxDiagonal) {
+       fontSize = fontSize * (maxDiagonal / textWidth);
+       textWidth = font.widthOfTextAtSize(text, fontSize);
+    }
+
+    // Centering calculation for 45-degree angle
+    const angle = Math.PI / 4; 
+    const xOffset = (width / 2) - ((textWidth / 2) * Math.cos(angle)) + ((fontSize / 2) * Math.sin(angle));
+    const yOffset = (height / 2) - ((textWidth / 2) * Math.sin(angle)) - ((fontSize / 2) * Math.cos(angle));
+
+    page.drawText(text, {
+      x: xOffset,
+      y: yOffset,
+      size: fontSize,
+      font: font,
+      color: rgb(0.6, 0.6, 0.6), // Light gray color
+      opacity: 0.3, // Semi-transparent
+      rotate: degrees(45),
+    });
+  };
+
+  // Helper Function for Appending Pages correctly
+  const appendPageToDoc = async (doc: any, p: PageData, parsedPdfs: Map<string, any>, PDFLib: any, absolutePageIndex: number) => {
+    const { PDFDocument, degrees } = PDFLib;
+    const A4_WIDTH = 595.28;
+    const A4_HEIGHT = 841.89;
+    let targetPage;
+
+    if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
+      let sourcePdf = parsedPdfs.get(p.fileId);
+      if (!sourcePdf) {
+        const buf = await p.originalFile.arrayBuffer();
+        sourcePdf = await PDFDocument.load(buf);
+        parsedPdfs.set(p.fileId, sourcePdf);
+      }
+      const [copiedPage] = await doc.copyPages(sourcePdf, [p.pageIndex]);
+      const currentRotation = copiedPage.getRotation().angle;
+      copiedPage.setRotation(degrees(currentRotation + p.rotation));
+      targetPage = doc.addPage(copiedPage);
+    } else {
+      targetPage = doc.addPage([A4_WIDTH, A4_HEIGHT]);
+      const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
+      const response = await fetch(rotatedSrc);
+      const buf = await response.arrayBuffer();
+      const uint8 = new Uint8Array(buf);
+      const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
+      let img = isPng ? await doc.embedPng(buf) : await doc.embedJpg(buf);
+      const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
+      targetPage.drawImage(img, { 
+        x: (A4_WIDTH - dims.width) / 2, 
+        y: (A4_HEIGHT - dims.height) / 2, 
+        width: dims.width, 
+        height: dims.height 
+      });
+    }
+
+    if (targetPage) {
+        await addPageNumberToPDFLibPage(targetPage, absolutePageIndex + 1, PDFLib);
+        if (enableWatermark) {
+          await addWatermarkToPDFLibPage(targetPage, watermarkText, PDFLib); // Apply watermark
+        }
+    }
   };
 
   // ---------- DOWNLOAD GENERATORS ----------
@@ -968,63 +1047,14 @@ export default function App() {
     
     try {
       const PDFLib: any = await loadPdfLib();
-      const { PDFDocument, degrees } = PDFLib;
+      const { PDFDocument } = PDFLib;
 
       const finalPdf = await PDFDocument.create();
       const parsedPdfs = new Map<string, any>();
       
-      const A4_WIDTH = 595.28;
-      const A4_HEIGHT = 841.89;
-
       for (let i = 0; i < exportPages.length; i++) {
         const p = exportPages[i];
-        let targetPage; // Store reference to the added page to draw number on it
-        
-        if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
-          let sourcePdf = parsedPdfs.get(p.fileId);
-          if (!sourcePdf) {
-            const buf = await p.originalFile.arrayBuffer();
-            sourcePdf = await PDFDocument.load(buf);
-            parsedPdfs.set(p.fileId, sourcePdf);
-          }
-          const [copiedPage] = await finalPdf.copyPages(sourcePdf, [p.pageIndex]);
-          const currentRotation = copiedPage.getRotation().angle;
-          
-          copiedPage.setRotation(degrees(currentRotation + p.rotation));
-          targetPage = finalPdf.addPage(copiedPage);
-
-        } else if (p.fileType.startsWith('image/') || p.isDocxRendered || p.fileName === "Blank Page") {
-          targetPage = finalPdf.addPage([A4_WIDTH, A4_HEIGHT]);
-          
-          const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
-          const response = await fetch(rotatedSrc);
-          const buf = await response.arrayBuffer();
-          
-          const uint8 = new Uint8Array(buf);
-          const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
-          
-          let img;
-          if (isPng) {
-            img = await finalPdf.embedPng(buf);
-          } else {
-            img = await finalPdf.embedJpg(buf);
-          }
-          
-          const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
-          
-          targetPage.drawImage(img, { 
-            x: (A4_WIDTH - dims.width) / 2, 
-            y: (A4_HEIGHT - dims.height) / 2, 
-            width: dims.width, 
-            height: dims.height 
-          });
-        }
-
-        // Draw page number on the newly added targetPage
-        if (targetPage) {
-           await addPageNumberToPDFLibPage(targetPage, i + 1, PDFLib);
-        }
-
+        await appendPageToDoc(finalPdf, p, parsedPdfs, PDFLib, i);
         setProgress({ current: i + 1, total: exportPages.length, status: 'Generating final PDF...' });
         await new Promise(res => setTimeout(res, 10)); // Yield to keep UI smooth
       }
@@ -1068,7 +1098,6 @@ export default function App() {
       let zip: any;
       let imgFolder: any;
 
-      // Agar multiple images hain toh JSZip load karein
       if (isMultiple) {
         const JSZip: any = await loadJSZip();
         zip = new JSZip();
@@ -1097,19 +1126,17 @@ export default function App() {
         ctx.rotate((p.rotation * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
 
-        // NAYA: Draw Page Numbers on Images
+        // Draw Page Numbers on Images
         if (addPageNumbers) {
            ctx.save();
-           // Reset translation and rotation for drawing text straight at the bottom
            ctx.setTransform(1, 0, 0, 1, 0, 0); 
-           const fontSize = Math.max(16, Math.floor(canvas.height * 0.02)); // dynamic font size
+           const fontSize = Math.max(16, Math.floor(canvas.height * 0.02));
            ctx.font = `${fontSize}px Arial, Helvetica, sans-serif`;
            ctx.fillStyle = 'black';
            ctx.textAlign = 'center';
            ctx.textBaseline = 'bottom';
            const text = `Page ${i + 1}`;
            
-           // Draw a small white background behind text for readability
            const textWidth = ctx.measureText(text).width;
            const padding = fontSize * 0.5;
            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
@@ -1125,14 +1152,36 @@ export default function App() {
            ctx.restore();
         }
 
+        // Draw Watermark on Images
+        if (enableWatermark && watermarkText.trim()) {
+           ctx.save();
+           ctx.setTransform(1, 0, 0, 1, 0, 0);
+           ctx.translate(canvas.width / 2, canvas.height / 2);
+           ctx.rotate((-45 * Math.PI) / 180); // Diagonal up
+           let wmFontSize = Math.max(40, Math.floor(canvas.width * 0.08));
+           ctx.font = `bold ${wmFontSize}px Arial, Helvetica, sans-serif`;
+           
+           // Dynamic shrink for long text
+           const maxWidth = Math.sqrt(canvas.width * canvas.width + canvas.height * canvas.height) * 0.8;
+           let textWidth = ctx.measureText(watermarkText).width;
+           if (textWidth > maxWidth) {
+               wmFontSize = wmFontSize * (maxWidth / textWidth);
+               ctx.font = `bold ${wmFontSize}px Arial, Helvetica, sans-serif`;
+           }
+           
+           ctx.fillStyle = 'rgba(150, 150, 150, 0.3)';
+           ctx.textAlign = 'center';
+           ctx.textBaseline = 'middle';
+           ctx.fillText(watermarkText, 0, 0);
+           ctx.restore();
+        }
+
         if (isMultiple && imgFolder) {
-          // Add image to ZIP as Blob
           const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, `image/${format}`));
           if (blob) {
             imgFolder.file(`page-${i + 1}.${format}`, blob);
           }
         } else {
-          // Single Image Download
           const dataUrl = canvas.toDataURL(`image/${format}`);
           const a = document.createElement('a');
           a.href = dataUrl;
@@ -1144,10 +1193,9 @@ export default function App() {
         }
         
         setProgress({ current: i + 1, total: exportPages.length, status: `Processing page ${i + 1}...` });
-        await new Promise(res => setTimeout(res, 50)); // Yield to UI
+        await new Promise(res => setTimeout(res, 50)); 
       }
 
-      // Generate and Download ZIP file
       if (isMultiple && zip) {
         setProgress({ current: exportPages.length, total: exportPages.length, status: `Creating ZIP file...` });
         const zipBlob = await zip.generateAsync({ type: "blob" });
@@ -1168,47 +1216,6 @@ export default function App() {
     } finally {
       setIsProcessing(false);
       setProgress(null);
-    }
-  };
-
-  // Helper Function for Appending Pages correctly (shared by size and chunk split)
-  // Need to pass page number so the number logic knows what to print
-  const appendPageToDoc = async (doc: any, p: PageData, parsedPdfs: Map<string, any>, PDFLib: any, absolutePageIndex: number) => {
-    const { PDFDocument, degrees } = PDFLib;
-    const A4_WIDTH = 595.28;
-    const A4_HEIGHT = 841.89;
-    let targetPage;
-
-    if (p.fileType === 'application/pdf' && !p.isDocxRendered && p.fileName !== "Blank Page") {
-      let sourcePdf = parsedPdfs.get(p.fileId);
-      if (!sourcePdf) {
-        const buf = await p.originalFile.arrayBuffer();
-        sourcePdf = await PDFDocument.load(buf);
-        parsedPdfs.set(p.fileId, sourcePdf);
-      }
-      const [copiedPage] = await doc.copyPages(sourcePdf, [p.pageIndex]);
-      const currentRotation = copiedPage.getRotation().angle;
-      copiedPage.setRotation(degrees(currentRotation + p.rotation));
-      targetPage = doc.addPage(copiedPage);
-    } else {
-      targetPage = doc.addPage([A4_WIDTH, A4_HEIGHT]);
-      const rotatedSrc = await getRotatedImageUrl(p.imageUrl, p.rotation);
-      const response = await fetch(rotatedSrc);
-      const buf = await response.arrayBuffer();
-      const uint8 = new Uint8Array(buf);
-      const isPng = uint8.length > 3 && uint8[0] === 0x89 && uint8[1] === 0x50 && uint8[2] === 0x4E && uint8[3] === 0x47;
-      let img = isPng ? await doc.embedPng(buf) : await doc.embedJpg(buf);
-      const dims = img.scaleToFit(A4_WIDTH, A4_HEIGHT);
-      targetPage.drawImage(img, { 
-        x: (A4_WIDTH - dims.width) / 2, 
-        y: (A4_HEIGHT - dims.height) / 2, 
-        width: dims.width, 
-        height: dims.height 
-      });
-    }
-
-    if (targetPage) {
-        await addPageNumberToPDFLibPage(targetPage, absolutePageIndex + 1, PDFLib);
     }
   };
 
@@ -1241,19 +1248,18 @@ export default function App() {
       let processedCount = 0;
       let chunkIndex = 1;
 
-      // Loop over pages in chunks
       for (let i = 0; i < exportPages.length; i += size) {
         const chunkPages = exportPages.slice(i, i + size);
         const chunkPdf = await PDFDocument.create();
 
         for (let j = 0; j < chunkPages.length; j++) {
           const p = chunkPages[j];
-          const absoluteIndex = i + j; // Use overall index for continuous numbering if desired, or reset per chunk. Using overall here.
+          const absoluteIndex = i + j; 
           await appendPageToDoc(chunkPdf, p, parsedPdfs, PDFLib, absoluteIndex);
           
           processedCount++;
           setProgress({ current: processedCount, total: exportPages.length, status: `Generating PDF part ${chunkIndex}...` });
-          await new Promise(res => setTimeout(res, 10)); // Yield to keep UI smooth
+          await new Promise(res => setTimeout(res, 10)); 
         }
 
         const pdfBytes = await chunkPdf.save();
@@ -1287,7 +1293,7 @@ export default function App() {
     }
   };
 
-  // NAYA: Download Bulk Split by Max File Size (MB) as ZIP
+  // Download Bulk Split by Max File Size (MB) as ZIP
   const downloadBySize = async () => {
     const targetMb = parseFloat(chunkMbSize);
     if (isNaN(targetMb) || targetMb <= 0) {
@@ -1351,7 +1357,7 @@ export default function App() {
         }
 
         setProgress({ current: i + 1, total: exportPages.length, status: `Checking file sizes... (${chunkIndex} PDFs so far)` });
-        await new Promise(res => setTimeout(res, 5)); // Yield to keep UI smooth
+        await new Promise(res => setTimeout(res, 5)); 
       }
 
       // Akhiri bache hue pages ko save karo
@@ -1723,7 +1729,8 @@ export default function App() {
                       {/* Fixed Dropdown Position & Width for Bulk Split Settings */}
                       <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[260px] max-w-[85vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[100]">
                         <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          {/* NAYA: Add Page Numbers Checkbox */}
+                          
+                          {/* Add Page Numbers Checkbox */}
                           <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
                             <div className="relative flex items-center">
                               <input 
@@ -1736,6 +1743,33 @@ export default function App() {
                             </div>
                             <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Page Numbers</span>
                           </label>
+
+                          {/* NAYA: Add Watermark Checkbox & Input */}
+                          <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
+                            <div className="relative flex items-center">
+                              <input 
+                                type="checkbox" 
+                                checked={enableWatermark} 
+                                onChange={(e) => setEnableWatermark(e.target.checked)}
+                                className="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded focus:ring-rose-500 checked:bg-rose-500 checked:border-rose-500 transition-all"
+                              />
+                              <CheckSquare size={12} className="absolute inset-0 m-auto text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
+                            </div>
+                            <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Watermark</span>
+                          </label>
+
+                          {enableWatermark && (
+                            <div className="px-2 sm:px-3 pb-2 pt-1 animate-in fade-in slide-in-from-top-1">
+                              <input
+                                type="text"
+                                placeholder="e.g. CONFIDENTIAL"
+                                value={watermarkText}
+                                onChange={(e) => setWatermarkText(e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
+                              />
+                            </div>
+                          )}
+                          
                           <div className="h-px bg-slate-100 my-1"></div>
 
                           <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
