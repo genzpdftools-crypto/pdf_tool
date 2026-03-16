@@ -642,7 +642,7 @@ function App() {
         <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-4 lg:gap-8">
           <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative shrink-0">
             <div className="w-10 h-10 md:w-14 md:h-14 flex items-center justify-center group-hover:rotate-6 transition-transform duration-300">
-              <img src="/logo.png" alt="Genz PDF Logo" className="w-5 h-10 md:w-5 md:h-12 object-fill" />
+              <img src="/logo.png" alt="Genz PDF Logo" className="w-7 h-10 md:w-7 md:h-12 object-fill" />
             </div>
             <span className="text-lg md:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">
               Genz<span className="text-indigo-600">PDF</span>
