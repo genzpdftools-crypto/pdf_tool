@@ -399,9 +399,36 @@ export const SplitPdfBlog = () => {
             </div>
           </div>
 
-          <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-8 md:my-10 not-prose"></div>
 
-          {/* ================= NEW USE CASES SECTION (INSERTED HERE) ================= */}
+          {/* ================= MID-BLOG CTA (EXIT DOOR) ================= */}
+          <div className="relative bg-slate-900 rounded-[2rem] p-8 md:p-10 my-10 md:my-14 shadow-2xl shadow-slate-900/20 overflow-hidden not-prose flex flex-col sm:flex-row items-center justify-between gap-6 md:gap-8 group">
+            {/* Background Decorations */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-rose-500/20 to-orange-500/20 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div className="relative z-10 text-center sm:text-left flex-1">
+              <h3 className="text-2xl md:text-3xl font-black text-white mb-2 md:mb-3 tracking-tight">Convinced Yet? Try It Now!</h3>
+              <p className="text-slate-300 text-sm md:text-base m-0 max-w-lg mx-auto sm:mx-0 leading-relaxed">
+                Why wait until the end? Experience the lightning-fast, highly secure, and offline PDF splitter instantly. No signups required.
+              </p>
+            </div>
+            
+            <div className="relative z-10 flex-shrink-0 w-full sm:w-auto">
+              <a 
+                href="/split" 
+                className="flex items-center justify-center gap-2 md:gap-3 w-full sm:w-auto px-6 md:px-8 py-3.5 md:py-4 bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-400 hover:to-orange-400 text-white font-bold text-base md:text-lg rounded-xl md:rounded-2xl shadow-lg hover:shadow-rose-500/30 hover:-translate-y-1 transition-all duration-300 no-underline"
+              >
+                <Zap className="w-5 h-5 md:w-6 md:h-6 fill-white/20" />
+                Split PDF Now
+              </a>
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-8 md:my-10 not-prose"></div>
+          {/* ============================================================== */}
+
+          {/* ================= NEW USE CASES SECTION ================= */}
           <h2 id="use-cases" className="text-2xl sm:text-3xl font-black text-slate-900 mb-6 md:mb-8 flex items-center gap-3 scroll-mt-24 not-prose justify-center md:justify-start">
             <div className="p-2 md:p-2.5 bg-fuchsia-100 text-fuchsia-600 rounded-xl"><Briefcase className="w-5 h-5 md:w-6 md:h-6" /></div>
             Real-Life Use Cases: Who is this tool for?
