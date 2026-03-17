@@ -127,7 +127,7 @@ export const SplitPdfBlog = () => {
           <ul className="space-y-3 text-slate-600 font-medium text-sm md:text-base ml-2">
             {[
               { id: "exclusive-features", text: "1. Exclusive Features of Genz PDF Splitter" },
-              { id: "visual-guide", text: "2. Guide: How to Extract Pages Visually" },
+              { id: "step-by-step-guide", text: "2. Step-by-Step Guide: How Our Tool Works" },
               { id: "bulk-split", text: "3. Advanced: Bulk Split by Max Size (MB) or Pages" },
               { id: "comparison", text: "4. Why Genz PDF is Better (Comparison)" },
               { id: "faq", text: `5. Frequently Asked Questions (${currentYear} Guide)` },
@@ -300,24 +300,85 @@ export const SplitPdfBlog = () => {
 
           </div>
 
-          <h2 id="visual-guide" className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mb-6 md:mb-8 flex items-center gap-3 scroll-mt-24 not-prose">
+          <h2 id="step-by-step-guide" className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mb-6 md:mb-8 flex items-center gap-3 scroll-mt-24 not-prose">
             <div className="p-2 md:p-2.5 bg-indigo-100 text-indigo-600 rounded-xl"><ImageIcon className="w-5 h-5 md:w-6 md:h-6" /></div> 
-            Guide: How to Extract Pages Visually
+            Step-by-Step Guide: How Our Tool Works
           </h2>
           
           <div className="space-y-4 my-6 md:my-8 not-prose">
             {[
-              { step: 1, title: "Drop Your Files", desc: "Drag and drop your PDF or image files into the workspace. The tool will instantly render a visual thumbnail for every single page." },
-              { step: 2, title: "Select What You Need", desc: "Click on the pages you want to keep. You can use 'Shift + Click' to select a massive range instantly. Need to delete a page? Select it and hit the 'Trash' icon." },
-              { step: 3, title: "Export & Download", desc: "Click the Export button. You can save your selected pages as a brand new PDF, or export them as high-quality JPG/PNG images inside a ZIP." }
+              { 
+                step: 1, 
+                title: "Smart Batch Upload", 
+                content: (
+                  <ul className="list-disc pl-5 space-y-1.5 text-slate-600 text-sm md:text-base mt-2">
+                    <li><strong>Visit:</strong> Go to GenZPDF.com and select the "Split PDF" tool.</li>
+                    <li><strong>Select Files:</strong> Drag and drop multiple PDFs, Word documents (DOCX), and Images (JPG/PNG) simultaneously.</li>
+                    <li><strong>Workspace:</strong> All your pages will instantly appear as visual thumbnails in a unified grid workspace.</li>
+                  </ul>
+                )
+              },
+              { 
+                step: 2, 
+                title: "Manage and Organize Pages", 
+                content: (
+                  <ul className="list-disc pl-5 space-y-1.5 text-slate-600 text-sm md:text-base mt-2">
+                    <li><strong>Reorder (Drag & Drop):</strong> Click and drag any page to move it to your desired sequence.</li>
+                    <li><strong>Rotate:</strong> Click the Rotate icon on any sideways page to fix its orientation. <em>Pro Tip: Use the 'Landscape' filter to select and rotate all sideways pages at once!</em></li>
+                    <li><strong>Preview:</strong> Click the Eye icon to view a readable, full-screen preview of any page.</li>
+                  </ul>
+                )
+              },
+              { 
+                step: 3, 
+                title: "The Magic of Selection", 
+                content: (
+                  <ul className="list-disc pl-5 space-y-1.5 text-slate-600 text-sm md:text-base mt-2">
+                    <li><strong>Manual Click:</strong> Simply click on individual pages to select them.</li>
+                    <li><strong>Range Input:</strong> Type ranges like "1-5, 10, 15-20" in the box to automatically highlight those specific pages.</li>
+                    <li><strong>Smart Filters:</strong> Use toolbar buttons to quickly 'Select All', pick 'Odd Pages', or 'Even Pages'.</li>
+                    <li><strong>Keyboard Shortcuts:</strong> Use <code>Ctrl + A</code> to select all and <code>Ctrl + Z</code> (Undo) to fix mistakes easily.</li>
+                  </ul>
+                )
+              },
+              { 
+                step: 4, 
+                title: "Add Special Features (Optional)", 
+                content: (
+                  <ul className="list-disc pl-5 space-y-1.5 text-slate-600 text-sm md:text-base mt-2">
+                    <li><strong>Watermarks & Numbers:</strong> Easily stamp custom text or page numbers onto your extracted pages using the options below the grid.</li>
+                    <li><strong>Insert Blank Page:</strong> Click the 'Add Blank' button to insert an empty page into the grid, which is perfect for fixing printing alignments.</li>
+                  </ul>
+                )
+              },
+              { 
+                step: 5, 
+                title: "Choose Your Output Mode", 
+                content: (
+                  <ul className="list-disc pl-5 space-y-1.5 text-slate-600 text-sm md:text-base mt-2">
+                    <li><strong>Extract All into 1 PDF:</strong> Merge all your selected pages into a single new document.</li>
+                    <li><strong>Separate PDFs (ZIP Download):</strong> Generate an individual PDF file for every selected page, delivered in one ZIP folder.</li>
+                    <li><strong>Bulk Chunker (Fixed Range):</strong> Split a massive document into equal parts (e.g., choose to split every 10 pages).</li>
+                  </ul>
+                )
+              },
+              { 
+                step: 6, 
+                title: "Instant Export", 
+                content: (
+                  <p className="text-slate-600 text-sm md:text-base mt-2 leading-relaxed">
+                    Click the <strong>Export/Download</strong> button. Because everything is processed locally in your device's RAM, your download starts in <strong>0 seconds</strong>. Say goodbye to annoying "Uploading..." or "Processing..." wait times!
+                  </p>
+                )
+              }
             ].map((item) => (
               <div key={item.step} className="flex gap-4 md:gap-5 items-start bg-white p-4 md:p-5 rounded-2xl border border-slate-100 shadow-sm">
                 <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-rose-500 to-orange-500 text-white flex items-center justify-center font-bold shadow-md">
                   {item.step}
                 </div>
-                <div className="pt-1 md:pt-2">
-                  <strong className="text-slate-900 text-base md:text-lg block mb-0.5 md:mb-1">{item.title}</strong>
-                  <span className="text-slate-600 text-sm md:text-base">{item.desc}</span>
+                <div className="pt-1 md:pt-1.5 flex-1">
+                  <strong className="text-slate-900 text-base md:text-lg block mb-1">{item.title}</strong>
+                  {item.content}
                 </div>
               </div>
             ))}
