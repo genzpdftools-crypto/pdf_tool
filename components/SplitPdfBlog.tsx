@@ -5,7 +5,7 @@ import {
   Youtube, Instagram, Twitter, Facebook, HelpCircle, Clock, Calendar, Share2, Linkedin,
   ChevronRight, Lightbulb, ThumbsUp, ThumbsDown, CheckCircle, FilePlus, MousePointerClick,
   FileText, Image as ImageIcon, Move, CheckSquare, Eye, Undo2, Hash, Timer, AlertTriangle,
-  Archive, Copy, Keyboard, ArrowDownAZ, RotateCw, UploadCloud
+  Archive, Copy, Keyboard, ArrowDownAZ, RotateCw, UploadCloud, Quote
 } from 'lucide-react';
 
 export const SplitPdfBlog = () => {
@@ -588,6 +588,42 @@ export const SplitPdfBlog = () => {
             </div>
             <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-5 translate-y-5 md:translate-x-10 md:translate-y-10">
               <Scissors className="w-32 h-32 md:w-48 md:h-48" />
+            </div>
+          </div>
+
+          {/* Testimonials Section */}
+          <div className="my-12 md:my-16 not-prose">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-8 md:mb-10 text-center">Loved by Students & Professionals</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
+              <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 relative">
+                <div className="absolute top-4 right-4 md:top-6 md:right-6 text-rose-100"><Scissors className="w-8 h-8 md:w-10 md:h-10" /></div>
+                <div className="flex text-amber-400 mb-3 md:mb-4 gap-1">
+                  {[...Array(5)].map((_, i) => <Star key={i} fill="currentColor" size={16} className="md:w-[18px] md:h-[18px]" />)}
+                </div>
+                <p className="text-slate-700 italic text-sm md:text-base leading-relaxed mb-5 md:mb-6">"The page extraction feature is a lifesaver. I was able to pull specific pages from my massive textbook PDF and extract them for my class notes in seconds without uploading anything!"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-700 font-bold text-xs md:text-sm">AS</div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-xs md:text-sm">Ananya S.</p>
+                    <p className="text-slate-500 text-[10px] md:text-xs">CS Student</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="bg-white p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-lg shadow-slate-200/50 border border-slate-100 relative">
+                <div className="absolute top-4 right-4 md:top-6 md:right-6 text-emerald-100"><ShieldCheck className="w-8 h-8 md:w-10 md:h-10" /></div>
+                <div className="flex text-amber-400 mb-3 md:mb-4 gap-1">
+                  {[...Array(5)].map((_, i) => <Star key={i} fill="currentColor" size={16} className="md:w-[18px] md:h-[18px]" />)}
+                </div>
+                <p className="text-slate-700 italic text-sm md:text-base leading-relaxed mb-5 md:mb-6">"Finally, a tool that lets me securely separate confidential legal contracts without worrying about cloud server data breaches. Genz PDF is incredibly fast and secure."</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs md:text-sm">RM</div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-xs md:text-sm">Rahul M.</p>
+                    <p className="text-slate-500 text-[10px] md:text-xs">Corporate Lawyer</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
