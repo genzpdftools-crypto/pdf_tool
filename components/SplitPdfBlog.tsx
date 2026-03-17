@@ -130,7 +130,8 @@ export const SplitPdfBlog = () => {
               { id: "step-by-step-guide", text: "2. Step-by-Step Guide: How Our Tool Works" },
               { id: "comparison", text: "3. Why Genz PDF is Better (Comparison)" },
               { id: "faq", text: `4. Frequently Asked Questions (${currentYear} Guide)` },
-              { id: "more-tools", text: "5. Explore More Free PDF Tools" }
+              { id: "use-cases", text: "5. Who Uses Genz PDF Splitter?" },
+              { id: "more-tools", text: "6. Explore More Free PDF Tools" }
             ].map((item) => (
               <li key={item.id}>
                 <a href={`#${item.id}`} className="hover:text-rose-600 transition-colors flex items-center gap-2 group-hover:translate-x-1 duration-300">
@@ -556,6 +557,40 @@ export const SplitPdfBlog = () => {
             </div>
           </div>
 
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
+
+          {/* Use Cases Section */}
+          <h2 id="use-cases" className="text-2xl sm:text-3xl font-black text-slate-900 mb-6 md:mb-8 not-prose text-center scroll-mt-24">
+            Who Uses Genz PDF Splitter?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-12 md:mb-16 not-prose">
+            <div className="bg-rose-50/50 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-rose-100 hover:bg-rose-50 transition-colors">
+              <h4 className="font-black text-slate-900 mb-2 md:mb-3 text-base md:text-lg">🎓 For Students & Educators</h4>
+              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">Extract specific chapters from massive e-books, separate assignments, or pull out important lecture slides seamlessly without dealing with huge files.</p>
+            </div>
+            <div className="bg-orange-50/50 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-orange-100 hover:bg-orange-50 transition-colors">
+              <h4 className="font-black text-slate-900 mb-2 md:mb-3 text-base md:text-lg">💼 For Professionals</h4>
+              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">Isolate specific invoices from bulk financial reports, extract key presentation slides, and organize client documents effortlessly.</p>
+            </div>
+            <div className="bg-pink-50/50 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-pink-100 hover:bg-pink-50 transition-colors sm:col-span-2 md:col-span-1">
+              <h4 className="font-black text-slate-900 mb-2 md:mb-3 text-base md:text-lg">⚖️ Legal & HR Teams</h4>
+              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">Safely extract confidential employee records or legal clauses. 100% offline processing ensures your sensitive data stays highly secure.</p>
+            </div>
+          </div>
+
+          {/* Cross-Platform Compatibility */}
+          <div className="bg-gradient-to-r from-slate-900 to-rose-950 text-white p-8 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-xl my-12 md:my-16 relative overflow-hidden not-prose">
+            <div className="relative z-10 max-w-2xl">
+              <h3 className="text-2xl md:text-3xl font-black mb-3 md:mb-4 tracking-tight">Split PDFs on Any Device</h3>
+              <p className="text-rose-100/80 text-sm md:text-lg leading-relaxed">
+                Whether you are on a Windows PC, Mac, Android phone, or iPhone, Genz PDF works flawlessly directly in your browser. <strong className="text-white">No apps to install. No extensions required.</strong>
+              </p>
+            </div>
+            <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-5 translate-y-5 md:translate-x-10 md:translate-y-10">
+              <Scissors className="w-32 h-32 md:w-48 md:h-48" />
+            </div>
+          </div>
+
           {/* Final CTA Button */}
           <div className="text-center my-14 md:my-20 not-prose relative">
             <div className="absolute inset-0 bg-rose-500/5 blur-2xl md:blur-3xl rounded-full w-48 h-48 md:w-64 md:h-64 mx-auto -z-10 animate-pulse"></div>
@@ -619,6 +654,47 @@ export const SplitPdfBlog = () => {
                 <p className="text-slate-500">We appreciate your feedback.</p>
               </div>
             )}
+          </div>
+
+          {/* 📤 SHARE THIS GUIDE */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-5 md:gap-6 bg-white p-6 md:p-8 rounded-2xl md:rounded-3xl border border-slate-200/60 shadow-lg shadow-slate-100 mb-10 md:mb-12 not-prose">
+            <div className="flex items-center gap-2 md:gap-3 font-black text-slate-800 text-base md:text-lg m-0">
+              <div className="p-1.5 md:p-2 bg-rose-50 rounded-lg text-rose-500"><Share2 className="w-5 h-5 md:w-6 md:h-6" /></div> 
+              Share this Ultimate Guide
+            </div>
+            <div className="flex gap-3 md:gap-4">
+              <a href={`https://twitter.com/intent/tweet?url=${shareUrl}&text=${shareTitle}`} target="_blank" rel="noopener noreferrer" className="p-2.5 md:p-3 bg-slate-50 text-slate-600 hover:bg-[#1DA1F2] hover:text-white rounded-xl shadow-sm transition-all hover:-translate-y-1" title="Share on Twitter"><Twitter className="w-4 h-4 md:w-5 md:h-5"/></a>
+              <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}`} target="_blank" rel="noopener noreferrer" className="p-2.5 md:p-3 bg-slate-50 text-slate-600 hover:bg-[#0A66C2] hover:text-white rounded-xl shadow-sm transition-all hover:-translate-y-1" title="Share on LinkedIn"><Linkedin className="w-4 h-4 md:w-5 md:h-5"/></a>
+              <a href={`https://api.whatsapp.com/send?text=${shareTitle} ${shareUrl}`} target="_blank" rel="noopener noreferrer" className="p-2.5 md:p-3 bg-slate-50 text-slate-600 hover:bg-[#25D366] hover:text-white rounded-xl shadow-sm transition-all hover:-translate-y-1" title="Share on WhatsApp">
+                <svg viewBox="0 0 24 24" className="w-4 h-4 md:w-5 md:h-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+              </a>
+            </div>
+          </div>
+
+          {/* ✍️ AUTHOR BIO BOX (E-E-A-T) */}
+          <div className="relative bg-gradient-to-br from-rose-50 to-white border border-rose-100 p-6 md:p-10 rounded-3xl md:rounded-[2.5rem] shadow-sm flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-8 mt-12 md:mt-16 not-prose overflow-hidden group">
+            <div className="absolute top-0 right-0 w-24 h-24 md:w-32 md:h-32 bg-rose-500/5 rounded-full blur-2xl group-hover:bg-rose-500/10 transition-colors"></div>
+            
+            <div className="relative">
+              <div className="absolute inset-0 bg-rose-200 rounded-2xl md:rounded-3xl rotate-6 group-hover:rotate-12 transition-transform"></div>
+              <img src="image_f76e9e.png" alt="Genz PDF Logo" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e) => e.target.style.display='none'} />
+            </div>
+
+            <div className="flex-1 relative z-10 text-center sm:text-left">
+              <h4 className="font-black text-xl md:text-2xl text-slate-900 mb-1.5 md:mb-2 flex items-center gap-1.5 md:gap-2 justify-center sm:justify-start">
+                Pintu And Raushan <ShieldCheck className="w-4 h-4 md:w-5 md:h-5 text-emerald-500 fill-emerald-500/20" />
+              </h4>
+              <p className="text-[10px] md:text-xs font-black text-rose-500 uppercase tracking-widest mb-3 md:mb-4 bg-rose-100 inline-block px-2.5 py-1 rounded-full">Founders & Developers</p>
+              <p className="text-slate-600 text-sm md:text-base leading-relaxed mb-5 md:mb-6">
+                Pintu And Raushan are the creators behind Genz PDF. With a mission to provide fast, unlimited, and 100% secure offline PDF tools, they built Genz PDF so users never have to upload their private documents to sketchy cloud servers again.
+              </p>
+              
+              <div className="flex justify-center sm:justify-start gap-2.5 md:gap-3">
+                <a href="https://www.linkedin.com/in/pintu-chauhan-ctuap/" target="_blank" rel="noopener noreferrer" className="p-2 md:p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-[#0A66C2] hover:border-[#0A66C2] rounded-lg md:rounded-xl transition-all hover:shadow-sm" title="Pintu Chauhan LinkedIn"><Linkedin className="w-4 h-4 md:w-[18px] md:h-[18px]" /></a>
+                <a href="https://www.linkedin.com/in/raushan-kumar-0b5340373/" target="_blank" rel="noopener noreferrer" className="p-2 md:p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-[#0A66C2] hover:border-[#0A66C2] rounded-lg md:rounded-xl transition-all hover:shadow-sm" title="Raushan Kumar LinkedIn"><Linkedin className="w-4 h-4 md:w-[18px] md:h-[18px]" /></a>
+                <a href="https://x.com/genzpdftool?s=20" target="_blank" rel="noopener noreferrer" className="p-2 md:p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-900 rounded-lg md:rounded-xl transition-all hover:shadow-sm" title="Genz PDF Twitter"><Twitter className="w-4 h-4 md:w-[18px] md:h-[18px]" /></a>
+              </div>
+            </div>
           </div>
         </div>
       </article>
