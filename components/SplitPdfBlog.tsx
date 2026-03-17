@@ -301,6 +301,52 @@ export const SplitPdfBlog = () => {
 
           </div>
 
+          {/* ================= SUPPORTED FORMATS SHOWCASE ================= */}
+          <div className="bg-white border border-slate-200/60 rounded-2xl md:rounded-3xl p-6 md:p-8 shadow-sm mb-10 md:mb-14 not-prose flex flex-col items-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 md:w-48 md:h-48 bg-gradient-to-bl from-rose-100/50 to-orange-100/50 rounded-full blur-2xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 md:w-32 md:h-32 bg-blue-50/50 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <h3 className="font-black text-slate-900 text-xl md:text-2xl mb-3 relative z-10 tracking-tight">One Tool. Every Format.</h3>
+            <p className="text-slate-500 text-sm md:text-base mb-8 max-w-xl relative z-10 leading-relaxed">
+              Why use different websites for different files? Drag & drop PDFs, Word Documents, and Images together in a single workspace.
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-5 md:gap-8 relative z-10 w-full px-2">
+              {/* PDF Icon */}
+              <div className="flex flex-col items-center gap-2.5 group/icon cursor-pointer">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-red-50 text-red-500 rounded-2xl md:rounded-3xl flex items-center justify-center group-hover/icon:-translate-y-2 transition-all duration-300 border border-red-100 shadow-sm hover:shadow-red-200/50 hover:shadow-lg">
+                  <FileText size={32} className="md:w-10 md:h-10" strokeWidth={2} />
+                </div>
+                <span className="font-bold text-slate-700 text-xs md:text-sm uppercase tracking-wider">PDF</span>
+              </div>
+
+              {/* DOCX Icon */}
+              <div className="flex flex-col items-center gap-2.5 group/icon cursor-pointer">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-50 text-blue-600 rounded-2xl md:rounded-3xl flex items-center justify-center group-hover/icon:-translate-y-2 transition-all duration-300 border border-blue-100 shadow-sm hover:shadow-blue-200/50 hover:shadow-lg">
+                  <FileText size={32} className="md:w-10 md:h-10" strokeWidth={2} />
+                </div>
+                <span className="font-bold text-slate-700 text-xs md:text-sm uppercase tracking-wider">DOCX</span>
+              </div>
+
+              {/* JPG Icon */}
+              <div className="flex flex-col items-center gap-2.5 group/icon cursor-pointer">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-amber-50 text-amber-500 rounded-2xl md:rounded-3xl flex items-center justify-center group-hover/icon:-translate-y-2 transition-all duration-300 border border-amber-100 shadow-sm hover:shadow-amber-200/50 hover:shadow-lg">
+                  <ImageIcon size={32} className="md:w-10 md:h-10" strokeWidth={2} />
+                </div>
+                <span className="font-bold text-slate-700 text-xs md:text-sm uppercase tracking-wider">JPG</span>
+              </div>
+
+              {/* PNG Icon */}
+              <div className="flex flex-col items-center gap-2.5 group/icon cursor-pointer">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-emerald-50 text-emerald-500 rounded-2xl md:rounded-3xl flex items-center justify-center group-hover/icon:-translate-y-2 transition-all duration-300 border border-emerald-100 shadow-sm hover:shadow-emerald-200/50 hover:shadow-lg">
+                  <ImageIcon size={32} className="md:w-10 md:h-10" strokeWidth={2} />
+                </div>
+                <span className="font-bold text-slate-700 text-xs md:text-sm uppercase tracking-wider">PNG</span>
+              </div>
+            </div>
+          </div>
+          {/* ========================================================================= */}
+
           <h2 id="step-by-step-guide" className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mb-6 md:mb-8 flex items-center gap-3 scroll-mt-24 not-prose">
             <div className="p-2 md:p-2.5 bg-indigo-100 text-indigo-600 rounded-xl"><ImageIcon className="w-5 h-5 md:w-6 md:h-6" /></div> 
             Step-by-Step Guide: How Our Tool Works
