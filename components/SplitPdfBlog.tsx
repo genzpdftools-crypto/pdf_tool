@@ -560,6 +560,7 @@ export const SplitPdfBlog = () => {
             {[
               { href: "/merge", icon: <Layers size={20} className="md:w-6 md:h-6" />, title: "Merge PDF", desc: "Combine files easily.", color: "indigo" },
               { href: "/compress", icon: <Minimize2 size={20} className="md:w-6 md:h-6" />, title: "Compress PDF", desc: "Reduce file size instantly.", color: "emerald" },
+              { href: "/resize", icon: <Scaling size={20} className="md:w-6 md:h-6" />, title: "Resize PDF", desc: "Change page dimensions.", color: "cyan" },
               { href: "/protect", icon: <Lock size={20} className="md:w-6 md:h-6" />, title: "Protect PDF", desc: "Add secure passwords.", color: "rose" },
               { href: "/unlock", icon: <Unlock size={20} className="md:w-6 md:h-6" />, title: "Unlock PDF", desc: "Remove PDF passwords.", color: "amber" },
               { href: "/signature", icon: <PenTool size={20} className="md:w-6 md:h-6" />, title: "Sign PDF", desc: "Add your e-signature securely.", color: "blue" },
