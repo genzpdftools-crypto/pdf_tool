@@ -248,7 +248,15 @@ export const Footer: React.FC<FooterProps> = ({ setMode }) => {
                     How Merge PDF Works
                   </a>
                 </li>
-                {/* Future blog posts can be added here */}
+                {/* 🆕 Split Blog Link Added Here */}
+                <li>
+                  <a
+                    href="/blog/split-pdf"
+                    className="inline-block text-sm text-slate-500 hover:text-rose-600 font-medium hover:translate-x-1 transition-transform duration-300"
+                  >
+                    How Split PDF Works
+                  </a>
+                </li>
               </ul>
             </nav>
 
