@@ -17,7 +17,7 @@ export const SplitPdfBlog = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans selection:bg-rose-200 selection:text-rose-900">
+    <div className="min-h-screen bg-slate-50 font-sans selection:bg-rose-200 selection:text-rose-900 overflow-x-hidden">
       {/* 🤖 SEO SCHEMA MARKUP FOR GOOGLE RICH SNIPPETS */}
       <script type="application/ld+json">
         {JSON.stringify({
