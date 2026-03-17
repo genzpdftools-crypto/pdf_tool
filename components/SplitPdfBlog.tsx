@@ -677,12 +677,14 @@ export const SplitPdfBlog = () => {
             
             <div className="relative">
               <div className="absolute inset-0 bg-rose-200 rounded-2xl md:rounded-3xl rotate-6 group-hover:rotate-12 transition-transform"></div>
-              <img src="logo.png" alt="Genz PDF Logo" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e) => e.target.style.display='none'} />
+              <img src="image_f76e9e.png" alt="Genz PDF Logo" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e) => e.target.style.display='none'} />
             </div>
 
             <div className="flex-1 relative z-10 text-center sm:text-left">
-              <h4 className="font-black text-xl md:text-2xl text-slate-900 mb-1.5 md:mb-2 flex items-center gap-1.5 md:gap-2 justify-center sm:justify-start">
+              <h4 className="font-black text-xl md:text-2xl text-slate-900 mb-1.5 md:mb-2 flex flex-wrap items-center gap-1.5 md:gap-2 justify-center sm:justify-start">
                 Pintu And Raushan <ShieldCheck className="w-4 h-4 md:w-5 md:h-5 text-emerald-500 fill-emerald-500/20" />
+                <span className="hidden sm:inline-block w-1 h-1 bg-slate-300 rounded-full mx-1"></span>
+                <img src="/logos.png" alt="Genz PDF" className="h-5 md:h-6 object-contain" onError={(e) => e.currentTarget.style.display='none'} />
               </h4>
               <p className="text-[10px] md:text-xs font-black text-rose-500 uppercase tracking-widest mb-3 md:mb-4 bg-rose-100 inline-block px-2.5 py-1 rounded-full">Founders & Developers</p>
               <p className="text-slate-600 text-sm md:text-base leading-relaxed mb-5 md:mb-6">
