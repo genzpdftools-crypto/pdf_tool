@@ -681,10 +681,9 @@ export const SplitPdfBlog = () => {
             </div>
 
             <div className="flex-1 relative z-10 text-center sm:text-left">
-              <h4 className="font-black text-xl md:text-2xl text-slate-900 mb-1.5 md:mb-2 flex flex-wrap items-center gap-1.5 md:gap-2 justify-center sm:justify-start">
-                Pintu And Raushan <ShieldCheck className="w-4 h-4 md:w-5 md:h-5 text-emerald-500 fill-emerald-500/20" />
-                <span className="hidden sm:inline-block w-1 h-1 bg-slate-300 rounded-full mx-1"></span>
-                <img src="/logos.png" alt="Genz PDF" className="h-5 md:h-6 object-contain" onError={(e) => e.currentTarget.style.display='none'} />
+              <h4 className="font-black text-xl md:text-2xl text-slate-900 mb-1.5 md:mb-2 flex flex-wrap items-center gap-2 md:gap-3 justify-center sm:justify-start">
+                <img src="/logos.png" alt="Genz PDF" className="h-8 md:h-10 object-contain drop-shadow-md hover:scale-105 transition-transform" onError={(e) => e.currentTarget.style.display='none'} />
+                Pintu And Raushan <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-emerald-500 fill-emerald-500/20" />
               </h4>
               <p className="text-[10px] md:text-xs font-black text-rose-500 uppercase tracking-widest mb-3 md:mb-4 bg-rose-100 inline-block px-2.5 py-1 rounded-full">Founders & Developers</p>
               <p className="text-slate-600 text-sm md:text-base leading-relaxed mb-5 md:mb-6">
