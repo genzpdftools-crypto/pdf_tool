@@ -1,5 +1,3 @@
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import {
   ArrowDownAZ,
@@ -55,8 +53,10 @@ const About = lazy(() => import('./components/About'));
 const Contact = lazy(() => import('./components/Contact'));
 const Policy = lazy(() => import('./components/Policy'));
 const Terms = lazy(() => import('./components/Terms'));
-// 🆕 New lazy import for the blog page
+// 🆕 New lazy import for the blog pages
 const MergePdfBlog = lazy(() => import('./components/MergePdfBlog'));
+// 🆕 Split Blog Lazy Import
+const SplitPdfBlog = lazy(() => import('./components/SplitPdfBlog'));
 
 const BASE_URL = "https://genzpdf.com";
 const SITE_NAME = "Genz PDF";
@@ -261,6 +261,17 @@ const SEO_METADATA: Record<AppMode, {
       { name: "Home", url: BASE_URL },
       { name: "Blog: Merge PDF", url: `${BASE_URL}/blog/merge-pdf` }
     ]
+  },
+  // 🆕 Naya Split Blog Metadata
+  'blog-split': {
+    title: "How to Split & Extract PDF Pages Free - Visual Guide | Genz PDF",
+    description: "Learn how to visually split PDFs, extract specific pages, or divide by size (MB) using our 100% secure, offline PDF splitter tool.",
+    keywords: "how to split pdf, extract pdf pages visually, split pdf by size, offline pdf splitter guide",
+    schema: { "@context": "https://schema.org", "@type": "Article", "headline": "How to Split & Extract PDF Pages Visually" },
+    breadcrumb: [
+      { name: "Home", url: BASE_URL },
+      { name: "Blog: Split PDF", url: `${BASE_URL}/blog/split-pdf` }
+    ]
   }
 };
 
@@ -282,8 +293,9 @@ function App() {
         return { mode: 'convert', param: convertMatch[1] };
       }
 
-      // 🆕 New static route for the blog page
+      // 🆕 New static route for the blog pages
       if (path.includes('/blog/merge-pdf')) return { mode: 'blog-merge', param: null };
+      if (path.includes('/blog/split-pdf')) return { mode: 'blog-split', param: null };
 
       // Static routes (keep existing)
       if (path.includes('/merge')) return { mode: 'merge', param: null };
@@ -324,7 +336,11 @@ function App() {
 
   const navigateTo = (targetMode: AppMode, e?: React.MouseEvent) => {
     if (e) e.preventDefault();
-    const path = targetMode === 'home' ? '/' : targetMode === 'blog-merge' ? '/blog/merge-pdf' : `/${targetMode}`;
+    let path = `/${targetMode}`;
+    if (targetMode === 'home') path = '/';
+    if (targetMode === 'blog-merge') path = '/blog/merge-pdf';
+    if (targetMode === 'blog-split') path = '/blog/split-pdf'; // 🆕 Update here
+
     window.history.pushState({}, '', path);
     setMode(targetMode);
     // Reset dynamic param when navigating to static route
@@ -355,7 +371,8 @@ function App() {
   // --- UPDATED: SEO effect with dynamic overrides ---
   useEffect(() => {
     let meta = SEO_METADATA[mode] || SEO_METADATA.home;
-    let url = mode === 'home' ? BASE_URL : mode === 'blog-merge' ? `${BASE_URL}/blog/merge-pdf` : `${BASE_URL}/${mode}`;
+    // Updated canonical URL generation to include blog-split
+    let url = mode === 'home' ? BASE_URL : mode === 'blog-merge' ? `${BASE_URL}/blog/merge-pdf` : mode === 'blog-split' ? `${BASE_URL}/blog/split-pdf` : `${BASE_URL}/${mode}`;
 
     // 🪄 Override metadata dynamically for resize/convert with param
     if (mode === 'resize' && dynamicParam) {
@@ -606,7 +623,7 @@ function App() {
     const isActive = (mode === targetMode) || (targetMode === 'home' && mode === 'home');
     return (
       <a
-        href={targetMode === 'home' ? '/' : targetMode === 'blog-merge' ? '/blog/merge-pdf' : `/${targetMode}`}
+        href={targetMode === 'home' ? '/' : targetMode === 'blog-merge' ? '/blog/merge-pdf' : targetMode === 'blog-split' ? '/blog/split-pdf' : `/${targetMode}`}
         onClick={(e) => navigateTo(targetMode, e)}
         className={clsx(
           "flex items-center gap-2 xl:gap-3 transition-all duration-300 font-bold rounded-xl group",
@@ -1001,8 +1018,9 @@ function App() {
               {mode === 'convert' && <ConverterTool initialFormat={dynamicParam} />}
               {mode === 'compress' && <CompressTool />}
               {mode === 'resize' && <ResizeTool initialTargetKb={dynamicParam} />}
-              {/* 🆕 Render the new blog page here */}
+              {/* 🆕 Render the new blog pages here */}
               {mode === 'blog-merge' && <MergePdfBlog />}
+              {mode === 'blog-split' && <SplitPdfBlog />}
               {mode === 'about' && <About />}
               {mode === 'contact' && <Contact />}
               {mode === 'policy' && <Policy />}
@@ -1023,9 +1041,6 @@ function App() {
 
       <Footer setMode={(m) => navigateTo(m)} />
       <AiAssistant isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
-
-      <Analytics />
-      <SpeedInsights />
 
       <style>{`
         @keyframes bounce-in {
