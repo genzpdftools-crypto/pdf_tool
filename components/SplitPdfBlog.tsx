@@ -351,6 +351,34 @@ export const SplitPdfBlog = () => {
             <div className="p-2 md:p-2.5 bg-indigo-100 text-indigo-600 rounded-xl"><ImageIcon className="w-5 h-5 md:w-6 md:h-6" /></div> 
             Step-by-Step Guide: How Our Tool Works
           </h2>
+
+          {/* ================= VIDEO / GIF PLACEHOLDER ================= */}
+          {/* GIF/Video Placeholder (Dekhne walo ke liye) */}
+          <div className="bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] p-2 md:p-3 mb-10 shadow-2xl shadow-slate-900/20 relative overflow-hidden group not-prose">
+            {/* Background gradient effect */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/10 to-blue-500/10 opacity-50 pointer-events-none"></div>
+            
+            {/* Inner Box for Video/GIF */}
+            <div className="aspect-[16/9] sm:aspect-[21/9] bg-slate-800 rounded-xl md:rounded-2xl flex flex-col items-center justify-center relative overflow-hidden border border-slate-700/50">
+              
+              <PlayCircle className="w-14 h-14 md:w-20 md:h-20 text-rose-500 mb-3 md:mb-4 group-hover:scale-110 transition-transform duration-300 cursor-pointer drop-shadow-[0_0_15px_rgba(244,63,94,0.4)]" />
+              
+              <h4 className="text-white font-bold text-base md:text-xl tracking-tight z-10 text-center px-4">
+                15-Second Ka Quick Demo Dekhein
+              </h4>
+              <p className="text-slate-400 text-xs md:text-sm mt-1.5 z-10 px-4 text-center max-w-md">
+                Dekhiye pages ko split aur extract karna kitna aasan hai. Sirf click karein, select karein aur export karein!
+              </p>
+              
+              {/* Badge */}
+              <div className="absolute top-4 left-4 px-2.5 py-1 bg-white/10 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-lg border border-white/10 flex items-center gap-1.5 shadow-lg">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> Video Placeholder
+              </div>
+
+              {/* Note: Yahan par aap <img> tag se .gif file ya <video> tag se .mp4 add kar sakte hain. */}
+            </div>
+          </div>
+          {/* ========================================================== */}
           
           <div className="space-y-4 my-6 md:my-8 not-prose">
             {[
