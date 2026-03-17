@@ -4,7 +4,7 @@ import {
   PlayCircle, Star, Minimize2, Lock, Unlock, PenTool, Scaling, ArrowRightLeft,
   Youtube, Instagram, Twitter, Facebook, HelpCircle, Clock, Calendar, Share2, Linkedin,
   ChevronRight, Lightbulb, ThumbsUp, ThumbsDown, CheckCircle, FilePlus, MousePointerClick,
-  FileText, Image as ImageIcon
+  FileText, Image as ImageIcon, Move, CheckSquare, Eye, Undo2, Hash, Timer, AlertTriangle
 } from 'lucide-react';
 
 export const SplitPdfBlog = () => {
@@ -102,7 +102,7 @@ export const SplitPdfBlog = () => {
             How to <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-orange-500 to-red-500">Split & Extract PDF Pages</span> Like a Pro
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-slate-600 max-w-2xl mx-auto mb-6 md:mb-8 leading-relaxed px-2">
-            Discover how to visually extract specific pages, split massive PDFs by size, add watermarks, and do it all 100% securely offline in {currentYear}.
+            Discover how to visually extract specific pages, rearrange them, split massive PDFs by size, and do it all 100% securely offline in {currentYear}.
           </p>
           
           <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 text-xs md:text-sm font-semibold text-slate-500 bg-white inline-flex mx-auto px-4 md:px-6 py-2.5 md:py-3 rounded-2xl shadow-sm border border-slate-100">
@@ -152,28 +152,76 @@ export const SplitPdfBlog = () => {
           </h2>
           <p className="text-base md:text-lg mb-6 md:mb-8">Unlike basic PDF tools that ask you to blindly type page numbers, Genz PDF gives you a powerful visual workspace. Here is what makes our tool industry-leading:</p>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 mb-10 md:mb-14 not-prose">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 md:gap-5 mb-10 md:mb-14 not-prose">
             <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
               <div className="p-2.5 md:p-3 bg-blue-50 rounded-xl flex-shrink-0"><MousePointerClick className="text-blue-600 w-5 h-5 md:w-6 md:h-6" /></div>
               <div>
                 <strong className="block text-slate-900 text-sm md:text-base mb-1">Smart Visual Selection</strong>
-                <span className="text-xs md:text-sm text-slate-500">See thumbnails. Use Shift+Click for ranges, or auto-select Odd/Even and Landscape pages.</span>
+                <span className="text-xs md:text-sm text-slate-500">See thumbnails of every page. Visually select what you want to keep or delete instantly.</span>
               </div>
             </div>
-            
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-pink-50 rounded-xl flex-shrink-0"><Move className="text-pink-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Drag & Drop Reordering</strong>
+                <span className="text-xs md:text-sm text-slate-500">Easily drag and arrange pages into the perfect sequence before exporting. A lifesaver for scanned files!</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-cyan-50 rounded-xl flex-shrink-0"><CheckSquare className="text-cyan-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Advanced Selection Filters</strong>
+                <span className="text-xs md:text-sm text-slate-500">1-click 'Select All', 'Odd/Even' filters, 'Invert Selection', and Shift+Click for massive ranges.</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-amber-50 rounded-xl flex-shrink-0"><Eye className="text-amber-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Full-Screen Page Preview</strong>
+                <span className="text-xs md:text-sm text-slate-500">Not sure what a page says? Click the eye icon to read contents clearly in a full-screen lightbox modal.</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-rose-50 rounded-xl flex-shrink-0"><Undo2 className="text-rose-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Undo & Redo System</strong>
+                <span className="text-xs md:text-sm text-slate-500">Accidentally deleted a vital page? Use the undo button or Ctrl+Z to reverse your last actions instantly.</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-indigo-50 rounded-xl flex-shrink-0"><Hash className="text-indigo-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Split by Range Input</strong>
+                <span className="text-xs md:text-sm text-slate-500">Prefer typing? Enter custom ranges like "1-5, 8, 12" in the text box to automatically highlight specific pages.</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-teal-50 rounded-xl flex-shrink-0"><Timer className="text-teal-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Live Processing Progress</strong>
+                <span className="text-xs md:text-sm text-slate-500">No more frozen screens. Watch real-time loading progress as your files render and export smoothly.</span>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="p-2.5 md:p-3 bg-red-50 rounded-xl flex-shrink-0"><AlertTriangle className="text-red-600 w-5 h-5 md:w-6 md:h-6" /></div>
+              <div>
+                <strong className="block text-slate-900 text-sm md:text-base mb-1">Smart Performance Saver</strong>
+                <span className="text-xs md:text-sm text-slate-500">Auto-detects massive files (50+ MB) and offers a "Fast Mode" to prevent your browser from lagging or crashing.</span>
+              </div>
+            </div>
+
             <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
               <div className="p-2.5 md:p-3 bg-emerald-50 rounded-xl flex-shrink-0"><ShieldCheck className="text-emerald-600 w-5 h-5 md:w-6 md:h-6" /></div>
               <div>
                 <strong className="block text-slate-900 text-sm md:text-base mb-1">100% Client-Side Privacy</strong>
                 <span className="text-xs md:text-sm text-slate-500">Your files are sliced in your browser's RAM. Zero server uploads. Maximum security.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3 md:gap-4 bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-              <div className="p-2.5 md:p-3 bg-orange-50 rounded-xl flex-shrink-0"><Zap className="text-orange-600 w-5 h-5 md:w-6 md:h-6" /></div>
-              <div>
-                <strong className="block text-slate-900 text-sm md:text-base mb-1">Multi-Format & DOCX</strong>
-                <span className="text-xs md:text-sm text-slate-500">Mix PDFs, JPGs, PNGs, and even render DOCX files visually before splitting.</span>
               </div>
             </div>
 
@@ -261,9 +309,9 @@ export const SplitPdfBlog = () => {
               <tbody className="text-xs sm:text-sm md:text-base">
                 {[
                   { feature: "Data Privacy", genz: "100% Offline processing", bad: "Uploaded to servers", highlight: true },
-                  { feature: "Visual Thumbnails", genz: "Yes, fully interactive", bad: "No, type numbers blindly", highlight: false },
+                  { feature: "Visual Drag & Drop", genz: "Yes, fully interactive", bad: "No, type numbers blindly", highlight: false },
                   { feature: "Split by Size (MB)", genz: "Yes, exact MB targeting", bad: "Rarely available / Paid", highlight: true },
-                  { feature: "File Size Limits", genz: "Unlimited (Depends on your RAM)", bad: "Max 10MB - 50MB limits", highlight: false },
+                  { feature: "Undo/Redo Support", genz: "Yes, fast undo history", bad: "Start over on mistake", highlight: false },
                   { feature: "Price", genz: "100% Free Forever", bad: "Paid Subscriptions", highlight: true }
                 ].map((row, idx) => (
                   <tr key={idx} className={row.highlight ? "bg-slate-50/50" : "bg-white"}>
