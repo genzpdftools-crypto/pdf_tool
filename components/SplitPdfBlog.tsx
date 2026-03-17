@@ -415,12 +415,12 @@ export const SplitPdfBlog = () => {
               </thead>
               <tbody className="text-xs sm:text-sm md:text-base">
                 {[
-                  { feature: "Data Privacy & Speed", genz: "100% Offline, Zero upload wait time", bad: "Slow server uploads", highlight: true },
-                  { feature: "File Size Limits", genz: "Unlimited (Based on your RAM)", bad: "Max 10MB - 50MB restrictions", highlight: false },
-                  { feature: "Input Formats", genz: "Mix PDFs, DOCX, JPG & PNG together", bad: "Strictly PDF files only", highlight: true },
-                  { feature: "Editing Flow", genz: "Unified Grid: Reorder, Rotate, Split", bad: "Blindly type page numbers", highlight: false },
-                  { feature: "Smart Automations", genz: "1-Click Landscape, Odd/Even, Invert", bad: "Manual click one-by-one", highlight: true },
-                  { feature: "Advanced Exporting", genz: "Separate PDFs (ZIP), Range (1-5, 8)", bad: "Basic single PDF export", highlight: false },
+                  { feature: "Privacy & Performance", genz: "100% Offline, Blazing Fast, Fast Mode for 50MB+", bad: "Slow server uploads & privacy risks", highlight: true },
+                  { feature: "Input Formats", genz: "Multi-Format (PDF, DOCX, JPG, PNG together)", bad: "Strictly PDF files only", highlight: false },
+                  { feature: "Editing Flow", genz: "Unified Grid: Reorder, Rotate, Split visually", bad: "Blindly type page numbers", highlight: true },
+                  { feature: "File Size Limit", genz: "Unlimited (Based on your device RAM)", bad: "Max 10MB - 50MB restrictions", highlight: false },
+                  { feature: "Smart Automations", genz: "1-Click Landscape, Odd/Even, Invert filters", bad: "Manual selection one-by-one", highlight: true },
+                  { feature: "Advanced Exporting", genz: "Separate PDFs (ZIP), Bulk Chunker, Range Input", bad: "Basic single PDF export", highlight: false },
                   { feature: "Watermarks & Numbers", genz: "Free built-in stamping", bad: "Premium / Paid feature", highlight: true },
                   { feature: "Price", genz: "100% Free Forever", bad: "Paid Subscriptions required", highlight: false }
                 ].map((row, idx) => (
