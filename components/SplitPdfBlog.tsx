@@ -478,44 +478,52 @@ export const SplitPdfBlog = () => {
                 a: "Because processing happens locally to protect your privacy, massive files use your device's RAM. If you experience lag on an older computer, simply toggle off 'HD Mode' in the toolbar to switch to a lightning-fast low-memory mode." 
               },
               { 
-                q: "What is genzpdf.com Split Tool?", 
-                a: "genzpdf.com Split Tool ek advanced PDF splitter hai jo PDF, Word (DOCX), aur Images ko ek hi workspace mein handle karta hai. Isme smart visual selection, drag & drop reordering, aur undo/redo system jaise unique features milte hain." 
-              },
-              { 
-                q: "How is genzpdf.com Split Tool different from other PDF splitters?", 
-                a: "Most splitters sirf basic page range splitting dete hain. genzpdf.com ke paas multi-format batch upload, advanced filters (odd/even, invert), full-screen preview, aur universal page rotation jaise features hain jo competitors mein rare hain." 
+                q: "How is GenZPDF Split Tool different from other PDF splitters?", 
+                a: "GenZPDF runs on 100% Client-Side technology. Your files are never uploaded to our servers; everything processes in your browser's RAM, making it up to 10x faster and infinitely more secure than traditional tools." 
               },
               { 
                 q: "Can I upload Word documents and images along with PDFs?", 
-                a: "Yes! genzpdf.com ek multi-format batch upload system deta hai jisme aap PDFs, DOCX files, aur images ek saath import karke split kar sakte ho. Ye feature traditional PDF-only tools mein nahi milta." 
+                a: "Yes! GenZPDF offers a Multi-Format Batch Upload system. You can simultaneously import PDFs, DOCX files, and images (JPG/PNG) into the same workspace to merge or split them." 
               },
               { 
-                q: "Does genzpdf.com allow reordering pages before exporting?", 
-                a: "Bilkul. Aap drag & drop reordering se pages ko apne sequence mein arrange kar sakte ho. Ye scanned files ke liye ek lifesaver hai." 
-              },
-              { 
-                q: "Can I rotate pages while splitting?", 
-                a: "Yes. genzpdf.com ka Universal Page Rotation feature aapko PDFs, DOCX, aur images ke pages ko rotate karne ki freedom deta hai – orientation issues instantly fix ho jate hain." 
+                q: "Does genzpdf.com allow reordering or rotating pages?", 
+                a: "Absolutely. You can use drag & drop to arrange pages into your perfect sequence, and use our Universal Page Rotation to fix orientation issues instantly. This is a lifesaver for scanned files." 
               },
               { 
                 q: "Is there an option to preview pages before splitting?", 
-                a: "Haan. genzpdf.com mein full-screen page preview hai jisme aap ek lightbox modal mein content clearly dekh sakte ho. Ye ensure karta hai ki aap galat page delete na karo." 
+                a: "Yes. We feature a full-screen page preview that opens in a lightbox modal, ensuring you can clearly read the content before deciding to keep or delete a page." 
               },
               { 
                 q: "What if I delete a page by mistake?", 
-                a: "No worries. genzpdf.com ke Undo & Redo system se aap instantly apni last action reverse kar sakte ho (Ctrl+Z supported)." 
+                a: "No worries! Thanks to our Undo & Redo system, you can instantly reverse your last action (Ctrl+Z is fully supported)." 
               },
               { 
                 q: "Can I split by typing page ranges?", 
-                a: "Yes. Agar aapko typing pasand hai, toh Split by Range Input feature se custom ranges enter kar sakte ho, jaise '1-5, 8, 12'." 
+                a: "Yes. If you prefer typing, you can use the 'Split by Range Input' feature to enter custom ranges like '1-5, 8, 12'." 
               },
               { 
-                q: "Is genzpdf.com Split Tool free to use?", 
-                a: "genzpdf.com privacy-first aur user-friendly tool hai. Free access ke saath premium features bhi available ho sakte hain depending on future roadmap." 
+                q: "What is the 'Separate PDFs (ZIP Download)' feature?", 
+                a: "If you want every page of a multi-page PDF to become its own individual file, select this option. GenZPDF will extract every page separately and download them all at once in a single .zip folder." 
               },
               { 
-                q: "Does genzpdf.com store my files online?", 
-                a: "No. genzpdf.com ka focus privacy-first processing par hai. Files ek secure workspace mein handle hote hain, unnecessary cloud storage nahi hota." 
+                q: "How does the 'Bulk Chunker' or Fixed Range split work?", 
+                a: "If you have a 100-page file and want to split it every 5 pages (1-5, 6-10, 11-15, etc.), the Bulk Chunker automates this. It saves you from manual selection by auto-splitting the document at defined intervals." 
+              },
+              { 
+                q: "Is there any file size limit on GenZPDF?", 
+                a: "There are no strict file size limits! Our 'Smart Performance Saver' feature detects massive files (like 50MB+) and automatically shifts to 'Fast Mode' to ensure your browser doesn't lag or crash." 
+              },
+              { 
+                q: "Do I need to sign up or log in to use GenZPDF?", 
+                a: "Not at all. GenZPDF operates on a strict No-Login, No-Signup policy. You can split, merge, and edit unlimited files without creating an account and without dealing with any watermarks." 
+              },
+              { 
+                q: "Does the tool support keyboard shortcuts?", 
+                a: "Yes, GenZPDF provides a seamless desktop software feel. You can use native keyboard shortcuts like Ctrl+A (Select All), Delete (Remove Page), and Ctrl+Z (Undo) to speed up your workflow." 
+              },
+              { 
+                q: "Is GenZPDF Split Tool free or paid?", 
+                a: "It is 100% free. We don't ask for hidden charges or premium subscriptions. All advanced features are accessible to everyone at zero cost." 
               }
             ].map((faq, idx) => (
               <div key={idx} className="bg-white border border-slate-200/80 p-5 md:p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
