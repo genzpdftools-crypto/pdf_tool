@@ -535,6 +535,27 @@ export const SplitPdfBlog = () => {
             ))}
           </div>
 
+          {/* Social Media Updates Section */}
+          <div className="bg-gradient-to-br from-rose-50 to-orange-50 border border-rose-100 p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm mt-10 md:mt-12 not-prose">
+            <h4 className="font-black text-rose-900 text-lg md:text-xl mb-2 md:mb-3">Stay Updated with Genz PDF</h4>
+            <p className="text-rose-800/80 text-sm md:text-base leading-relaxed mb-5 md:mb-6">Follow our official channels to get the latest updates, tutorials, and new tool announcements:</p>
+            
+            <div className="flex flex-wrap gap-3 md:gap-4">
+              <a href="https://www.youtube.com/channel/UCBV_lAS0ElDQv6Wu8kz5G8A" target="_blank" rel="noopener noreferrer" className="flex-1 min-w-[130px] justify-center flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-red-50 text-red-600 border border-red-100 rounded-xl shadow-sm hover:shadow transition-all text-xs md:text-sm font-bold no-underline group">
+                <Youtube size={16} className="md:w-[18px] md:h-[18px] group-hover:scale-110 transition-transform" /> YouTube
+              </a>
+              <a href="https://instagram.com/genzpdftool" target="_blank" rel="noopener noreferrer" className="flex-1 min-w-[130px] justify-center flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-pink-50 text-pink-600 border border-pink-100 rounded-xl shadow-sm hover:shadow transition-all text-xs md:text-sm font-bold no-underline group">
+                <Instagram size={16} className="md:w-[18px] md:h-[18px] group-hover:scale-110 transition-transform" /> Instagram
+              </a>
+              <a href="https://x.com/genzpdftool?s=20" target="_blank" rel="noopener noreferrer" className="flex-1 min-w-[130px] justify-center flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-xl shadow-sm hover:shadow transition-all text-xs md:text-sm font-bold no-underline group">
+                <Twitter size={16} className="md:w-[18px] md:h-[18px] group-hover:scale-110 transition-transform" /> Twitter
+              </a>
+              <a href="https://www.facebook.com/share/v/1AuVepXHUQ/" target="_blank" rel="noopener noreferrer" className="flex-1 min-w-[130px] justify-center flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-blue-50 text-blue-600 border border-blue-100 rounded-xl shadow-sm hover:shadow transition-all text-xs md:text-sm font-bold no-underline group">
+                <Facebook size={16} className="md:w-[18px] md:h-[18px] group-hover:scale-110 transition-transform" /> Facebook
+              </a>
+            </div>
+          </div>
+
           {/* Final CTA Button */}
           <div className="text-center my-14 md:my-20 not-prose relative">
             <div className="absolute inset-0 bg-rose-500/5 blur-2xl md:blur-3xl rounded-full w-48 h-48 md:w-64 md:h-64 mx-auto -z-10 animate-pulse"></div>
