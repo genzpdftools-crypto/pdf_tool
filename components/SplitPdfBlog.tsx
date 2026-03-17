@@ -722,9 +722,13 @@ export const SplitPdfBlog = () => {
                 Pintu And Raushan <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-emerald-500 fill-emerald-500/20" />
               </h4>
               <p className="text-[10px] md:text-xs font-black text-rose-500 uppercase tracking-widest mb-3 md:mb-4 bg-rose-100 inline-block px-2.5 py-1 rounded-full">Founders & Developers</p>
-              <p className="text-slate-600 text-sm md:text-base leading-relaxed mb-5 md:mb-6">
-                Pintu And Raushan are the creators behind Genz PDF. With a mission to provide fast, unlimited, and 100% secure offline PDF tools, they built Genz PDF so users never have to upload their private documents to sketchy cloud servers again.
-              </p>
+              <div className="relative mb-8 md:mb-10 mt-4 md:mt-6">
+                <Quote className="absolute -top-4 -left-2 md:-top-6 md:-left-6 w-8 h-8 md:w-12 md:h-12 text-rose-500/10 rotate-180 z-0 hidden sm:block" />
+                <div className="absolute -left-4 top-1 bottom-1 w-1 bg-gradient-to-b from-rose-500 to-orange-400 rounded-full hidden sm:block shadow-sm z-10"></div>
+                <p className="relative z-10 text-slate-600 text-[15px] sm:text-base md:text-lg leading-relaxed md:leading-[1.8] font-medium text-center sm:text-left max-w-3xl">
+                  Pintu And Raushan are the creators behind Genz PDF. With a mission to provide <strong className="text-rose-700 bg-rose-50 px-2 py-0.5 rounded-lg border border-rose-100/60 shadow-[0_2px_4px_rgba(225,29,72,0.05)]">fast, unlimited, & 100% secure</strong> offline PDF tools, they built Genz PDF so users <span className="text-slate-800 font-extrabold underline decoration-orange-400 decoration-2 underline-offset-4">never have to upload</span> their private documents to sketchy cloud servers again.
+                </p>
+              </div>
               
               <div className="flex justify-center sm:justify-start gap-2.5 md:gap-3">
                 <a href="https://www.linkedin.com/in/pintu-chauhan-ctuap/" target="_blank" rel="noopener noreferrer" className="p-2 md:p-2.5 bg-white border border-slate-200 text-slate-400 hover:text-[#0A66C2] hover:border-[#0A66C2] rounded-lg md:rounded-xl transition-all hover:shadow-sm" title="Pintu Chauhan LinkedIn"><Linkedin className="w-4 h-4 md:w-[18px] md:h-[18px]" /></a>
