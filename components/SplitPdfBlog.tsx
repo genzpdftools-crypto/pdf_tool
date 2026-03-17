@@ -96,7 +96,7 @@ export const SplitPdfBlog = () => {
         </nav>
 
         {/* Blog Header */}
-        <header className="text-center mb-12 md:mb-16">
+        <header className="text-center mb-10 md:mb-12">
           <div className="inline-flex items-center gap-2 px-3 md:px-4 py-1.5 bg-gradient-to-r from-rose-50 to-orange-50 text-rose-700 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6 border border-rose-200/50 shadow-sm">
             <Scissors size={14} className="text-rose-500" /> Ultimate Guide & Tech Deep Dive
           </div>
@@ -456,6 +456,23 @@ export const SplitPdfBlog = () => {
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
           {/* ========================================================================= */}
+
+          {/* Client-Side Trust Banner (Moved Here) */}
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200/60 p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm mb-12 md:mb-16 flex flex-col sm:flex-row items-center gap-5 md:gap-6 transform hover:scale-[1.01] transition-transform not-prose relative overflow-hidden">
+            <div className="absolute -right-10 -top-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl"></div>
+            <div className="w-14 h-14 md:w-16 md:h-16 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm border border-emerald-100 z-10">
+              <ServerOff className="w-7 h-7 md:w-8 md:h-8 text-emerald-600" />
+            </div>
+            <div className="text-center sm:text-left z-10">
+              <h3 className="text-emerald-900 font-bold text-lg md:text-xl mb-1.5 flex items-center justify-center sm:justify-start gap-2">
+                <ShieldCheck className="w-5 h-5 md:w-6 md:h-6 text-emerald-500" />
+                100% Secure Client-Side Processing
+              </h3>
+              <p className="text-emerald-800/90 text-sm md:text-base leading-relaxed m-0">
+                Unlike other tools, Genz PDF processes your documents directly in your browser's RAM. <strong className="text-emerald-900">Zero server uploads. No data leaks. Complete privacy.</strong>
+              </p>
+            </div>
+          </div>
 
           <h2 id="comparison" className="text-2xl sm:text-3xl font-black text-slate-900 mb-8 md:mb-10 text-center scroll-mt-24 not-prose">
             Why Genz PDF is Better
