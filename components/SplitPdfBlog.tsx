@@ -677,7 +677,7 @@ export const SplitPdfBlog = () => {
             
             <div className="relative">
               <div className="absolute inset-0 bg-rose-200 rounded-2xl md:rounded-3xl rotate-6 group-hover:rotate-12 transition-transform"></div>
-              <img src="image_f76e9e.png" alt="Genz PDF Logo" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e) => e.target.style.display='none'} />
+              <img src="logo.png" alt="Genz PDF Logo" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e) => e.target.style.display='none'} />
             </div>
 
             <div className="flex-1 relative z-10 text-center sm:text-left">
