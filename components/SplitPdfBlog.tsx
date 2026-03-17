@@ -445,11 +445,78 @@ export const SplitPdfBlog = () => {
           
           <div className="space-y-3 md:space-y-4 not-prose">
             {[
-              { q: "How can I extract specific pages from a PDF for free?", a: "Using Genz PDF Splitter, simply drag your file in. Once the thumbnails load, click the pages you want to keep. Then, click 'Export' > 'Export as PDF'. It's 100% free and offline." },
-              { q: "Can I split a large PDF by MB size?", a: "Yes! Open the Export dropdown and look for the 'Split by Max Size (MB)' section. Enter your target size (e.g., 10), and the engine will intelligently chunk your heavy PDF into smaller pieces inside a ZIP file." },
-              { q: "Is it safe to split confidential PDFs online?", a: "With standard websites? No. But with Genz PDF? Yes. We use WebAssembly and JS to process your files locally on your own computer. Your data never leaves your device." },
-              { q: "How do I split a PDF and save it as images?", a: "Load your PDF into our visual editor, select the pages, open the Export menu, and click 'Export as JPGs' or 'Export as PNGs'. The tool will download a ZIP file containing high-res images of your pages." },
-              { q: "Why did my browser slow down while splitting?", a: "Because processing happens locally, massive files (e.g., 500+ pages) use your computer's RAM. If it's slow, toggle off the 'HD Mode' button in the top toolbar to switch to 'Fast Mode'." }
+              { 
+                q: "How can I extract specific pages from a PDF for free?", 
+                a: "Using Genz PDF Splitter, simply drag your file in. Once the thumbnails load, click the pages you want to keep. Then, click 'Export' > 'Export as PDF'. It's 100% free, offline, and requires no registration." 
+              },
+              { 
+                q: "How do I split a large PDF by MB size (e.g., under 10MB)?", 
+                a: "Open the Export dropdown and select the 'Split by Max Size (MB)' option. Enter your target size limit, and our engine will intelligently chunk your heavy PDF into smaller, email-ready pieces inside a ZIP file." 
+              },
+              { 
+                q: "Is it safe to split confidential bank statements or legal PDFs?", 
+                a: "Unlike standard websites that upload your data to their servers, Genz PDF is different. We use WebAssembly to process your files locally on your own computer. Your data never leaves your device, making it military-grade secure." 
+              },
+              { 
+                q: "How to automatically separate Odd and Even pages?", 
+                a: "Don't waste time clicking manually! Use the smart 'Select' dropdown in the top toolbar. You can instantly highlight all Odd pages, Even pages, or even filter by Landscape/Portrait orientations." 
+              },
+              { 
+                q: "Can I extract pages and save them as individual images?", 
+                a: "Yes! Load your document, select the desired pages, open the Export menu, and click 'Export as JPGs' or 'PNGs'. The tool will generate high-resolution image files packed inside a convenient ZIP folder." 
+              },
+              { 
+                q: "Will splitting my PDF ruin the formatting or quality?", 
+                a: "Not at all. Genz PDF extracts the exact binary data of the pages you select. The fonts, images, margins, and overall quality remain 100% identical to your original master document." 
+              },
+              { 
+                q: "Can I use this tool on Android or iPhone?", 
+                a: "Yes, our web application is fully optimized for mobile browsers. You can easily drag, drop, and extract PDF pages directly from your smartphone without needing to download a heavy app." 
+              },
+              { 
+                q: "Why did my browser slow down while splitting a 500+ page file?", 
+                a: "Because processing happens locally to protect your privacy, massive files use your device's RAM. If you experience lag on an older computer, simply toggle off 'HD Mode' in the toolbar to switch to a lightning-fast low-memory mode." 
+              },
+              { 
+                q: "What is genzpdf.com Split Tool?", 
+                a: "genzpdf.com Split Tool ek advanced PDF splitter hai jo PDF, Word (DOCX), aur Images ko ek hi workspace mein handle karta hai. Isme smart visual selection, drag & drop reordering, aur undo/redo system jaise unique features milte hain." 
+              },
+              { 
+                q: "How is genzpdf.com Split Tool different from other PDF splitters?", 
+                a: "Most splitters sirf basic page range splitting dete hain. genzpdf.com ke paas multi-format batch upload, advanced filters (odd/even, invert), full-screen preview, aur universal page rotation jaise features hain jo competitors mein rare hain." 
+              },
+              { 
+                q: "Can I upload Word documents and images along with PDFs?", 
+                a: "Yes! genzpdf.com ek multi-format batch upload system deta hai jisme aap PDFs, DOCX files, aur images ek saath import karke split kar sakte ho. Ye feature traditional PDF-only tools mein nahi milta." 
+              },
+              { 
+                q: "Does genzpdf.com allow reordering pages before exporting?", 
+                a: "Bilkul. Aap drag & drop reordering se pages ko apne sequence mein arrange kar sakte ho. Ye scanned files ke liye ek lifesaver hai." 
+              },
+              { 
+                q: "Can I rotate pages while splitting?", 
+                a: "Yes. genzpdf.com ka Universal Page Rotation feature aapko PDFs, DOCX, aur images ke pages ko rotate karne ki freedom deta hai – orientation issues instantly fix ho jate hain." 
+              },
+              { 
+                q: "Is there an option to preview pages before splitting?", 
+                a: "Haan. genzpdf.com mein full-screen page preview hai jisme aap ek lightbox modal mein content clearly dekh sakte ho. Ye ensure karta hai ki aap galat page delete na karo." 
+              },
+              { 
+                q: "What if I delete a page by mistake?", 
+                a: "No worries. genzpdf.com ke Undo & Redo system se aap instantly apni last action reverse kar sakte ho (Ctrl+Z supported)." 
+              },
+              { 
+                q: "Can I split by typing page ranges?", 
+                a: "Yes. Agar aapko typing pasand hai, toh Split by Range Input feature se custom ranges enter kar sakte ho, jaise '1-5, 8, 12'." 
+              },
+              { 
+                q: "Is genzpdf.com Split Tool free to use?", 
+                a: "genzpdf.com privacy-first aur user-friendly tool hai. Free access ke saath premium features bhi available ho sakte hain depending on future roadmap." 
+              },
+              { 
+                q: "Does genzpdf.com store my files online?", 
+                a: "No. genzpdf.com ka focus privacy-first processing par hai. Files ek secure workspace mein handle hote hain, unnecessary cloud storage nahi hota." 
+              }
             ].map((faq, idx) => (
               <div key={idx} className="bg-white border border-slate-200/80 p-5 md:p-6 rounded-2xl shadow-sm hover:shadow-md transition-shadow group">
                 <h4 className="font-bold text-slate-800 text-base md:text-lg mb-2 group-hover:text-rose-600 transition-colors">
