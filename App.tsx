@@ -1,3 +1,5 @@
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import {
   ArrowDownAZ,
@@ -55,7 +57,6 @@ const Policy = lazy(() => import('./components/Policy'));
 const Terms = lazy(() => import('./components/Terms'));
 // 🆕 New lazy import for the blog pages
 const MergePdfBlog = lazy(() => import('./components/MergePdfBlog'));
-// 🆕 Split Blog Lazy Import
 const SplitPdfBlog = lazy(() => import('./components/SplitPdfBlog'));
 
 const BASE_URL = "https://genzpdf.com";
@@ -251,7 +252,7 @@ const SEO_METADATA: Record<AppMode, {
     schema: { "@context": "https://schema.org", "@type": "WebPage", "name": "Terms of Service" },
     breadcrumb: [{ name: "Home", url: BASE_URL }, { name: "Terms", url: `${BASE_URL}/terms` }]
   },
-  // 🆕 SEO metadata for the new blog page
+  // 🆕 SEO metadata for the blog pages
   'blog-merge': {
     title: "How Our Merge PDF Tool Works - Architecture & FAQs | Genz PDF",
     description: "Read the comprehensive technical guide on how Genz PDF merges your documents 100% locally in your browser for maximum privacy and security.",
@@ -293,7 +294,7 @@ function App() {
         return { mode: 'convert', param: convertMatch[1] };
       }
 
-      // 🆕 New static route for the blog pages
+      // 🆕 New static routes for the blog pages
       if (path.includes('/blog/merge-pdf')) return { mode: 'blog-merge', param: null };
       if (path.includes('/blog/split-pdf')) return { mode: 'blog-split', param: null };
 
@@ -371,7 +372,6 @@ function App() {
   // --- UPDATED: SEO effect with dynamic overrides ---
   useEffect(() => {
     let meta = SEO_METADATA[mode] || SEO_METADATA.home;
-    // Updated canonical URL generation to include blog-split
     let url = mode === 'home' ? BASE_URL : mode === 'blog-merge' ? `${BASE_URL}/blog/merge-pdf` : mode === 'blog-split' ? `${BASE_URL}/blog/split-pdf` : `${BASE_URL}/${mode}`;
 
     // 🪄 Override metadata dynamically for resize/convert with param
@@ -619,12 +619,12 @@ function App() {
   };
 
   // ========== UPDATED NavButton COMPONENT WITH ANIMATION ==========
-  const NavButton = ({ targetMode, icon: Icon, label, mobile = false }: { targetMode: AppMode, icon: any, label: string, mobile?: boolean }) => {
+  const NavButton = ({ targetMode, icon: Icon, label, mobile = false }: { targetMode: AppMode | string, icon: any, label: string, mobile?: boolean }) => {
     const isActive = (mode === targetMode) || (targetMode === 'home' && mode === 'home');
     return (
       <a
         href={targetMode === 'home' ? '/' : targetMode === 'blog-merge' ? '/blog/merge-pdf' : targetMode === 'blog-split' ? '/blog/split-pdf' : `/${targetMode}`}
-        onClick={(e) => navigateTo(targetMode, e)}
+        onClick={(e) => navigateTo(targetMode as AppMode, e)}
         className={clsx(
           "flex items-center gap-2 xl:gap-3 transition-all duration-300 font-bold rounded-xl group",
           mobile 
@@ -1041,6 +1041,9 @@ function App() {
 
       <Footer setMode={(m) => navigateTo(m)} />
       <AiAssistant isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
+
+      <Analytics />
+      <SpeedInsights />
 
       <style>{`
         @keyframes bounce-in {
