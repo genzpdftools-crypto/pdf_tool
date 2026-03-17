@@ -5,7 +5,8 @@ import {
   Youtube, Instagram, Twitter, Facebook, HelpCircle, Clock, Calendar, Share2, Linkedin,
   ChevronRight, Lightbulb, ThumbsUp, ThumbsDown, CheckCircle, FilePlus, MousePointerClick,
   FileText, Image as ImageIcon, Move, CheckSquare, Eye, Undo2, Hash, Timer, AlertTriangle,
-  Archive, Copy, Keyboard, ArrowDownAZ, RotateCw, UploadCloud, Quote
+  Archive, Copy, Keyboard, ArrowDownAZ, RotateCw, UploadCloud, Quote,
+  Briefcase, GraduationCap, Scale, Users, LineChart, Palette, Activity
 } from 'lucide-react';
 
 export const SplitPdfBlog = () => {
@@ -128,9 +129,9 @@ export const SplitPdfBlog = () => {
             {[
               { id: "exclusive-features", text: "1. Exclusive Features of Genz PDF Splitter" },
               { id: "step-by-step-guide", text: "2. Step-by-Step Guide: How Our Tool Works" },
-              { id: "comparison", text: "3. Why Genz PDF is Better (Comparison)" },
-              { id: "faq", text: `4. Frequently Asked Questions (${currentYear} Guide)` },
-              { id: "use-cases", text: "5. Who Uses Genz PDF Splitter?" },
+              { id: "use-cases", text: "3. Real-Life Use Cases (Professions)" },
+              { id: "comparison", text: "4. Why Genz PDF is Better (Comparison)" },
+              { id: "faq", text: `5. Frequently Asked Questions (${currentYear} Guide)` },
               { id: "more-tools", text: "6. Explore More Free PDF Tools" }
             ].map((item) => (
               <li key={item.id}>
@@ -400,6 +401,62 @@ export const SplitPdfBlog = () => {
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
 
+          {/* ================= NEW USE CASES SECTION (INSERTED HERE) ================= */}
+          <h2 id="use-cases" className="text-2xl sm:text-3xl font-black text-slate-900 mb-6 md:mb-8 flex items-center gap-3 scroll-mt-24 not-prose justify-center md:justify-start">
+            <div className="p-2 md:p-2.5 bg-fuchsia-100 text-fuchsia-600 rounded-xl"><Briefcase className="w-5 h-5 md:w-6 md:h-6" /></div>
+            Real-Life Use Cases: Who is this tool for?
+          </h2>
+          <p className="text-base md:text-lg mb-8 md:mb-10 text-slate-600 text-center md:text-left">
+            Different professions require different document solutions. We designed Genz PDF Splitter to handle the specific needs of various industries seamlessly.
+          </p>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5 mb-14 md:mb-16 not-prose">
+            {/* Card 1: Students & Teachers */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-4"><GraduationCap size={24} /></div>
+              <h4 className="font-bold text-slate-900 mb-2 text-base md:text-lg">Students & Educators</h4>
+              <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Extract specific chapters from massive e-books, split assignment PDFs, or separate important lecture slides without dealing with heavy files.</p>
+            </div>
+            
+            {/* Card 2: Legal */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 bg-slate-50 text-slate-700 rounded-xl flex items-center justify-center mb-4"><Scale size={24} /></div>
+              <h4 className="font-bold text-slate-900 mb-2 text-base md:text-lg">Legal Professionals</h4>
+              <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Safely extract confidential legal clauses, separate contracts, and split case files. 100% offline processing ensures zero data leaks.</p>
+            </div>
+            
+            {/* Card 3: HR */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center mb-4"><Users size={24} /></div>
+              <h4 className="font-bold text-slate-900 mb-2 text-base md:text-lg">HR & Recruitment</h4>
+              <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Separate employee onboarding documents, split bulk resumes from hiring drives, and extract individual performance reviews easily.</p>
+            </div>
+            
+            {/* Card 4: Finance */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center mb-4"><LineChart size={24} /></div>
+              <h4 className="font-bold text-slate-900 mb-2 text-base md:text-lg">Finance & Accountants</h4>
+              <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Split massive annual bank statements by month, extract specific invoices from bulk tax reports, and organize audit files offline.</p>
+            </div>
+            
+            {/* Card 5: Freelancers */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mb-4"><Palette size={24} /></div>
+              <h4 className="font-bold text-slate-900 mb-2 text-base md:text-lg">Freelancers & Creatives</h4>
+              <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Extract specific portfolio pages, split design mockups for clients, and separate individual deliverables from master project files.</p>
+            </div>
+            
+            {/* Card 6: Health/Medical */}
+            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+              <div className="w-12 h-12 bg-cyan-50 text-cyan-600 rounded-xl flex items-center justify-center mb-4"><Activity size={24} /></div>
+              <h4 className="font-bold text-slate-900 mb-2 text-base md:text-lg">Medical Professionals</h4>
+              <p className="text-xs md:text-sm text-slate-500 leading-relaxed">Extract patient reports or medical records securely. Since files are processed on your device RAM, it remains strictly compliant with privacy standards.</p>
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
+          {/* ========================================================================= */}
+
           <h2 id="comparison" className="text-2xl sm:text-3xl font-black text-slate-900 mb-8 md:mb-10 text-center scroll-mt-24 not-prose">
             Why Genz PDF is Better
           </h2>
@@ -558,25 +615,6 @@ export const SplitPdfBlog = () => {
           </div>
 
           <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
-
-          {/* Use Cases Section */}
-          <h2 id="use-cases" className="text-2xl sm:text-3xl font-black text-slate-900 mb-6 md:mb-8 not-prose text-center scroll-mt-24">
-            Who Uses Genz PDF Splitter?
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6 mb-12 md:mb-16 not-prose">
-            <div className="bg-rose-50/50 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-rose-100 hover:bg-rose-50 transition-colors">
-              <h4 className="font-black text-slate-900 mb-2 md:mb-3 text-base md:text-lg">🎓 For Students & Educators</h4>
-              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">Extract specific chapters from massive e-books, separate assignments, or pull out important lecture slides seamlessly without dealing with huge files.</p>
-            </div>
-            <div className="bg-orange-50/50 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-orange-100 hover:bg-orange-50 transition-colors">
-              <h4 className="font-black text-slate-900 mb-2 md:mb-3 text-base md:text-lg">💼 For Professionals</h4>
-              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">Isolate specific invoices from bulk financial reports, extract key presentation slides, and organize client documents effortlessly.</p>
-            </div>
-            <div className="bg-pink-50/50 p-5 md:p-6 rounded-2xl md:rounded-3xl border border-pink-100 hover:bg-pink-50 transition-colors sm:col-span-2 md:col-span-1">
-              <h4 className="font-black text-slate-900 mb-2 md:mb-3 text-base md:text-lg">⚖️ Legal & HR Teams</h4>
-              <p className="text-xs md:text-sm text-slate-600 leading-relaxed">Safely extract confidential employee records or legal clauses. 100% offline processing ensures your sensitive data stays highly secure.</p>
-            </div>
-          </div>
 
           {/* Cross-Platform Compatibility */}
           <div className="bg-gradient-to-r from-slate-900 to-rose-950 text-white p-8 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-xl my-12 md:my-16 relative overflow-hidden not-prose">
