@@ -128,10 +128,9 @@ export const SplitPdfBlog = () => {
             {[
               { id: "exclusive-features", text: "1. Exclusive Features of Genz PDF Splitter" },
               { id: "step-by-step-guide", text: "2. Step-by-Step Guide: How Our Tool Works" },
-              { id: "bulk-split", text: "3. Advanced: Bulk Split by Max Size (MB) or Pages" },
-              { id: "comparison", text: "4. Why Genz PDF is Better (Comparison)" },
-              { id: "faq", text: `5. Frequently Asked Questions (${currentYear} Guide)` },
-              { id: "more-tools", text: "6. Explore More Free PDF Tools" }
+              { id: "comparison", text: "3. Why Genz PDF is Better (Comparison)" },
+              { id: "faq", text: `4. Frequently Asked Questions (${currentYear} Guide)` },
+              { id: "more-tools", text: "5. Explore More Free PDF Tools" }
             ].map((item) => (
               <li key={item.id}>
                 <a href={`#${item.id}`} className="hover:text-rose-600 transition-colors flex items-center gap-2 group-hover:translate-x-1 duration-300">
@@ -398,25 +397,6 @@ export const SplitPdfBlog = () => {
             </div>
           </div>
 
-          <h2 id="bulk-split" className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mb-6 md:mb-8 flex items-center gap-3 scroll-mt-24 not-prose">
-            <div className="p-2 md:p-2.5 bg-emerald-100 text-emerald-600 rounded-xl"><FileText className="w-5 h-5 md:w-6 md:h-6" /></div> 
-            Advanced: Bulk Split by Max Size (MB) or Pages
-          </h2>
-          <p>Trying to email a massive 50MB PDF but your email provider only allows 25MB attachments? We built an advanced tool just for this.</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 my-8 md:my-10 not-prose">
-            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden group">
-               <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>
-               <h3 className="text-base md:text-lg font-bold text-slate-900 mb-2">Split by Pages</h3>
-               <p className="text-xs md:text-sm text-slate-600 leading-relaxed mb-4">Want to split a 100-page eBook into 10 separate PDFs of 10 pages each? Just enter "10" in the Split by Pages box and click Split. Everything gets ZIPped automatically.</p>
-            </div>
-            <div className="bg-white p-5 md:p-6 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden group">
-               <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-               <h3 className="text-base md:text-lg font-bold text-slate-900 mb-2">Split by Max MB Size</h3>
-               <p className="text-xs md:text-sm text-slate-600 leading-relaxed mb-4">Have a strict file size limit? Enter your target MB (e.g., "15"). The engine will intelligently slice your PDF into chunks that are guaranteed to stay under 15MB each!</p>
-            </div>
-          </div>
-
           <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-10 md:my-14 not-prose"></div>
 
           <h2 id="comparison" className="text-2xl sm:text-3xl font-black text-slate-900 mb-8 md:mb-10 text-center scroll-mt-24 not-prose">
@@ -435,11 +415,14 @@ export const SplitPdfBlog = () => {
               </thead>
               <tbody className="text-xs sm:text-sm md:text-base">
                 {[
-                  { feature: "Data Privacy", genz: "100% Offline processing", bad: "Uploaded to servers", highlight: true },
-                  { feature: "Visual Drag & Drop", genz: "Yes, fully interactive", bad: "No, type numbers blindly", highlight: false },
-                  { feature: "Split by Size & Chunking", genz: "Yes, bulk chunking and exact MB", bad: "Rarely available / Paid", highlight: true },
-                  { feature: "Undo/Redo & Shortcuts", genz: "Yes, fast keyboard shortcuts", bad: "Start over on mistake", highlight: false },
-                  { feature: "Price", genz: "100% Free Forever", bad: "Paid Subscriptions", highlight: true }
+                  { feature: "Data Privacy & Speed", genz: "100% Offline, Zero upload wait time", bad: "Slow server uploads", highlight: true },
+                  { feature: "File Size Limits", genz: "Unlimited (Based on your RAM)", bad: "Max 10MB - 50MB restrictions", highlight: false },
+                  { feature: "Input Formats", genz: "Mix PDFs, DOCX, JPG & PNG together", bad: "Strictly PDF files only", highlight: true },
+                  { feature: "Editing Flow", genz: "Unified Grid: Reorder, Rotate, Split", bad: "Blindly type page numbers", highlight: false },
+                  { feature: "Smart Automations", genz: "1-Click Landscape, Odd/Even, Invert", bad: "Manual click one-by-one", highlight: true },
+                  { feature: "Advanced Exporting", genz: "Separate PDFs (ZIP), Range (1-5, 8)", bad: "Basic single PDF export", highlight: false },
+                  { feature: "Watermarks & Numbers", genz: "Free built-in stamping", bad: "Premium / Paid feature", highlight: true },
+                  { feature: "Price", genz: "100% Free Forever", bad: "Paid Subscriptions required", highlight: false }
                 ].map((row, idx) => (
                   <tr key={idx} className={row.highlight ? "bg-slate-50/50" : "bg-white"}>
                     <td className="p-4 md:p-5 border-b border-slate-100 font-semibold text-slate-700">{row.feature}</td>
