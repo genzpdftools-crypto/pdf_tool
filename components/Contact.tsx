@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, Phone, Users, MessageSquare, MapPin } from 'lucide-react';
+import { Mail, Users, MessageSquare, MapPin, MessageCircle } from 'lucide-react';
 
 export const Contact: React.FC = () => {
   return (
@@ -46,21 +46,21 @@ export const Contact: React.FC = () => {
           </div>
         </div>
 
-        {/* Phone Card */}
+        {/* Channels Card */}
         <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm hover:shadow-xl hover:border-indigo-200 transition-all duration-300 group">
           <div className="bg-green-50 w-14 h-14 rounded-xl flex items-center justify-center text-green-600 mb-6 group-hover:scale-110 transition-transform">
-            <Phone size={28} />
+            <MessageCircle size={28} />
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-2">Phone Support</h3>
-          <p className="text-slate-500 mb-6 text-sm">You can also reach us directly via phone for urgent assistance.</p>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Our Channels</h3>
+          <p className="text-slate-500 mb-6 text-sm">Connect with us on WhatsApp and YouTube for the latest updates.</p>
           <div className="space-y-3">
-            <a href="tel:+916268025669" className="flex items-center gap-3 text-slate-700 hover:text-green-600 font-medium transition-colors p-2 hover:bg-slate-50 rounded-lg">
+            <a href="https://whatsapp.com/channel/0029Vb7WpmM0Vyc9rZq5s92X" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-slate-700 hover:text-green-600 font-medium transition-colors p-2 hover:bg-slate-50 rounded-lg">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-              +91 62680 25669
+              WhatsApp Channel
             </a>
-            <a href="tel:+918404916832" className="flex items-center gap-3 text-slate-700 hover:text-green-600 font-medium transition-colors p-2 hover:bg-slate-50 rounded-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>
-              +91 84049 16832
+            <a href="https://www.youtube.com/@genzpdftool" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 text-slate-700 hover:text-red-600 font-medium transition-colors p-2 hover:bg-slate-50 rounded-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+              YouTube Channel
             </a>
           </div>
         </div>
@@ -86,4 +86,5 @@ export const Contact: React.FC = () => {
     </div>
   );
 };
+
 export default Contact;
