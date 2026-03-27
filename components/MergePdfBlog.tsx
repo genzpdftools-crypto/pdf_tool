@@ -8,7 +8,7 @@ import {
 
 export const MergePdfBlog = () => {
   // 🆕 Feedback State
-  const [feedback, setFeedback] = useState(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   // Share URLs
   const shareUrl = encodeURIComponent('https://genzpdf.com/blog/merge-pdf');
@@ -116,7 +116,7 @@ export const MergePdfBlog = () => {
             <span className="flex items-center gap-1.5 md:gap-2"><Clock size={14} className="text-slate-400 md:w-4 md:h-4" /> 5 min read</span>
             <span className="hidden sm:inline text-slate-300">•</span>
             <span className="flex items-center gap-1.5 md:gap-2 text-indigo-900">
-              <img src="/logo.png" alt="" className="w-4 h-4 md:w-5 md:h-5 object-contain" onError={(e) => e.target.style.display='none'} /> 
+              <img src="/logo.png" alt="" className="w-4 h-4 md:w-5 md:h-5 object-contain" onError={(e: any) => e.target.style.display='none'} /> 
               Genz PDF Team
             </span>
           </div>
@@ -200,18 +200,15 @@ export const MergePdfBlog = () => {
             </div>
           </div>
 
-          {/* Video Demo Placeholder */}
-          <div className="my-10 md:my-16 relative rounded-2xl md:rounded-3xl overflow-hidden bg-slate-900 aspect-video shadow-xl md:shadow-2xl border border-slate-800 flex flex-col items-center justify-center group cursor-pointer hover:shadow-indigo-500/20 transition-all duration-500 not-prose">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 mix-blend-overlay"></div>
-            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/80 via-slate-900 to-slate-900"></div>
-            
-            <div className="relative z-10 flex flex-col items-center p-4 text-center">
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-md border border-white/20 group-hover:scale-110 group-hover:bg-indigo-500/30 transition-all duration-500 mb-3 md:mb-4">
-                <PlayCircle className="text-white fill-white/20 ml-1 w-8 h-8 md:w-10 md:h-10" />
-              </div>
-              <span className="text-white font-bold text-base md:text-xl tracking-wide">Watch 1-Minute Interactive Demo</span>
-              <span className="inline-block mt-2 md:mt-3 px-3 py-1 bg-white/10 rounded-full text-slate-300 text-[10px] md:text-xs font-medium uppercase tracking-widest backdrop-blur-sm border border-white/10">Coming Soon</span>
-            </div>
+          {/* YouTube Video Section */}
+          <div className="my-10 md:my-16 relative rounded-2xl md:rounded-3xl overflow-hidden bg-slate-900 aspect-video shadow-xl md:shadow-2xl border border-slate-800 not-prose">
+            <iframe
+              className="w-full h-full absolute inset-0"
+              src="https://www.youtube.com/embed/oaKoKAEaXSk?rel=0"
+              title="Genz PDF Merge Tool Demo"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            ></iframe>
           </div>
 
           {/* Basic Merge Guide */}
@@ -601,7 +598,7 @@ export const MergePdfBlog = () => {
             
             <div className="relative">
               <div className="absolute inset-0 bg-indigo-200 rounded-2xl md:rounded-3xl rotate-6 group-hover:rotate-12 transition-transform"></div>
-              <img src="/logo.png" alt="Pintu and Raushan" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e) => e.target.style.display='none'} />
+              <img src="/logo.png" alt="Pintu and Raushan" className="relative w-20 h-20 md:w-24 md:h-24 bg-white p-2 md:p-3 rounded-2xl md:rounded-3xl shadow-md border border-slate-100 object-contain flex-shrink-0 z-10" onError={(e: any) => e.target.style.display='none'} />
             </div>
 
             <div className="flex-1 relative z-10 text-center sm:text-left">
