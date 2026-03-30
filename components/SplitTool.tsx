@@ -47,6 +47,24 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
+// Imports ke baad aur component se pehle
+const seoDataMap: Record<string, { title: string, desc: string }> = {
+  '/split-pdf-by-size': {
+    title: "Split PDF by Size | Chunk Heavy Files Instantly",
+    desc: "Easily split your PDF by maximum file size (MB). Chunk heavy documents into smaller parts instantly inside your browser."
+  },
+  '/split-large-pdf-offline': {
+    title: "Split Large PDF Offline | Smart Performance Saver",
+    desc: "Split heavy 50MB+ PDF files directly in your browser without lagging. Fast Mode enabled for offline client-side processing."
+  },
+  // Note: Yahan par poore 50 objects aayenge jo maine pichle message me diye the.
+  // Code lamba na ho isliye maine yahan sirf 2 example rakhe hain.
+  // Tumhe pichle message se poora 'seoDataMap' copy karke yahan daalna hai.
+};
+
+// Dummy SEO Component taaki file crash na ho. Agar tumhare paas apna custom SEO import hai, toh ise delete kar dena.
+const SEO = ({ title, description, url, type }: any) => null;
+
 // Extended Page Data interface for the Continuous Editor
 interface PageData {
   id: string;
@@ -168,13 +186,24 @@ function SortablePage({ page, idx, isSelected, onPageClick, onPreview, onDuplica
   );
 }
 
-export default function App() {
+export default function SplitTool() {
+  // 1. Browser se current URL nikalo
+  const path = typeof window !== 'undefined' ? window.location.pathname : '/split';
+
+  // 2. Default data set karo
+  const defaultSeo = {
+    title: "Split PDF Online | Fast & Secure Client-Side Editor",
+    desc: "Visually extract, split, and separate PDF pages instantly. 100% Free, offline client-side processing."
+  };
+
+  // 3. Current data nikalo dictionary me se
+  const currentSeo = seoDataMap[path] || defaultSeo;
+
   // ---------- COMPREHENSIVE SEO CONFIGURATION ----------
-  const SEO = {
-    title: 'Split PDF Online - Remove Pages from PDF Free | Genz PDF',
-    description:
-      'Free online PDF Splitter. Extract pages or remove specific pages from your PDF documents instantly. 100% secure, client-side processing, no watermarks.',
-    canonical: 'https://genzpdf.com/split-pdf',
+  const MAIN_SEO = {
+    title: currentSeo.title,
+    description: currentSeo.desc,
+    canonical: `https://genzpdf.com${path}`,
     siteName: 'Genz PDF',
     locale: 'en_US',
     image: 'https://genzpdf.com/social/split-pdf-preview.jpg',
@@ -482,7 +511,7 @@ export default function App() {
 
   // ---------- MASTER SEO INJECTION & PDF WORKER INIT ----------
   useEffect(() => {
-    document.title = SEO.title;
+    document.title = MAIN_SEO.title;
 
     const upsertMeta = (attr: string, value: string, isProperty = false) => {
       const selector = isProperty
@@ -497,7 +526,7 @@ export default function App() {
       meta.setAttribute('content', value);
     };
 
-    upsertMeta('description', SEO.description);
+    upsertMeta('description', MAIN_SEO.description);
     upsertMeta('robots', 'index, follow');
     upsertMeta('viewport', 'width=device-width, initial-scale=1');
 
@@ -508,7 +537,7 @@ export default function App() {
           'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       }
     }).catch(console.error);
-  }, []);
+  }, [MAIN_SEO]);
 
   // ---------- CORE FILE PROCESSING ----------
   const processFiles = async (newFiles: File[]) => {
@@ -1389,92 +1418,190 @@ export default function App() {
     }
   };
 
-
   // ---------- RENDER ----------
   return (
-    <div className="min-h-screen bg-[#FDF8F6] font-sans text-slate-900 selection:bg-rose-100 selection:text-rose-700 pb-10 md:pb-20">
+    <>
+      {/* 4. SEO Component ko naya data de do */}
+      <SEO 
+        title={currentSeo.title} 
+        description={currentSeo.desc} 
+        url={path} 
+        type="WebApplication"
+      />
       
-      {/* BACKGROUND */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-white via-[#FFF0F0] to-transparent opacity-80" />
-        <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-rose-200/20 rounded-full blur-[120px]" />
-        <div className="absolute top-[20%] left-[-10%] w-[400px] h-[400px] bg-orange-100/30 rounded-full blur-[100px]" />
-      </div>
-
-      {/* FULL-SCREEN PROCESSING OVERLAY FOR DOWNLOADS */}
-      {isProcessing && progress && (
-        <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-300 p-4">
-          <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-sm w-full text-center relative overflow-hidden transform transition-all scale-100">
-             {/* Top Progress Line */}
-             <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
-               <div 
-                 className="bg-rose-500 h-2 transition-all duration-300 ease-out" 
-                 style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
-               ></div>
-             </div>
-             
-             <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                <Loader2 className="w-8 h-8 text-rose-500 animate-spin" />
-             </div>
-             
-             <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 tracking-tight">
-               {progress.status}
-             </h3>
-             <p className="text-sm text-slate-500 font-medium mb-6">
-               Please wait, processing large files might take a few moments.
-             </p>
-             
-             <div className="inline-flex items-center justify-center px-4 py-2 bg-slate-50 border border-slate-100 text-slate-700 rounded-full text-sm font-bold shadow-inner">
-               <span className="text-rose-600 mr-1">{progress.current}</span> / {progress.total} Pages Done
-             </div>
-          </div>
-        </div>
-      )}
-
-      <div className="relative w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 md:py-12">
+      <div className="min-h-screen bg-[#FDF8F6] font-sans text-slate-900 selection:bg-rose-100 selection:text-rose-700 pb-10 md:pb-20">
         
-        {/* HEADER */}
-        <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
-            <Zap size={12} className="fill-rose-600" />
-            V6.0 • HD Zoom & Bulk Tools
-          </div>
-          <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
-            Merge, Split & <br className="hidden md:block"/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600">
-              Edit Documents Visually
-            </span>
-          </h1>
-          <p className="text-sm md:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed px-2">
-            Professional grade tool to arrange, rotate, and extract pages. Supports PDFs, Images, and DOCX text rendering.
-            <span className="font-medium text-slate-800"> Secure, Private, and Free.</span>
-          </p>
-        </header>
+        {/* BACKGROUND */}
+        <div className="fixed inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-white via-[#FFF0F0] to-transparent opacity-80" />
+          <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-rose-200/20 rounded-full blur-[120px]" />
+          <div className="absolute top-[20%] left-[-10%] w-[400px] h-[400px] bg-orange-100/30 rounded-full blur-[100px]" />
+        </div>
 
-        {/* MAIN CARD */}
-        <div className="relative z-10">
-          {/* REMOVED overflow-hidden from here and added flex-col relative */}
-          <div className="bg-white/60 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-rose-900/5 border border-white/60 min-h-[400px] md:min-h-[500px] transition-all duration-500 flex flex-col relative">
-            
-            {pages.length === 0 && !isLoading ? (
-              /* ---------- UPLOAD STATE ---------- */
-              <div className="px-4 py-8 md:px-12 md:py-20 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-20 h-full min-h-[400px] md:min-h-[500px]">
+        {/* FULL-SCREEN PROCESSING OVERLAY FOR DOWNLOADS */}
+        {isProcessing && progress && (
+          <div className="fixed inset-0 z-[200] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in duration-300 p-4">
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl max-w-sm w-full text-center relative overflow-hidden transform transition-all scale-100">
+                {/* Top Progress Line */}
+                <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
+                  <div 
+                    className="bg-rose-500 h-2 transition-all duration-300 ease-out" 
+                    style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+                  ></div>
+                </div>
                 
-                {/* 1. SQUARE UPLOAD BOX */}
-                <div className="w-full max-w-[280px] md:max-w-[380px] aspect-square relative group shrink-0 mx-auto md:mx-0">
-                  <div className="absolute -inset-2 bg-gradient-to-tr from-rose-400 to-orange-400 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-60 animate-pulse transition duration-700"></div>
+                <div className="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                  <Loader2 className="w-8 h-8 text-rose-500 animate-spin" />
+                </div>
+                
+                <h3 className="text-xl md:text-2xl font-black text-slate-800 mb-2 tracking-tight">
+                  {progress.status}
+                </h3>
+                <p className="text-sm text-slate-500 font-medium mb-6">
+                  Please wait, processing large files might take a few moments.
+                </p>
+                
+                <div className="inline-flex items-center justify-center px-4 py-2 bg-slate-50 border border-slate-100 text-slate-700 rounded-full text-sm font-bold shadow-inner">
+                  <span className="text-rose-600 mr-1">{progress.current}</span> / {progress.total} Pages Done
+                </div>
+            </div>
+          </div>
+        )}
+
+        <div className="relative w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 md:py-12">
+          
+          {/* HEADER */}
+          <header className="text-center mb-6 md:mb-16 animate-in fade-in slide-in-from-bottom-6 duration-700">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-rose-100 shadow-sm text-rose-600 text-[10px] md:text-xs font-bold uppercase tracking-widest mb-4 md:mb-6">
+              <Zap size={12} className="fill-rose-600" />
+              V6.0 • HD Zoom & Bulk Tools
+            </div>
+            
+            {/* 5. Apna H1 Tag bhi change kar do */}
+            <h1 className="text-3xl md:text-7xl font-black text-slate-900 tracking-tight mb-2 md:mb-6 leading-tight">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-600 to-orange-600">
+                {currentSeo.title.split('|')[0]}
+              </span>
+            </h1>
+            
+            <p className="text-sm md:text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed px-2">
+              Professional grade tool to arrange, rotate, and extract pages. Supports PDFs, Images, and DOCX text rendering.
+              <span className="font-medium text-slate-800"> Secure, Private, and Free.</span>
+            </p>
+          </header>
+
+          {/* MAIN CARD */}
+          <div className="relative z-10">
+            <div className="bg-white/60 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2.5rem] shadow-2xl shadow-rose-900/5 border border-white/60 min-h-[400px] md:min-h-[500px] transition-all duration-500 flex flex-col relative">
+              
+              {pages.length === 0 && !isLoading ? (
+                /* ---------- UPLOAD STATE ---------- */
+                <div className="px-4 py-8 md:px-12 md:py-20 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-20 h-full min-h-[400px] md:min-h-[500px]">
                   
-                  <div className="relative h-full bg-white rounded-[1.8rem] md:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/50 flex flex-col">
-                    <div 
-                      onDragOver={handleDragOver}
-                      onDragLeave={handleDragLeave}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={clsx(
-                        "flex-1 m-4 border-2 border-dashed rounded-[1rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
-                        isDraggingFile ? "border-rose-500 bg-rose-50" : "border-rose-200 bg-rose-50/30 hover:bg-rose-50/60"
-                      )}
-                    >
+                  {/* 1. SQUARE UPLOAD BOX */}
+                  <div className="w-full max-w-[280px] md:max-w-[380px] aspect-square relative group shrink-0 mx-auto md:mx-0">
+                    <div className="absolute -inset-2 bg-gradient-to-tr from-rose-400 to-orange-400 rounded-[2rem] blur-xl opacity-30 group-hover:opacity-60 animate-pulse transition duration-700"></div>
+                    
+                    <div className="relative h-full bg-white rounded-[1.8rem] md:rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white/50 flex flex-col">
+                      <div 
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={clsx(
+                          "flex-1 m-4 border-2 border-dashed rounded-[1rem] flex flex-col items-center justify-center cursor-pointer transition-all duration-300",
+                          isDraggingFile ? "border-rose-500 bg-rose-50" : "border-rose-200 bg-rose-50/30 hover:bg-rose-50/60"
+                        )}
+                      >
+                        <input 
+                          type="file" 
+                          multiple 
+                          className="hidden" 
+                          ref={fileInputRef} 
+                          onChange={handleHiddenFileInput}
+                          accept=".pdf,.jpg,.jpeg,.png,.docx"
+                        />
+                        <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 text-rose-500 group-hover:scale-110 transition-transform">
+                          <Plus size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold text-slate-800 mb-1">Drop Files Here</h3>
+                        <p className="text-sm font-medium text-slate-500">PDFs, Images, & DOCX</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* 2. FEATURES */}
+                  <div className="flex flex-col gap-4 max-w-sm w-full text-center md:text-left">
+                     <div className="space-y-1 mb-2">
+                        <h3 className="text-xl md:text-3xl font-black text-slate-800 leading-tight">
+                          Visual Editor <br/>
+                          <span className="text-rose-600">& PDF Splitter</span>
+                        </h3>
+                        <p className="text-xs md:text-base text-slate-500 font-medium">
+                          Mix images, PDFs, aur DOCX text. Securely save as PDF.
+                        </p>
+                     </div>
+
+                     <div className="grid gap-3">
+                        {[
+                          { icon: ShieldCheck, title: "100% Secure", desc: "Files never leave your device" },
+                          { icon: Scissors, title: "Precise Control", desc: "Extract or remove exact pages" },
+                          { icon: Zap, title: "DOCX to PDF", desc: "Read DOCX as image pages" }
+                        ].map((f, i) => (
+                          <div key={i} className="flex items-center gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-rose-100 transition-all group cursor-default text-left">
+                            <div className="shrink-0 w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gradient-to-br from-rose-50 to-orange-50 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
+                              <f.icon size={16} className="md:w-[22px] md:h-[22px]" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-slate-800 text-sm md:text-base">{f.title}</h4>
+                              <p className="text-xs md:text-sm text-slate-500">{f.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                     </div>
+                  </div>
+
+                </div>
+              ) : (
+                /* ---------- EDITOR STATE ---------- */
+                <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-500">
+                  
+                  {/* STICKY TOOLBAR */}
+                  <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all gap-3 sm:gap-4 rounded-t-[1.5rem] md:rounded-t-[2.5rem]">
+                    
+                    {/* Left: Info */}
+                    <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full sm:w-auto">
+                      <div className="bg-gradient-to-br from-rose-500 to-orange-500 p-1.5 md:p-2.5 rounded-lg md:rounded-xl text-white shadow-lg shadow-rose-200 shrink-0">
+                        <FileText size={16} className="md:w-6 md:h-6" />
+                      </div>
+                      <div className="min-w-0 truncate">
+                        <h3 className="font-bold text-slate-800 text-xs md:text-base truncate">
+                          Document Workspace
+                        </h3>
+                        <p className="text-[8px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">
+                          {pages.length} Pages Total • {selectedPages.size} Selected
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto relative">
+                      
+                      {/* QUALITY TOGGLE */}
+                      <button
+                        onClick={() => setIsHighQuality(!isHighQuality)}
+                        className={clsx(
+                          "p-1.5 md:p-2 flex items-center gap-1.5 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold border",
+                          isHighQuality
+                            ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100"
+                            : "text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100"
+                        )}
+                        title={isHighQuality ? "High Quality rendering (may use more memory)" : "Fast Mode rendering (uses less memory)"}
+                      >
+                        <Zap size={16} className={isHighQuality ? "fill-rose-500" : ""} />
+                        <span className="hidden lg:inline">{isHighQuality ? "HD Mode" : "Fast Mode"}</span>
+                      </button>
+
                       <input 
                         type="file" 
                         multiple 
@@ -1483,630 +1610,541 @@ export default function App() {
                         onChange={handleHiddenFileInput}
                         accept=".pdf,.jpg,.jpeg,.png,.docx"
                       />
-                      <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4 text-rose-500 group-hover:scale-110 transition-transform">
-                        <Plus size={32} />
-                      </div>
-                      <h3 className="text-xl font-bold text-slate-800 mb-1">Drop Files Here</h3>
-                      <p className="text-sm font-medium text-slate-500">PDFs, Images, & DOCX</p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* 2. FEATURES */}
-                <div className="flex flex-col gap-4 max-w-sm w-full text-center md:text-left">
-                   <div className="space-y-1 mb-2">
-                      <h3 className="text-xl md:text-3xl font-black text-slate-800 leading-tight">
-                        Visual Editor <br/>
-                        <span className="text-rose-600">& PDF Splitter</span>
-                      </h3>
-                      <p className="text-xs md:text-base text-slate-500 font-medium">
-                        Mix images, PDFs, aur DOCX text. Securely save as PDF.
-                      </p>
-                   </div>
-
-                   <div className="grid gap-3">
-                      {[
-                        { icon: ShieldCheck, title: "100% Secure", desc: "Files never leave your device" },
-                        { icon: Scissors, title: "Precise Control", desc: "Extract or remove exact pages" },
-                        { icon: Zap, title: "DOCX to PDF", desc: "Read DOCX as image pages" }
-                      ].map((f, i) => (
-                        <div key={i} className="flex items-center gap-3 p-3 md:p-4 rounded-xl md:rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-rose-100 transition-all group cursor-default text-left">
-                          <div className="shrink-0 w-8 h-8 md:w-12 md:h-12 rounded-lg md:rounded-xl bg-gradient-to-br from-rose-50 to-orange-50 flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
-                            <f.icon size={16} className="md:w-[22px] md:h-[22px]" />
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-slate-800 text-sm md:text-base">{f.title}</h4>
-                            <p className="text-xs md:text-sm text-slate-500">{f.desc}</p>
-                          </div>
-                        </div>
-                      ))}
-                   </div>
-                </div>
-
-              </div>
-            ) : (
-              /* ---------- EDITOR STATE ---------- */
-              <div className="flex flex-col h-full animate-in fade-in zoom-in-95 duration-500">
-                
-                {/* STICKY TOOLBAR */}
-                <div className="sticky top-0 md:top-20 z-30 bg-white/90 backdrop-blur-md border-b border-rose-100 px-2 sm:px-6 py-2 sm:py-4 flex flex-col sm:flex-row items-center justify-between shadow-sm transition-all gap-3 sm:gap-4 rounded-t-[1.5rem] md:rounded-t-[2.5rem]">
-                  
-                  {/* Left: Info */}
-                  <div className="flex items-center gap-2 md:gap-4 min-w-0 w-full sm:w-auto">
-                    <div className="bg-gradient-to-br from-rose-500 to-orange-500 p-1.5 md:p-2.5 rounded-lg md:rounded-xl text-white shadow-lg shadow-rose-200 shrink-0">
-                      <FileText size={16} className="md:w-6 md:h-6" />
-                    </div>
-                    <div className="min-w-0 truncate">
-                      <h3 className="font-bold text-slate-800 text-xs md:text-base truncate">
-                        Document Workspace
-                      </h3>
-                      <p className="text-[8px] md:text-xs font-semibold text-slate-400 uppercase tracking-wider truncate">
-                        {pages.length} Pages Total • {selectedPages.size} Selected
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex flex-wrap items-center justify-center gap-1.5 md:gap-3 w-full sm:w-auto relative">
-                    
-                    {/* QUALITY TOGGLE */}
-                    <button
-                      onClick={() => setIsHighQuality(!isHighQuality)}
-                      className={clsx(
-                        "p-1.5 md:p-2 flex items-center gap-1.5 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold border",
-                        isHighQuality
-                          ? "text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100"
-                          : "text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100"
-                      )}
-                      title={isHighQuality ? "High Quality rendering (may use more memory)" : "Fast Mode rendering (uses less memory)"}
-                    >
-                      <Zap size={16} className={isHighQuality ? "fill-rose-500" : ""} />
-                      <span className="hidden lg:inline">{isHighQuality ? "HD Mode" : "Fast Mode"}</span>
-                    </button>
-
-                    <input 
-                      type="file" 
-                      multiple 
-                      className="hidden" 
-                      ref={fileInputRef} 
-                      onChange={handleHiddenFileInput}
-                      accept=".pdf,.jpg,.jpeg,.png,.docx"
-                    />
-                    
-                    {/* ADD FILES, BLANK PAGE & SORT BUTTONS */}
-                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
-                      <button 
-                        onClick={() => fileInputRef.current?.click()}
-                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
-                        title="Add More Files"
-                      >
-                        <Plus size={16} /> <span className="hidden sm:inline">Files</span>
-                      </button>
-                      <button 
-                        onClick={handleAddBlankPage}
-                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
-                        title="Add Blank Page"
-                      >
-                        <FileIcon size={16} /> <span className="hidden sm:inline">Blank</span>
-                      </button>
-                      <button 
-                        onClick={handleSortAZ}
-                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold disabled:opacity-50"
-                        title="Sort Pages A-Z"
-                        disabled={pages.length <= 1}
-                      >
-                        <ArrowDownAZ size={16} /> <span className="hidden sm:inline">A-Z</span>
-                      </button>
-                      <button 
-                        onClick={handleSortZA}
-                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold disabled:opacity-50"
-                        title="Sort Pages Z-A"
-                        disabled={pages.length <= 1}
-                      >
-                        <ArrowDownZA size={16} /> <span className="hidden sm:inline">Z-A</span>
-                      </button>
-                    </div>
-
-                    {/* RESPONSIVE: Selection Tools Dropdown (With Landscape & Portrait) */}
-                    <div className="relative group inline-block">
-                      <button
-                        disabled={pages.length === 0}
-                        className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <CheckSquare size={16} /> <span className="hidden sm:inline">Select</span>
-                        <ChevronDown size={14} className="opacity-70" />
-                      </button>
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 max-w-[90vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-[60]">
-                        <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select All</button>
-                          <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Deselect All</button>
-                          
-                          <div className="h-px bg-slate-100 my-1"></div>
-                          
-                          <button onClick={selectLandscape} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Landscape Pages</button>
-                          <button onClick={selectPortrait} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Portrait Pages</button>
-                          
-                          <div className="h-px bg-slate-100 my-1"></div>
-                          
-                          <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Odd Pages</button>
-                          <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Even Pages</button>
-                          <div className="h-px bg-slate-100 my-1"></div>
-                          <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Invert Selection</button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Range Input Tool */}
-                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200 focus-within:border-indigo-300 focus-within:ring-1 focus-within:ring-indigo-300 transition-all">
-                      <input
-                        type="text"
-                        placeholder="e.g. 1-5"
-                        value={rangeInput}
-                        onChange={(e) => setRangeInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && applyRangeSelection()}
-                        className="w-16 md:w-20 text-xs md:text-sm px-2 py-1 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400"
-                        title="Enter page ranges (e.g. 1-3, 5)"
-                      />
-                      <button
-                        onClick={applyRangeSelection}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-600 text-xs font-bold rounded shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors"
-                        title="Apply Range"
-                      >
-                        Go
-                      </button>
-                    </div>
-
-                    {/* Undo/Redo Actions */}
-                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
-                      <button
-                        onClick={undo}
-                        disabled={past.length === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Undo (Ctrl+Z)"
-                      >
-                        <Undo size={16} />
-                      </button>
-                      <button
-                        onClick={redo}
-                        disabled={future.length === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Redo (Ctrl+Y)"
-                      >
-                        <Redo size={16} />
-                      </button>
-                    </div>
-
-                    {/* Contextual Actions */}
-                    <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
-                      <button
-                        onClick={handleRotateSelected}
-                        disabled={selectedPages.size === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Rotate Selected 90°"
-                      >
-                        <RefreshCw size={16} />
-                      </button>
-                      <button
-                        onClick={handleSplitKeepSelected}
-                        disabled={selectedPages.size === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Extract Selected (Remove unselected)"
-                      >
-                        <Scissors size={16} />
-                      </button>
-                      <button
-                        onClick={handleDeleteSelected}
-                        disabled={selectedPages.size === 0}
-                        className="p-1.5 md:p-2 text-slate-600 hover:text-red-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
-                        title="Delete Selected"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
-
-                    {/* Reset Button */}
-                    <button 
-                      onClick={reset}
-                      className="p-1.5 md:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg md:rounded-xl transition-all"
-                      title="Clear Workspace"
-                    >
-                      <RefreshCcw size={16} />
-                    </button>
-
-                    {/* RESPONSIVE: Download Dropdown with Bulk Split (Wider for 2 options) */}
-                    <div className="relative group inline-block">
-                      <button
-                        disabled={pages.length === 0 || isProcessing}
-                        className="flex items-center gap-1 md:gap-2 bg-slate-900 hover:bg-rose-600 text-white px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg md:rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-rose-200 transition-all duration-300 text-xs md:text-sm"
-                      >
-                        {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <Download size={16} />}
-                        <span>Export {selectedPages.size > 0 ? `(${selectedPages.size})` : 'All'}</span>
-                        <ChevronDown size={14} className="opacity-70" />
-                      </button>
                       
-                      {/* Fixed Dropdown Position & Width for Bulk Split Settings */}
-                      <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[260px] max-w-[85vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[100]">
-                        <div className="p-1.5 sm:p-2 flex flex-col gap-1">
-                          
-                          {/* Add Page Numbers Checkbox */}
-                          <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
-                            <div className="relative flex items-center">
-                              <input 
-                                type="checkbox" 
-                                checked={addPageNumbers} 
-                                onChange={(e) => setAddPageNumbers(e.target.checked)}
-                                className="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded focus:ring-rose-500 checked:bg-rose-500 checked:border-rose-500 transition-all"
-                              />
-                              <CheckSquare size={12} className="absolute inset-0 m-auto text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
-                            </div>
-                            <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Page Numbers</span>
-                          </label>
-
-                          {/* NAYA: Add Watermark Checkbox & Input */}
-                          <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
-                            <div className="relative flex items-center">
-                              <input 
-                                type="checkbox" 
-                                checked={enableWatermark} 
-                                onChange={(e) => setEnableWatermark(e.target.checked)}
-                                className="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded focus:ring-rose-500 checked:bg-rose-500 checked:border-rose-500 transition-all"
-                              />
-                              <CheckSquare size={12} className="absolute inset-0 m-auto text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
-                            </div>
-                            <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Watermark</span>
-                          </label>
-
-                          {enableWatermark && (
-                            <div className="px-2 sm:px-3 pb-2 pt-1 animate-in fade-in slide-in-from-top-1">
-                              <input
-                                type="text"
-                                placeholder="e.g. CONFIDENTIAL"
-                                value={watermarkText}
-                                onChange={(e) => setWatermarkText(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
-                              />
-                            </div>
-                          )}
-                          
-                          <div className="h-px bg-slate-100 my-1"></div>
-
-                          <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            <FileText size={16} className="shrink-0" /> Export as PDF
-                          </button>
-                          <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            <ImageIcon size={16} className="shrink-0" /> Export as JPGs
-                          </button>
-                          <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
-                            <ImageIcon size={16} className="shrink-0" /> Export as PNGs
-                          </button>
-
-                          <div className="h-px bg-slate-100 my-1"></div>
-                          
-                          {/* Bulk Split Settings (By Pages) */}
-                          <div className="px-2 sm:px-3 py-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Split by Pages</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <input
-                                type="number"
-                                min="1"
-                                placeholder="Pages"
-                                value={chunkSize}
-                                onChange={(e) => setChunkSize(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
-                              />
-                              <button
-                                onClick={downloadAsChunks}
-                                disabled={!chunkSize || isProcessing}
-                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded shadow-sm border border-rose-200 transition-colors disabled:opacity-50 shrink-0"
-                              >
-                                Split
-                              </button>
-                            </div>
-                          </div>
-
-                          <div className="h-px bg-slate-100 my-1"></div>
-                          
-                          {/* Bulk Split Settings (By Size MB) */}
-                          <div className="px-2 sm:px-3 py-1">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Split by Max Size (MB)</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <input
-                                type="number"
-                                min="1"
-                                placeholder="Max MB"
-                                value={chunkMbSize}
-                                onChange={(e) => setChunkMbSize(e.target.value)}
-                                className="w-full text-xs px-2 py-1.5 bg-emerald-50 border border-emerald-200 rounded outline-none focus:border-emerald-400 text-emerald-800 placeholder-emerald-400"
-                              />
-                              <button
-                                onClick={downloadBySize}
-                                disabled={!chunkMbSize || isProcessing}
-                                className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded shadow-sm border border-emerald-600 transition-colors disabled:opacity-50 shrink-0"
-                              >
-                                Split
-                              </button>
-                            </div>
-                          </div>
-
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* ERROR ALERT */}
-                {error && (
-                  <div className="mx-3 mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2 text-sm font-medium animate-in slide-in-from-top-2">
-                    <AlertCircle size={16} className="shrink-0" /> 
-                    <span>{error}</span>
-                  </div>
-                )}
-                
-                {/* WARNING ALERT FOR HEAVY FILES */}
-                {warning && (
-                  <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-2 text-sm font-medium animate-in slide-in-from-top-2 relative">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
-                    <div className="flex-1 pr-6">
-                      {warning}
-                    </div>
-                    <button 
-                      onClick={() => setWarning(null)} 
-                      className="absolute top-3 right-3 text-amber-500 hover:text-amber-800 transition-colors"
-                      title="Dismiss Warning"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                )}
-
-                {/* MAIN CONTENT AREA */}
-                {/* ADDED: rounded-b styling to keep corners since overflow-hidden is removed from parent */}
-                <div className="p-3 md:p-10 bg-slate-50/50 flex-1 overflow-y-auto min-h-[50vh] md:min-h-[60vh] rounded-b-[1.5rem] md:rounded-b-[2.5rem]">
-                  
-                  {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-12 md:py-32">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-rose-200 rounded-full blur-xl animate-pulse" />
-                        <Loader2 className="relative z-10 w-8 h-8 md:w-16 md:h-16 animate-spin text-rose-600" />
-                      </div>
-                      <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">
-                        {progress ? progress.status : (isHighQuality ? 'Processing Documents in HD...' : 'Processing Documents Fast...')}
-                      </p>
-                      
-                      {/* Upload/Extract Progress Bar */}
-                      {progress && (
-                        <div className="w-64 max-w-full mt-4 animate-in fade-in">
-                          <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
-                            <span>{progress.current} of {progress.total} pages</span>
-                            <span className="text-rose-600">{Math.round((progress.current / progress.total) * 100)}%</span>
-                          </div>
-                          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden shadow-inner">
-                            <div 
-                              className="bg-rose-500 h-2 rounded-full transition-all duration-300 ease-out" 
-                              style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    /* GRID EDITOR */
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      
-                      {/* Hint Bar */}
-                      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6 md:mb-8">
-                        <div className="bg-white px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-[10px] md:text-sm text-slate-500 font-medium">
-                          <MousePointerClick size={14} className="text-slate-400 shrink-0" />
-                          <span>Tap to select, <span className="text-rose-500 font-bold">Shift+Click</span> for range, or <span className="text-indigo-600 font-bold">Drag to Reorder</span></span>
-                        </div>
-                      </div>
-
-                      {/* SORTABLE DND GRID */}
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext
-                          items={pages.map(p => p.id)}
-                          strategy={rectSortingStrategy}
+                      {/* ADD FILES, BLANK PAGE & SORT BUTTONS */}
+                      <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
+                        <button 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
+                          title="Add More Files"
                         >
-                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-8 pb-6 md:pb-10">
-                            {pages.map((p, idx) => (
-                              <SortablePage
-                                key={p.id}
-                                page={p}
-                                idx={idx}
-                                isSelected={selectedPages.has(p.id)}
-                                onPageClick={handlePageClick}
-                                onPreview={setPreviewPage}
-                                onDuplicate={handleDuplicatePage}
-                              />
-                            ))}
+                          <Plus size={16} /> <span className="hidden sm:inline">Files</span>
+                        </button>
+                        <button 
+                          onClick={handleAddBlankPage}
+                          className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold"
+                          title="Add Blank Page"
+                        >
+                          <FileIcon size={16} /> <span className="hidden sm:inline">Blank</span>
+                        </button>
+                        <button 
+                          onClick={handleSortAZ}
+                          className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold disabled:opacity-50"
+                          title="Sort Pages A-Z"
+                          disabled={pages.length <= 1}
+                        >
+                          <ArrowDownAZ size={16} /> <span className="hidden sm:inline">A-Z</span>
+                        </button>
+                        <button 
+                          onClick={handleSortZA}
+                          className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-all text-xs md:text-sm font-semibold disabled:opacity-50"
+                          title="Sort Pages Z-A"
+                          disabled={pages.length <= 1}
+                        >
+                          <ArrowDownZA size={16} /> <span className="hidden sm:inline">Z-A</span>
+                        </button>
+                      </div>
+
+                      {/* RESPONSIVE: Selection Tools Dropdown (With Landscape & Portrait) */}
+                      <div className="relative group inline-block">
+                        <button
+                          disabled={pages.length === 0}
+                          className="p-1.5 md:p-2 flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-200 rounded-lg md:rounded-xl transition-all text-xs md:text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <CheckSquare size={16} /> <span className="hidden sm:inline">Select</span>
+                          <ChevronDown size={14} className="opacity-70" />
+                        </button>
+                        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-48 max-w-[90vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top z-[60]">
+                          <div className="p-1.5 sm:p-2 flex flex-col gap-1">
+                            <button onClick={selectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select All</button>
+                            <button onClick={deselectAll} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Deselect All</button>
                             
-                            {/* Quick Add File Tile */}
-                            <div 
-                              onClick={() => fileInputRef.current?.click()}
-                              className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500"
-                            >
-                              <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                <Plus size={24} />
-                              </div>
-                              <span className="text-sm font-bold">Add File</span>
-                            </div>
-
-                            {/* Quick Add Blank Tile */}
-                            <div 
-                              onClick={handleAddBlankPage}
-                              className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-emerald-50 hover:border-emerald-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500"
-                            >
-                              <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                <FileIcon size={24} />
-                              </div>
-                              <span className="text-sm font-bold">Add Blank</span>
-                            </div>
+                            <div className="h-px bg-slate-100 my-1"></div>
+                            
+                            <button onClick={selectLandscape} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Landscape Pages</button>
+                            <button onClick={selectPortrait} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Portrait Pages</button>
+                            
+                            <div className="h-px bg-slate-100 my-1"></div>
+                            
+                            <button onClick={selectOdd} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Odd Pages</button>
+                            <button onClick={selectEven} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Select Even Pages</button>
+                            <div className="h-px bg-slate-100 my-1"></div>
+                            <button onClick={invertSelection} className="text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg font-medium transition-colors whitespace-nowrap">Invert Selection</button>
                           </div>
-                        </SortableContext>
-                      </DndContext>
+                        </div>
+                      </div>
 
+                      {/* Range Input Tool */}
+                      <div className="flex items-center bg-slate-100/50 p-1 rounded-lg border border-slate-200 focus-within:border-indigo-300 focus-within:ring-1 focus-within:ring-indigo-300 transition-all">
+                        <input
+                          type="text"
+                          placeholder="e.g. 1-5"
+                          value={rangeInput}
+                          onChange={(e) => setRangeInput(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && applyRangeSelection()}
+                          className="w-16 md:w-20 text-xs md:text-sm px-2 py-1 bg-transparent border-none outline-none text-slate-700 placeholder:text-slate-400"
+                          title="Enter page ranges (e.g. 1-3, 5)"
+                        />
+                        <button
+                          onClick={applyRangeSelection}
+                          className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-600 text-xs font-bold rounded shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors"
+                          title="Apply Range"
+                        >
+                          Go
+                        </button>
+                      </div>
+
+                      {/* Undo/Redo Actions */}
+                      <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
+                        <button
+                          onClick={undo}
+                          disabled={past.length === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          title="Undo (Ctrl+Z)"
+                        >
+                          <Undo size={16} />
+                        </button>
+                        <button
+                          onClick={redo}
+                          disabled={future.length === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-indigo-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          title="Redo (Ctrl+Y)"
+                        >
+                          <Redo size={16} />
+                        </button>
+                      </div>
+
+                      {/* Contextual Actions */}
+                      <div className="flex items-center bg-slate-100/50 p-1 rounded-lg">
+                        <button
+                          onClick={handleRotateSelected}
+                          disabled={selectedPages.size === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          title="Rotate Selected 90°"
+                        >
+                          <RefreshCw size={16} />
+                        </button>
+                        <button
+                          onClick={handleSplitKeepSelected}
+                          disabled={selectedPages.size === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          title="Extract Selected (Remove unselected)"
+                        >
+                          <Scissors size={16} />
+                        </button>
+                        <button
+                          onClick={handleDeleteSelected}
+                          disabled={selectedPages.size === 0}
+                          className="p-1.5 md:p-2 text-slate-600 hover:text-red-600 hover:bg-white rounded-lg disabled:opacity-30 disabled:hover:bg-transparent transition-all"
+                          title="Delete Selected"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+
+                      <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+
+                      {/* Reset Button */}
+                      <button 
+                        onClick={reset}
+                        className="p-1.5 md:p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg md:rounded-xl transition-all"
+                        title="Clear Workspace"
+                      >
+                        <RefreshCcw size={16} />
+                      </button>
+
+                      {/* RESPONSIVE: Download Dropdown with Bulk Split (Wider for 2 options) */}
+                      <div className="relative group inline-block">
+                        <button
+                          disabled={pages.length === 0 || isProcessing}
+                          className="flex items-center gap-1 md:gap-2 bg-slate-900 hover:bg-rose-600 text-white px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg md:rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-rose-200 transition-all duration-300 text-xs md:text-sm"
+                        >
+                          {isProcessing ? <Loader2 className="animate-spin w-4 h-4" /> : <Download size={16} />}
+                          <span>Export {selectedPages.size > 0 ? `(${selectedPages.size})` : 'All'}</span>
+                          <ChevronDown size={14} className="opacity-70" />
+                        </button>
+                        
+                        {/* Fixed Dropdown Position & Width for Bulk Split Settings */}
+                        <div className="absolute right-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto top-full mt-2 w-[260px] max-w-[85vw] bg-white rounded-xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right sm:origin-top z-[100]">
+                          <div className="p-1.5 sm:p-2 flex flex-col gap-1">
+                            
+                            {/* Add Page Numbers Checkbox */}
+                            <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
+                              <div className="relative flex items-center">
+                                <input 
+                                  type="checkbox" 
+                                  checked={addPageNumbers} 
+                                  onChange={(e) => setAddPageNumbers(e.target.checked)}
+                                  className="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded focus:ring-rose-500 checked:bg-rose-500 checked:border-rose-500 transition-all"
+                                />
+                                <CheckSquare size={12} className="absolute inset-0 m-auto text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
+                              </div>
+                              <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Page Numbers</span>
+                            </label>
+
+                            {/* NAYA: Add Watermark Checkbox & Input */}
+                            <label className="flex items-center gap-2 px-2 sm:px-3 py-1.5 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors group">
+                              <div className="relative flex items-center">
+                                <input 
+                                  type="checkbox" 
+                                  checked={enableWatermark} 
+                                  onChange={(e) => setEnableWatermark(e.target.checked)}
+                                  className="peer appearance-none w-4 h-4 border-2 border-slate-300 rounded focus:ring-rose-500 checked:bg-rose-500 checked:border-rose-500 transition-all"
+                                />
+                                <CheckSquare size={12} className="absolute inset-0 m-auto text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
+                              </div>
+                              <span className="text-xs sm:text-sm text-slate-700 font-medium group-hover:text-rose-600 transition-colors">Add Watermark</span>
+                            </label>
+
+                            {enableWatermark && (
+                              <div className="px-2 sm:px-3 pb-2 pt-1 animate-in fade-in slide-in-from-top-1">
+                                <input
+                                  type="text"
+                                  placeholder="e.g. CONFIDENTIAL"
+                                  value={watermarkText}
+                                  onChange={(e) => setWatermarkText(e.target.value)}
+                                  className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
+                                />
+                              </div>
+                            )}
+                            
+                            <div className="h-px bg-slate-100 my-1"></div>
+
+                            <button onClick={downloadAsPdf} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                              <FileText size={16} className="shrink-0" /> Export as PDF
+                            </button>
+                            <button onClick={() => downloadAsImages('jpeg')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                              <ImageIcon size={16} className="shrink-0" /> Export as JPGs
+                            </button>
+                            <button onClick={() => downloadAsImages('png')} className="flex items-center gap-2 sm:gap-3 w-full text-left px-2 sm:px-3 py-2 text-xs sm:text-sm text-slate-700 hover:bg-rose-50 hover:text-rose-600 rounded-lg font-medium transition-colors whitespace-nowrap">
+                              <ImageIcon size={16} className="shrink-0" /> Export as PNGs
+                            </button>
+
+                            <div className="h-px bg-slate-100 my-1"></div>
+                            
+                            {/* Bulk Split Settings (By Pages) */}
+                            <div className="px-2 sm:px-3 py-1">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Split by Pages</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  placeholder="Pages"
+                                  value={chunkSize}
+                                  onChange={(e) => setChunkSize(e.target.value)}
+                                  className="w-full text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded outline-none focus:border-rose-300 text-slate-700"
+                                />
+                                <button
+                                  onClick={downloadAsChunks}
+                                  disabled={!chunkSize || isProcessing}
+                                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold rounded shadow-sm border border-rose-200 transition-colors disabled:opacity-50 shrink-0"
+                                >
+                                  Split
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="h-px bg-slate-100 my-1"></div>
+                            
+                            {/* Bulk Split Settings (By Size MB) */}
+                            <div className="px-2 sm:px-3 py-1">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Split by Max Size (MB)</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  placeholder="Max MB"
+                                  value={chunkMbSize}
+                                  onChange={(e) => setChunkMbSize(e.target.value)}
+                                  className="w-full text-xs px-2 py-1.5 bg-emerald-50 border border-emerald-200 rounded outline-none focus:border-emerald-400 text-emerald-800 placeholder-emerald-400"
+                                />
+                                <button
+                                  onClick={downloadBySize}
+                                  disabled={!chunkMbSize || isProcessing}
+                                  className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold rounded shadow-sm border border-emerald-600 transition-colors disabled:opacity-50 shrink-0"
+                                >
+                                  Split
+                                </button>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {/* ERROR ALERT */}
+                  {error && (
+                    <div className="mx-3 mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2 text-sm font-medium animate-in slide-in-from-top-2">
+                      <AlertCircle size={16} className="shrink-0" /> 
+                      <span>{error}</span>
                     </div>
                   )}
+                  
+                  {/* WARNING ALERT FOR HEAVY FILES */}
+                  {warning && (
+                    <div className="mx-3 mt-3 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-2 text-sm font-medium animate-in slide-in-from-top-2 relative">
+                      <AlertCircle size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                      <div className="flex-1 pr-6">
+                        {warning}
+                      </div>
+                      <button 
+                        onClick={() => setWarning(null)} 
+                        className="absolute top-3 right-3 text-amber-500 hover:text-amber-800 transition-colors"
+                        title="Dismiss Warning"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* MAIN CONTENT AREA */}
+                  <div className="p-3 md:p-10 bg-slate-50/50 flex-1 overflow-y-auto min-h-[50vh] md:min-h-[60vh] rounded-b-[1.5rem] md:rounded-b-[2.5rem]">
+                    
+                    {isLoading ? (
+                      <div className="flex flex-col items-center justify-center py-12 md:py-32">
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-rose-200 rounded-full blur-xl animate-pulse" />
+                          <Loader2 className="relative z-10 w-8 h-8 md:w-16 md:h-16 animate-spin text-rose-600" />
+                        </div>
+                        <p className="mt-4 md:mt-8 text-sm md:text-lg font-medium text-slate-500">
+                          {progress ? progress.status : (isHighQuality ? 'Processing Documents in HD...' : 'Processing Documents Fast...')}
+                        </p>
+                        
+                        {/* Upload/Extract Progress Bar */}
+                        {progress && (
+                          <div className="w-64 max-w-full mt-4 animate-in fade-in">
+                            <div className="flex justify-between text-xs text-slate-500 mb-1 font-semibold">
+                              <span>{progress.current} of {progress.total} pages</span>
+                              <span className="text-rose-600">{Math.round((progress.current / progress.total) * 100)}%</span>
+                            </div>
+                            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden shadow-inner">
+                              <div 
+                                className="bg-rose-500 h-2 rounded-full transition-all duration-300 ease-out" 
+                                style={{ width: `${Math.round((progress.current / progress.total) * 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* GRID EDITOR */
+                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        
+                        {/* Hint Bar */}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6 md:mb-8">
+                          <div className="bg-white px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-[10px] md:text-sm text-slate-500 font-medium">
+                            <MousePointerClick size={14} className="text-slate-400 shrink-0" />
+                            <span>Tap to select, <span className="text-rose-500 font-bold">Shift+Click</span> for range, or <span className="text-indigo-600 font-bold">Drag to Reorder</span></span>
+                          </div>
+                        </div>
+
+                        {/* SORTABLE DND GRID */}
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <SortableContext
+                            items={pages.map(p => p.id)}
+                            strategy={rectSortingStrategy}
+                          >
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-8 pb-6 md:pb-10">
+                              {pages.map((p, idx) => (
+                                <SortablePage
+                                  key={p.id}
+                                  page={p}
+                                  idx={idx}
+                                  isSelected={selectedPages.has(p.id)}
+                                  onPageClick={handlePageClick}
+                                  onPreview={setPreviewPage}
+                                  onDuplicate={handleDuplicatePage}
+                                />
+                              ))}
+                              
+                              {/* Quick Add File Tile */}
+                              <div 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-indigo-500"
+                              >
+                                <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                  <Plus size={24} />
+                                </div>
+                                <span className="text-sm font-bold">Add File</span>
+                              </div>
+
+                              {/* Quick Add Blank Tile */}
+                              <div 
+                                onClick={handleAddBlankPage}
+                                className="group relative aspect-[3/4] rounded-lg md:rounded-xl cursor-pointer transition-all duration-200 ease-out border-2 border-dashed border-slate-300 bg-slate-50/50 hover:bg-emerald-50 hover:border-emerald-300 hover:shadow-md flex flex-col items-center justify-center text-slate-400 hover:text-emerald-500"
+                              >
+                                <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                  <FileIcon size={24} />
+                                </div>
+                                <span className="text-sm font-bold">Add Blank</span>
+                              </div>
+                            </div>
+                          </SortableContext>
+                        </DndContext>
+
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* FEATURE HIGHLIGHTS */}
+          <section className="mt-12 md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 px-2 md:px-0">
+            {[
+              {
+                title: "Visual Selection",
+                desc: "Don't guess page numbers. See thumbnails of every page, combine files, rotate, and extract what you need.",
+                icon: MousePointerClick,
+                style: "bg-rose-50 text-rose-600"
+              },
+              {
+                title: "100% Private",
+                desc: "Files are processed locally in your browser via WebAssembly. No data leaves your device.",
+                icon: ShieldCheck,
+                style: "bg-slate-100 text-slate-700"
+              },
+              {
+                title: "Multiple Formats",
+                desc: "Upload PDFs alongside JPGs, PNGs, aur ab DOCX bhi! Export as a combined PDF or images.",
+                icon: FilePlus,
+                style: "bg-indigo-50 text-indigo-600"
+              }
+            ].map((item, i) => (
+              <div key={i} className="bg-white p-5 md:p-8 rounded-2xl md:rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                <div className={`w-10 h-10 md:w-14 md:h-14 ${item.style} rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                  <item.icon size={20} className="md:w-[28px] md:h-[28px]" />
+                </div>
+                <h3 className="text-base md:text-xl font-bold text-slate-900 mb-1 md:mb-3">{item.title}</h3>
+                <p className="text-xs md:text-base text-slate-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </section>
+
+          {/* HOW TO & FAQ */}
+          <section className="mt-12 md:mt-24 max-w-4xl mx-auto px-2 md:px-0">
+            <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg p-5 md:p-12">
+              <h2 className="text-2xl md:text-3xl font-black text-center text-slate-900 mb-8 md:mb-12">How It Works</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12 relative">
+                 <div className="hidden md:block absolute top-6 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-rose-200 to-indigo-200 z-0" />
+
+                 {[
+                   { step: "1", title: "Upload Files", text: "Drop PDFs, Images, or DOCX." },
+                   { step: "2", title: "Edit Visually", text: "Select pages to extract, rotate, or delete." },
+                   { step: "3", title: "Export Format", text: "Download as PDF, JPG, or PNG." }
+                 ].map((s, i) => (
+                   <div key={i} className="relative z-10 text-center group">
+                     <div className="w-12 h-12 md:w-14 md:h-14 mx-auto bg-white border-2 border-rose-100 text-rose-600 rounded-xl md:rounded-2xl flex items-center justify-center text-lg md:text-xl font-bold shadow-sm mb-3 md:mb-4 group-hover:border-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all duration-300">
+                       {s.step}
+                     </div>
+                     <h3 className="text-base md:text-lg font-bold text-slate-900">{s.title}</h3>
+                     <p className="text-xs md:text-sm text-slate-500 mt-1">{s.text}</p>
+                   </div>
+                 ))}
+              </div>
+
+              <div className="mt-10 md:mt-16 pt-6 md:pt-10 border-t border-slate-100">
+                <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-4 md:mb-6 flex items-center gap-2">
+                  <ArrowRight className="text-rose-500 w-4 h-4 md:w-5 md:h-5" /> Frequently Asked Questions
+                </h3>
+                <div className="space-y-3 md:space-y-4">
+                  {[
+                    { q: "Kya ye tool free hai?", a: "Haan, bilkul free hai." },
+                    { q: "Kya DOCX support karta hai?", a: "Haan! DOCX upload karne par ye uska text automatically extract karke image format me convert kar deta hai jise aap PDF me export kar sakte hain." },
+                    { q: "Is my data safe?", a: "Haan, 100%. Ye sab browser ke andar hi chalta hai." }
+                  ].map((faq, i) => (
+                    <details key={i} className="group bg-slate-50 rounded-lg md:rounded-xl overflow-hidden cursor-pointer">
+                      <summary className="flex justify-between items-center p-3 md:p-4 font-semibold text-slate-700 hover:text-rose-600 transition-colors text-sm md:text-base list-none">
+                        {faq.q} <span className="text-slate-400 group-open:rotate-180 transition-transform text-xs">▼</span>
+                      </summary>
+                      <div className="px-3 pb-3 md:px-4 md:pb-4 text-slate-500 text-xs md:text-sm">
+                        {faq.a}
+                      </div>
+                    </details>
+                  ))}
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          </section>
+
         </div>
 
-        {/* FEATURE HIGHLIGHTS */}
-        <section className="mt-12 md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 px-2 md:px-0">
-          {[
-            {
-              title: "Visual Selection",
-              desc: "Don't guess page numbers. See thumbnails of every page, combine files, rotate, and extract what you need.",
-              icon: MousePointerClick,
-              style: "bg-rose-50 text-rose-600"
-            },
-            {
-              title: "100% Private",
-              desc: "Files are processed locally in your browser via WebAssembly. No data leaves your device.",
-              icon: ShieldCheck,
-              style: "bg-slate-100 text-slate-700"
-            },
-            {
-              title: "Multiple Formats",
-              desc: "Upload PDFs alongside JPGs, PNGs, aur ab DOCX bhi! Export as a combined PDF or images.",
-              icon: FilePlus,
-              style: "bg-indigo-50 text-indigo-600"
-            }
-          ].map((item, i) => (
-            <div key={i} className="bg-white p-5 md:p-8 rounded-2xl md:rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
-              <div className={`w-10 h-10 md:w-14 md:h-14 ${item.style} rounded-xl md:rounded-2xl flex items-center justify-center mb-3 md:mb-6 group-hover:scale-110 transition-transform duration-300`}>
-                <item.icon size={20} className="md:w-[28px] md:h-[28px]" />
-              </div>
-              <h3 className="text-base md:text-xl font-bold text-slate-900 mb-1 md:mb-3">{item.title}</h3>
-              <p className="text-xs md:text-base text-slate-500 leading-relaxed">{item.desc}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* HOW TO & FAQ */}
-        <section className="mt-12 md:mt-24 max-w-4xl mx-auto px-2 md:px-0">
-          <div className="bg-white rounded-[1.5rem] md:rounded-[2rem] border border-slate-100 shadow-lg p-5 md:p-12">
-            <h2 className="text-2xl md:text-3xl font-black text-center text-slate-900 mb-8 md:mb-12">How It Works</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-12 relative">
-               <div className="hidden md:block absolute top-6 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-rose-200 to-indigo-200 z-0" />
-
-               {[
-                 { step: "1", title: "Upload Files", text: "Drop PDFs, Images, or DOCX." },
-                 { step: "2", title: "Edit Visually", text: "Select pages to extract, rotate, or delete." },
-                 { step: "3", title: "Export Format", text: "Download as PDF, JPG, or PNG." }
-               ].map((s, i) => (
-                 <div key={i} className="relative z-10 text-center group">
-                   <div className="w-12 h-12 md:w-14 md:h-14 mx-auto bg-white border-2 border-rose-100 text-rose-600 rounded-xl md:rounded-2xl flex items-center justify-center text-lg md:text-xl font-bold shadow-sm mb-3 md:mb-4 group-hover:border-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-all duration-300">
-                     {s.step}
-                   </div>
-                   <h3 className="text-base md:text-lg font-bold text-slate-900">{s.title}</h3>
-                   <p className="text-xs md:text-sm text-slate-500 mt-1">{s.text}</p>
-                 </div>
-               ))}
-            </div>
-
-            <div className="mt-10 md:mt-16 pt-6 md:pt-10 border-t border-slate-100">
-              <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-4 md:mb-6 flex items-center gap-2">
-                <ArrowRight className="text-rose-500 w-4 h-4 md:w-5 md:h-5" /> Frequently Asked Questions
-              </h3>
-              <div className="space-y-3 md:space-y-4">
-                {[
-                  { q: "Kya ye tool free hai?", a: "Haan, bilkul free hai." },
-                  { q: "Kya DOCX support karta hai?", a: "Haan! DOCX upload karne par ye uska text automatically extract karke image format me convert kar deta hai jise aap PDF me export kar sakte hain." },
-                  { q: "Is my data safe?", a: "Haan, 100%. Ye sab browser ke andar hi chalta hai." }
-                ].map((faq, i) => (
-                  <details key={i} className="group bg-slate-50 rounded-lg md:rounded-xl overflow-hidden cursor-pointer">
-                    <summary className="flex justify-between items-center p-3 md:p-4 font-semibold text-slate-700 hover:text-rose-600 transition-colors text-sm md:text-base list-none">
-                      {faq.q} <span className="text-slate-400 group-open:rotate-180 transition-transform text-xs">▼</span>
-                    </summary>
-                    <div className="px-3 pb-3 md:px-4 md:pb-4 text-slate-500 text-xs md:text-sm">
-                      {faq.a}
-                    </div>
-                  </details>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-      </div>
-
-      {/* FULL-SCREEN MAGNIFIER / PREVIEW MODAL */}
-      {previewPage && (
-        <div 
-          className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setPreviewPage(null)}
-        >
-          {/* Zoom & Info Controls Overlay */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-2 md:gap-4 bg-slate-800/90 p-2 md:px-4 md:py-3 rounded-full border border-slate-700/50 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <button 
-              onClick={() => setPreviewZoom(z => Math.max(0.5, z - 0.5))} 
-              className="text-white hover:text-rose-400 p-2 bg-slate-700/50 hover:bg-slate-700 rounded-full transition-colors"
-              title="Zoom Out"
-            >
-              <ZoomOut size={20} />
-            </button>
-            <div className="flex flex-col items-center justify-center text-white px-2 md:px-4">
-              <span className="text-xs md:text-sm font-bold text-rose-400">{Math.round(previewZoom * 100)}%</span>
-              <span className="text-[10px] opacity-60 hidden md:block">Click image to magnify</span>
-            </div>
-            <button 
-              onClick={() => setPreviewZoom(z => Math.min(4, z + 0.5))} 
-              className="text-white hover:text-emerald-400 p-2 bg-slate-700/50 hover:bg-slate-700 rounded-full transition-colors"
-              title="Zoom In"
-            >
-              <ZoomIn size={20} />
-            </button>
-          </div>
-
-          <div className="absolute top-4 left-4 z-[110] text-white/90 bg-slate-800/80 px-4 py-2 rounded-full shadow-lg backdrop-blur text-xs md:text-sm border border-slate-700/50 pointer-events-none">
-            <span className="font-bold text-rose-400">Page {previewPage.pageIndex + 1}</span>
-            <span className="mx-2 opacity-30">•</span> 
-            <span>{previewPage.fileName}</span> 
-          </div>
-
-          <button
+        {/* FULL-SCREEN MAGNIFIER / PREVIEW MODAL */}
+        {previewPage && (
+          <div 
+            className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-md animate-in fade-in duration-200"
             onClick={() => setPreviewPage(null)}
-            className="absolute top-4 right-4 z-[110] text-white/70 hover:text-white bg-slate-800/50 hover:bg-rose-500 p-3 rounded-full transition-all shadow-lg"
-            title="Close Preview"
           >
-            <X size={24} />
-          </button>
-          
-          {/* Image Container setup for native scrolling when magnified */}
-          <div className="w-full h-full overflow-auto flex pt-16 pb-24 px-4 custom-scrollbar">
-            <div 
-              className="m-auto flex items-center justify-center transition-all duration-300 ease-out"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Click to cycle zoom levels: 1x -> 2x -> 3x -> back to 1x
-                setPreviewZoom(z => z >= 3 ? 1 : z + 1);
-              }}
-              style={{ cursor: previewZoom >= 3 ? 'zoom-out' : 'zoom-in' }}
+            {/* Zoom & Info Controls Overlay */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-2 md:gap-4 bg-slate-800/90 p-2 md:px-4 md:py-3 rounded-full border border-slate-700/50 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <button 
+                onClick={() => setPreviewZoom(z => Math.max(0.5, z - 0.5))} 
+                className="text-white hover:text-rose-400 p-2 bg-slate-700/50 hover:bg-slate-700 rounded-full transition-colors"
+                title="Zoom Out"
+              >
+                <ZoomOut size={20} />
+              </button>
+              <div className="flex flex-col items-center justify-center text-white px-2 md:px-4">
+                <span className="text-xs md:text-sm font-bold text-rose-400">{Math.round(previewZoom * 100)}%</span>
+                <span className="text-[10px] opacity-60 hidden md:block">Click image to magnify</span>
+              </div>
+              <button 
+                onClick={() => setPreviewZoom(z => Math.min(4, z + 0.5))} 
+                className="text-white hover:text-emerald-400 p-2 bg-slate-700/50 hover:bg-slate-700 rounded-full transition-colors"
+                title="Zoom In"
+              >
+                <ZoomIn size={20} />
+              </button>
+            </div>
+
+            <div className="absolute top-4 left-4 z-[110] text-white/90 bg-slate-800/80 px-4 py-2 rounded-full shadow-lg backdrop-blur text-xs md:text-sm border border-slate-700/50 pointer-events-none">
+              <span className="font-bold text-rose-400">Page {previewPage.pageIndex + 1}</span>
+              <span className="mx-2 opacity-30">•</span> 
+              <span>{previewPage.fileName}</span> 
+            </div>
+
+            <button
+              onClick={() => setPreviewPage(null)}
+              className="absolute top-4 right-4 z-[110] text-white/70 hover:text-white bg-slate-800/50 hover:bg-rose-500 p-3 rounded-full transition-all shadow-lg"
+              title="Close Preview"
             >
-               <img
-                 src={previewPage.imageUrl}
-                 alt={previewPage.fileName}
-                 style={{ 
-                   height: `${85 * previewZoom}vh`,
-                   transform: `rotate(${previewPage.rotation}deg)` 
-                 }}
-                 className="max-w-none object-contain shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-lg"
-               />
+              <X size={24} />
+            </button>
+            
+            {/* Image Container setup for native scrolling when magnified */}
+            <div className="w-full h-full overflow-auto flex pt-16 pb-24 px-4 custom-scrollbar">
+              <div 
+                className="m-auto flex items-center justify-center transition-all duration-300 ease-out"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Click to cycle zoom levels: 1x -> 2x -> 3x -> back to 1x
+                  setPreviewZoom(z => z >= 3 ? 1 : z + 1);
+                }}
+                style={{ cursor: previewZoom >= 3 ? 'zoom-out' : 'zoom-in' }}
+              >
+                 <img
+                   src={previewPage.imageUrl}
+                   alt={previewPage.fileName}
+                   style={{ 
+                     height: `${85 * previewZoom}vh`,
+                     transform: `rotate(${previewPage.rotation}deg)` 
+                   }}
+                   className="max-w-none object-contain shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-lg"
+                 />
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
