@@ -63,7 +63,7 @@ const seoDataMap: Record<string, { title: string, desc: string }> = {
 };
 
 // Dummy SEO Component taaki file crash na ho. Agar tumhare paas apna custom SEO import hai, toh ise delete kar dena.
-const SEO = ({ title, description, url, type }: any) => null;
+import SEO from './SEO';
 
 // Extended Page Data interface for the Continuous Editor
 interface PageData {
