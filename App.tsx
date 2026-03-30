@@ -298,6 +298,32 @@ function App() {
       if (path.includes('/blog/merge-pdf')) return { mode: 'blog-merge', param: null };
       if (path.includes('/blog/split-pdf')) return { mode: 'blog-split', param: null };
 
+      // 👇 YAHAN SE PASTE KARNA SHURU KARO 👇
+      const splitDynamicRoutes = [
+        '/split-pdf-by-size', '/split-large-pdf-offline', '/split-pdf-under-10mb', 
+        '/split-pdf-under-5mb', '/split-pdf-under-2mb', '/split-pdf-under-1mb', 
+        '/split-pdf-into-100kb-parts', '/chunk-large-pdf-files', '/split-heavy-pdf-free', 
+        '/split-50mb-pdf-offline', '/extract-odd-even-pages-pdf', '/split-pdf-in-half', 
+        '/separate-pdf-pages-free', '/extract-specific-pages-from-pdf', '/split-pdf-into-single-pages', 
+        '/save-one-page-of-pdf', '/extract-first-page-of-pdf', '/extract-last-page-of-pdf', 
+        '/split-pdf-by-page-ranges', '/remove-pages-from-pdf-offline', '/extract-landscape-pages-pdf', 
+        '/extract-portrait-pages-pdf', '/split-pdf-multiple-files', '/burst-pdf-into-images', 
+        '/divide-pdf-document-online', '/split-pdf-safely', '/split-confidential-pdf-offline', 
+        '/secure-pdf-splitter-client-side', '/split-pdf-without-uploading', '/private-pdf-page-extractor', 
+        '/offline-pdf-splitter-browser', '/split-pdf-no-server-upload', '/secure-document-splitter', 
+        '/zero-trust-pdf-splitter', '/safe-pdf-separator', '/split-pdf-on-mobile', 
+        '/split-pdf-windows-10-free', '/split-pdf-mac-offline', '/split-pdf-to-jpg-offline', 
+        '/extract-pdf-pages-to-png', '/split-word-docx-pages-online', '/split-pdf-for-whatsapp', 
+        '/split-pdf-for-email-attachment', '/split-legal-documents-securely', '/split-student-assignment-pdf', 
+        '/extract-invoices-from-pdf', '/split-bank-statements-offline', '/split-resume-pdf-pages', 
+        '/extract-book-chapters-pdf', '/split-scanned-pdf-offline'
+      ];
+
+      if (splitDynamicRoutes.some(route => path.includes(route))) {
+        return { mode: 'split', param: null }; 
+      }
+      // 👆 YAHAN PASTE KARNA KHATAM KARO 👆
+
       // Static routes (keep existing)
       if (path.includes('/merge')) return { mode: 'merge', param: null };
       if (path.includes('/split')) return { mode: 'split', param: null };
