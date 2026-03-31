@@ -4,7 +4,7 @@ interface SEOProps {
   title: string;
   description: string;
   url: string;
-  type?: 'website' | 'article' | 'SoftwareApplication';
+  type?: 'website' | 'article' | 'softwareApplication';
   keywords?: string;
   image?: string;
 }
@@ -21,7 +21,7 @@ export default function SEO({
   const siteUrl = 'https://genzpdf.com';
   const fullUrl = `${siteUrl}${url}`;
 
-  const schemaMarkup = type === 'SoftwareApplication'
+  const schemaMarkup = type === 'softwareApplication'
     ? {
         "@context": "https://schema.org",
         "@type": "WebApplication",
@@ -50,6 +50,10 @@ export default function SEO({
       <meta property="og:type" content={type === 'article' ? 'article' : 'website'} />
       <meta property="og:url" content={fullUrl} />
       <meta property="og:image" content={image} />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image" content={image} />
       <script type="application/ld+json">
         {JSON.stringify(schemaMarkup)}
       </script>
