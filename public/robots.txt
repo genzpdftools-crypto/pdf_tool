@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://genzpdf.com/sitemap.xml
