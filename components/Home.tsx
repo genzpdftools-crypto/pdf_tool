@@ -13,20 +13,18 @@ import {
   Globe,
   Star,
   CheckCircle2,
-  PenTool, // ✅ Added PenTool import
-  Unlock   // ✅ Added Unlock import for the new tool
+  PenTool,
+  Unlock
 } from 'lucide-react';
 import { AppMode } from '../types';
-import { ScrollHero } from './ScrollHero'; // 👈 Added ScrollHero import
+import { ScrollHero } from './ScrollHero';
 
 interface HomeProps {
   setMode: (mode: AppMode) => void;
 }
 
 export const Home: React.FC<HomeProps> = ({ setMode }) => {
-  // ------------------------------------------------------------------
-  //  👥 VISITOR COUNTER
-  // ------------------------------------------------------------------
+  // Visitor counter (kept as is)
   const [visitorCount, setVisitorCount] = useState<number | string>("10,000");
 
   useEffect(() => {
@@ -35,7 +33,6 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
         const hasVisited = sessionStorage.getItem('visited_genzpdf');
         
         if (!hasVisited) {
-          // Naya user: Count badhao
           const res = await fetch('/api/visit', { method: 'POST' });
           if (res.ok) {
             const data = await res.json();
@@ -43,7 +40,6 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
             sessionStorage.setItem('visited_genzpdf', 'true');
           }
         } else {
-          // Purana user (Refresh kiya hai): Sirf number fetch karo, badhao mat
           const res = await fetch('/api/visit');
           if (res.ok) {
             const data = await res.json();
@@ -58,179 +54,11 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
     trackVisit();
   }, []);
 
-  // ------------------------------------------------------------------
-  //  🚀 MASTER SEO CONFIGURATION (Google #1 Ranking Logic)
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    // 1. Dynamic Title (Targeting High Volume Keywords)
-    document.title = 'Genz PDF - Free Online PDF Tools: Merge, Split, Compress, Convert & Protect';
+  // ========== REMOVED: manual meta-update useEffect ==========
+  // All SEO is now handled globally by <SEO /> component in App.tsx
+  // ==========================================================
 
-    // 2. Meta Description (Optimized for CTR)
-    const metaDescContent = 'The #1 free online PDF suite. Merge PDF, Split PDF, Compress PDF, Convert to Word/JPG, Resize Images, and Password Protect PDF. 100% secure, client-side, no uploads required. Bank-grade encryption.';
-    
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute('content', metaDescContent);
-
-    // 3. Keywords Meta (For Bing/Yahoo & Internal indexing)
-    const keywordsContent = 'protect pdf, encrypt pdf, password protect pdf, lock pdf, merge pdf, split pdf, compress pdf, pdf converter, resize image, free pdf tools, client-side pdf editor';
-    let metaKeywords = document.querySelector('meta[name="keywords"]');
-    if (!metaKeywords) {
-      metaKeywords = document.createElement('meta');
-      metaKeywords.setAttribute('name', 'keywords');
-      document.head.appendChild(metaKeywords);
-    }
-    metaKeywords.setAttribute('content', keywordsContent);
-
-    // 4. Open Graph Tags (Facebook/LinkedIn/WhatsApp)
-    const upsertMeta = (prop: string, content: string) => {
-      let tag = document.querySelector(`meta[property="${prop}"]`);
-      if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('property', prop);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute('content', content);
-    };
-
-    upsertMeta('og:title', 'Genz PDF – Secure & Free PDF Tools (Merge, Split, Protect, Resize)');
-    upsertMeta('og:description', 'Encrypt and protect your PDFs instantly. Merge, split, compress, resize images & convert files in your browser. Zero uploads, 100% privacy.');
-    upsertMeta('og:type', 'website');
-    upsertMeta('og:url', 'https://genzpdf.com/');
-    upsertMeta('og:image', 'https://genzpdf.com/og-image.png');
-    upsertMeta('og:site_name', 'Genz PDF');
-
-    // 5. Twitter Card Tags
-    const upsertNameMeta = (name: string, content: string) => {
-      let tag = document.querySelector(`meta[name="${name}"]`);
-      if (!tag) {
-        tag = document.createElement('meta');
-        tag.setAttribute('name', name);
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute('content', content);
-    };
-
-    upsertNameMeta('twitter:card', 'summary_large_image');
-    upsertNameMeta('twitter:title', 'Genz PDF – Protect & Edit PDFs Free');
-    upsertNameMeta('twitter:description', 'Add passwords to PDF, merge, split, compress, resize images and convert files securely online.');
-    upsertNameMeta('twitter:image', 'https://genzpdf.com/twitter-image.png');
-    upsertNameMeta('twitter:site', '@genzpdf');
-
-    // 6. Canonical URL (Prevents Duplicate Content Penalty)
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', 'https://genzpdf.com/');
-
-    // 7. Robots Meta
-    let robots = document.querySelector('meta[name="robots"]');
-    if (!robots) {
-      robots = document.createElement('meta');
-      robots.setAttribute('name', 'robots');
-      document.head.appendChild(robots);
-    }
-    robots.setAttribute('content', 'index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1');
-
-    // 8. JSON-LD Structured Data (The "Secret Sauce" for Rich Snippets)
-    const scriptId = 'json-ld-home';
-    let scriptTag = document.getElementById(scriptId) as HTMLScriptElement;
-    if (!scriptTag) {
-      scriptTag = document.createElement('script');
-      scriptTag.id = scriptId;
-      scriptTag.setAttribute('type', 'application/ld+json');
-      document.head.appendChild(scriptTag);
-    }
-
-    const schema = {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "WebApplication",
-          "name": "Genz PDF Tools",
-          "url": "https://genzpdf.com",
-          "applicationCategory": "Productivity",
-          "operatingSystem": "All",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-          },
-          "featureList": "Merge PDF, Split PDF, Compress PDF, Convert PDF, Resize Image, Protect PDF"
-        },
-        {
-          "@type": "ItemList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Protect PDF", // 🏆 Priority Item
-              "url": "https://genzpdf.com/protect-pdf",
-              "description": "Encrypt PDF with password. AES-256 bit encryption for maximum security."
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Merge PDF",
-              "url": "https://genzpdf.com/merge-pdf",
-              "description": "Combine multiple PDFs into one file instantly. Arrange pages via drag & drop."
-            },
-            {
-              "@type": "ListItem",
-              "position": 3,
-              "name": "Split PDF",
-              "url": "https://genzpdf.com/split-pdf",
-              "description": "Extract specific pages or split large PDF files into smaller documents."
-            },
-            {
-              "@type": "ListItem",
-              "position": 4,
-              "name": "Convert PDF",
-              "url": "https://genzpdf.com/convert-pdf",
-              "description": "Convert PDF to Word (DOCX), JPG, PNG, or create PDF from images seamlessly."
-            },
-            {
-              "@type": "ListItem",
-              "position": 5,
-              "name": "Compress PDF",
-              "url": "https://genzpdf.com/compress-pdf",
-              "description": "Reduce PDF file size up to 90% without quality loss, ideal for email & web."
-            },
-            {
-              "@type": "ListItem",
-              "position": 6,
-              "name": "Resize Image",
-              "url": "https://genzpdf.com/resize-pdf",
-              "description": "Resize JPG, PNG, WebP images by pixels or percentage – keeps transparency."
-            }
-          ]
-        },
-        {
-          "@type": "Organization",
-          "name": "Genz PDF",
-          "url": "https://genzpdf.com",
-          "logo": "https://genzpdf.com/logo.png",
-          "sameAs": [
-            "https://twitter.com/genzpdf",
-            "https://facebook.com/genzpdf"
-          ]
-        }
-      ]
-    };
-    scriptTag.textContent = JSON.stringify(schema);
-
-  }, []); // Empty deps = runs once on mount
-
-  // ------------------------------------------------------------------
-  //  TOOLS DATA (Enhanced for UI & Engagement)
-  // ------------------------------------------------------------------
+  // Tools data (unchanged)
   const tools = [
     {
       id: 'merge',
@@ -282,7 +110,6 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
       border: 'hover:border-emerald-500/50',
       gradient: 'from-emerald-500 to-green-600'
     },
-    // 🔐 PROTECT PDF TOOL (Highlighted)
     {
       id: 'protect',
       title: 'Protect PDF',
@@ -292,9 +119,8 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
       shadow: 'hover:shadow-indigo-500/30',
       border: 'hover:border-indigo-500/50',
       gradient: 'from-indigo-600 to-fuchsia-600',
-      badge: 'New' // ✨ Special Badge
+      badge: 'New'
     },
-    // ✍️ SIGN PDF TOOL (Premium)
     {
       id: 'signature',
       title: 'Sign PDF',
@@ -306,7 +132,6 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
       gradient: 'from-teal-500 to-emerald-600',
       badge: 'New'
     },
-    // 🔓 UNLOCK PDF TOOL (New tool)
     {
       id: 'unlock',
       title: 'Unlock PDF',
@@ -316,7 +141,7 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
       shadow: 'hover:shadow-purple-500/20',
       border: 'hover:border-purple-500/50',
       gradient: 'from-purple-500 to-pink-600',
-      badge: 'New' // Optional: you can keep or remove the badge
+      badge: 'New'
     },
   ];
 
@@ -331,7 +156,6 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
         <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)', backgroundSize: '40px 40px', opacity: 0.4 }}></div>
       </div>
 
-      {/* 👇 ScrollHero added here */}
       <ScrollHero />
 
       <main className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
@@ -377,17 +201,14 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
                 `}
                 style={{ animationDelay: `${idx * 100}ms` }}
               >
-                {/* Top Gradient Line */}
                 <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${tool.gradient} rounded-t-3xl`}></div>
                 
-                {/* Badge (e.g. for Protect Tool) */}
                 {tool.badge && (
                   <div className="absolute top-4 right-4 px-2 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold uppercase tracking-wider rounded-md">
                     {tool.badge}
                   </div>
                 )}
 
-                {/* Icon Container */}
                 <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg text-white ${tool.iconBg} transform group-hover:scale-110 transition-transform duration-300`}>
                   <tool.icon size={32} strokeWidth={2} />
                 </div>
