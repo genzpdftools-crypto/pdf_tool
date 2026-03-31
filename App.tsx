@@ -44,6 +44,8 @@ import { VisualPdfEditor } from './components/VisualPdfEditor';
 import { transferPagesBetweenPdfs } from './services/pdfService';
 // --- New Import for Unlock Tool ---
 import UnlockTool from './components/UnlockTool';
+// ✅ SEO Component Import
+import SEO from './components/SEO';
 
 const SplitTool = lazy(() => import('./components/SplitTool'));
 const ConverterTool = lazy(() => import('./components/ConverterTool'));
@@ -55,7 +57,6 @@ const About = lazy(() => import('./components/About'));
 const Contact = lazy(() => import('./components/Contact'));
 const Policy = lazy(() => import('./components/Policy'));
 const Terms = lazy(() => import('./components/Terms'));
-// 🆕 New lazy import for the blog pages
 const MergePdfBlog = lazy(() => import('./components/MergePdfBlog'));
 const SplitPdfBlog = lazy(() => import('./components/SplitPdfBlog'));
 
@@ -63,221 +64,8 @@ const BASE_URL = "https://genzpdf.com";
 const SITE_NAME = "Genz PDF";
 const DEFAULT_OG_IMAGE = `${BASE_URL}/social-preview.jpg`;
 
-const SEO_METADATA: Record<AppMode, {
-  title: string;
-  description: string;
-  keywords: string;
-  schema: object | null;
-  breadcrumb?: { name: string; url: string }[];
-}> = {
-  home: {
-    title: "Genz PDF - Free Online PDF Tools | Merge, Split, Compress & Convert",
-    description: "All-in-one free online PDF tools: Merge PDF, Split PDF, Compress PDF, Convert to Word/JPG. 100% client-side, secure & private. No upload, no signup, unlimited usage.",
-    keywords: "free pdf tools, client-side pdf editor, secure pdf merger, compress pdf 100kb, no upload pdf tools, genz pdf, unlimited pdf converter, best free pdf website india",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "WebApplication",
-      "name": "Genz PDF Tools",
-      "applicationCategory": "BusinessApplication",
-      "operatingSystem": "Web",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "featureList": "Merge PDF, Split PDF, Compress PDF, Convert PDF, Resize PDF, Protect PDF",
-      "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "ratingCount": "2150" }
-    },
-    breadcrumb: [{ name: "Home", url: BASE_URL }]
-  },
-  merge: {
-    title: "Merge PDF Free - Combine PDF Files Online Without Uploading | Genz PDF",
-    description: "Combine multiple PDF files into one instantly. Client-side merge, no upload, secure and private. Arrange PDF pages online free. Best PDF Merger.",
-    keywords: "merge pdf, combine pdf, join pdf files, pdf merger free, merge pdf online, combine pdf without uploading, arrange PDF pages online free",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Merge PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Merge PDF", url: `${BASE_URL}/merge` }
-    ]
-  },
-  split: {
-    title: "Split PDF Online - Extract or Remove Pages Free | Genz PDF",
-    description: "Separate PDF pages, extract pages from PDF free, remove pages from PDF online. Split large PDF files instantly in your browser.",
-    keywords: "split pdf, extract pdf pages, separate pdf, cut pdf, remove pdf pages, pdf page remover, extract pages from PDF free",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Split PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Split PDF", url: `${BASE_URL}/split` }
-    ]
-  },
-  compress: {
-    title: "Compress PDF - Reduce PDF Size to 100kb Free | Genz PDF",
-    description: "Reduce PDF file size for email or web. Compress PDF to 100kb, 200kb without losing quality. Optimize PDF for web, shrink PDF file size free.",
-    keywords: "compress pdf, reduce pdf size, shrink pdf, optimize pdf, pdf compressor, compress PDF to 100kb, reduce PDF size for email",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Compress PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Compress PDF", url: `${BASE_URL}/compress` }
-    ]
-  },
-  convert: {
-    title: "PDF Converter - PDF to Word, JPG, PNG Free | Genz PDF",
-    description: "Convert PDF to Word editable, PDF to JPG high quality, convert images to PDF free. Secure DOCX to PDF converter. All client-side.",
-    keywords: "pdf converter, pdf to word, pdf to jpg, convert pdf, pdf to png, pdf to excel, convert PDF to Word editable, PDF to JPG high quality",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Convert PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Convert PDF", url: `${BASE_URL}/convert` }
-    ]
-  },
-  resize: {
-    title: "Resize PDF & Images - Change Dimensions & KB | Genz PDF",
-    description: "Resize PDF pages to A4, letter, or custom dimensions. Resize image in kb, change photo dimensions online. Client-side free tool.",
-    keywords: "resize pdf, change pdf page size, pdf dimensions, pdf page size editor, resize image in kb, change photo dimensions online",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Resize PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Resize PDF", url: `${BASE_URL}/resize` }
-    ]
-  },
-  protect: {
-    title: "Protect PDF - Encrypt & Lock PDF Online Free | Genz PDF",
-    description: "Secure your PDF with a strong password. Encrypt PDF files online for free. 100% client-side military-grade security. No upload needed.",
-    keywords: "protect pdf, encrypt pdf, password protect pdf, lock pdf, secure pdf online, pdf security free, add password to pdf",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Protect PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Protect PDF", url: `${BASE_URL}/protect` }
-    ]
-  },
-  signature: {
-    title: "Sign PDF Online Free - Add E-Signature & Date | Genz PDF",
-    description: "Add signature to PDF online for free. Draw, type, or upload your e-signature. 100% secure, client-side processing. No files are uploaded to our servers.",
-    keywords: "sign pdf online, add signature to pdf, esign pdf free, draw signature on pdf, electronic signature pdf, insert signature in pdf without upload, secure pdf signer",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Sign PDF Tool by Genz PDF",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Web",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-      "featureList": "Draw Signature, Type Signature, Upload Signature Image, Add Date, Client-Side Security",
-      "aggregateRating": { "@type": "AggregateRating", "ratingValue": "4.9", "ratingCount": "1840" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Sign PDF", url: `${BASE_URL}/signature` }
-    ]
-  },
-  unlock: {
-    title: "Unlock PDF - Remove Password from PDF Online Free | Genz PDF",
-    description: "Remove password from PDF files instantly. Unlock secured PDFs online for free. 100% client-side, no upload, no signup.",
-    keywords: "unlock pdf, remove pdf password, pdf password remover, unlock secured pdf, free pdf unlocker, remove password from pdf online",
-    schema: {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Unlock PDF Tool",
-      "applicationCategory": "UtilitiesApplication",
-      "operatingSystem": "Any",
-      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
-    },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Unlock PDF", url: `${BASE_URL}/unlock` }
-    ]
-  },
-  about: {
-    title: "About Us - Genz PDF Team",
-    description: "Learn about the mission behind Genz PDF. We provide free, secure, client-side PDF tools for everyone.",
-    keywords: "about genz pdf, pdf tools team, free pdf software",
-    schema: { "@context": "https://schema.org", "@type": "AboutPage", "name": "About Genz PDF" },
-    breadcrumb: [{ name: "Home", url: BASE_URL }, { name: "About", url: `${BASE_URL}/about` }]
-  },
-  contact: {
-    title: "Contact Support - Genz PDF",
-    description: "Get help with Genz PDF tools. Contact our support team for any questions or feedback.",
-    keywords: "contact pdf support, help with pdf tools, pdf support",
-    schema: { "@context": "https://schema.org", "@type": "ContactPage", "name": "Contact Genz PDF" },
-    breadcrumb: [{ name: "Home", url: BASE_URL }, { name: "Contact", url: `${BASE_URL}/contact` }]
-  },
-  policy: {
-    title: "Privacy Policy - Genz PDF",
-    description: "We value your privacy. Read our policy to understand how we protect your data. No files are ever uploaded.",
-    keywords: "privacy policy, pdf tool privacy",
-    schema: { "@context": "https://schema.org", "@type": "WebPage", "name": "Privacy Policy" },
-    breadcrumb: [{ name: "Home", url: BASE_URL }, { name: "Privacy Policy", url: `${BASE_URL}/policy` }]
-  },
-  terms: {
-    title: "Terms of Service - Genz PDF",
-    description: "Terms and conditions for using Genz PDF. Free usage, client-side processing, and user responsibilities.",
-    keywords: "terms of service, pdf terms",
-    schema: { "@context": "https://schema.org", "@type": "WebPage", "name": "Terms of Service" },
-    breadcrumb: [{ name: "Home", url: BASE_URL }, { name: "Terms", url: `${BASE_URL}/terms` }]
-  },
-  // 🆕 SEO metadata for the blog pages
-  'blog-merge': {
-    title: "How Our Merge PDF Tool Works - Architecture & FAQs | Genz PDF",
-    description: "Read the comprehensive technical guide on how Genz PDF merges your documents 100% locally in your browser for maximum privacy and security.",
-    keywords: "how merge pdf works, pdf-lib react, client side pdf merge, genz pdf tech stack, merge pdf privacy",
-    schema: { "@context": "https://schema.org", "@type": "Article", "headline": "How Our Merge PDF Tool Works" },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Blog: Merge PDF", url: `${BASE_URL}/blog/merge-pdf` }
-    ]
-  },
-  // 🆕 Naya Split Blog Metadata
-  'blog-split': {
-    title: "How to Split & Extract PDF Pages Free - Visual Guide | Genz PDF",
-    description: "Learn how to visually split PDFs, extract specific pages, or divide by size (MB) using our 100% secure, offline PDF splitter tool.",
-    keywords: "how to split pdf, extract pdf pages visually, split pdf by size, offline pdf splitter guide",
-    schema: { "@context": "https://schema.org", "@type": "Article", "headline": "How to Split & Extract PDF Pages Visually" },
-    breadcrumb: [
-      { name: "Home", url: BASE_URL },
-      { name: "Blog: Split PDF", url: `${BASE_URL}/blog/split-pdf` }
-    ]
-  }
-};
-
 function App() {
-  // --- UPDATED: get initial mode + dynamic param together ---
+  // --- get initial mode + dynamic param ---
   const getInitialModeAndParam = (): { mode: AppMode; param: string | null } => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname;
@@ -288,17 +76,23 @@ function App() {
         return { mode: 'resize', param: resizeMatch[1] };
       }
 
+      // ✅ Dynamic Compress Routing (new)
+      const compressMatch = path.match(/^\/compress-pdf-(\d+)kb\/?$/);
+      if (compressMatch) {
+        return { mode: 'compress', param: compressMatch[1] };
+      }
+
       // Dynamic Convert Routing
       const convertMatch = path.match(/^\/(jpg|jpeg|png)-to-pdf\/?$/);
       if (convertMatch) {
         return { mode: 'convert', param: convertMatch[1] };
       }
 
-      // 🆕 New static routes for the blog pages
+      // Blog pages
       if (path.includes('/blog/merge-pdf')) return { mode: 'blog-merge', param: null };
       if (path.includes('/blog/split-pdf')) return { mode: 'blog-split', param: null };
 
-      // 👇 YAHAN SE PASTE KARNA SHURU KARO 👇
+      // Split dynamic routes (unchanged)
       const splitDynamicRoutes = [
         '/split-pdf-by-size', '/split-large-pdf-offline', '/split-pdf-under-10mb', 
         '/split-pdf-under-5mb', '/split-pdf-under-2mb', '/split-pdf-under-1mb', 
@@ -318,13 +112,11 @@ function App() {
         '/extract-invoices-from-pdf', '/split-bank-statements-offline', '/split-resume-pdf-pages', 
         '/extract-book-chapters-pdf', '/split-scanned-pdf-offline'
       ];
-
       if (splitDynamicRoutes.some(route => path.includes(route))) {
-        return { mode: 'split', param: null }; 
+        return { mode: 'split', param: null };
       }
-      // 👆 YAHAN PASTE KARNA KHATAM KARO 👆
 
-      // Static routes (keep existing)
+      // Static routes
       if (path.includes('/merge')) return { mode: 'merge', param: null };
       if (path.includes('/split')) return { mode: 'split', param: null };
       if (path.includes('/convert')) return { mode: 'convert', param: null };
@@ -343,7 +135,6 @@ function App() {
 
   const { mode: initialMode, param: initialParam } = getInitialModeAndParam();
   const [mode, setMode] = useState<AppMode>(initialMode);
-  // --- NEW: dynamicParam state ---
   const [dynamicParam, setDynamicParam] = useState<string | null>(initialParam);
   const [files, setFiles] = useState<PdfFile[]>([]);
   const [isMerging, setIsMerging] = useState(false);
@@ -353,7 +144,7 @@ function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const successRef = useRef<HTMLDivElement>(null);
 
-  // New States for Advanced Flow
+  // States for advanced flow
   const [targetPdfId, setTargetPdfId] = useState<string | null>(null);
   const [sourcePdfId, setSourcePdfId] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<'extract' | 'insert'>('extract');
@@ -366,17 +157,14 @@ function App() {
     let path = `/${targetMode}`;
     if (targetMode === 'home') path = '/';
     if (targetMode === 'blog-merge') path = '/blog/merge-pdf';
-    if (targetMode === 'blog-split') path = '/blog/split-pdf'; // 🆕 Update here
-
+    if (targetMode === 'blog-split') path = '/blog/split-pdf';
     window.history.pushState({}, '', path);
     setMode(targetMode);
-    // Reset dynamic param when navigating to static route
     setDynamicParam(null);
     setIsMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // --- UPDATED: handle popstate to also update dynamicParam ---
   useEffect(() => {
     const handlePopState = () => {
       const { mode: newMode, param: newParam } = getInitialModeAndParam();
@@ -395,133 +183,10 @@ function App() {
     }
   }, [mergedPdfUrl]);
 
-  // --- UPDATED: SEO effect with dynamic overrides ---
-  useEffect(() => {
-    let meta = SEO_METADATA[mode] || SEO_METADATA.home;
-    let url = mode === 'home' ? BASE_URL : mode === 'blog-merge' ? `${BASE_URL}/blog/merge-pdf` : mode === 'blog-split' ? `${BASE_URL}/blog/split-pdf` : `${BASE_URL}/${mode}`;
+  // ✅ REMOVED: the large useEffect that updated meta tags (line ~580)
+  // All meta handling is now done via <SEO /> component in each mode's JSX
 
-    // 🪄 Override metadata dynamically for resize/convert with param
-    if (mode === 'resize' && dynamicParam) {
-      meta = {
-        title: `Resize Image to ${dynamicParam}KB Online Free | Genz PDF`,
-        description: `Instantly compress and resize your image to exact ${dynamicParam}KB online for free. Secure, fast, and 100% client-side processing.`,
-        keywords: `resize image to ${dynamicParam}kb, compress image to ${dynamicParam}kb, ${dynamicParam}kb photo resizer, genz pdf`,
-        schema: meta.schema, // Keep existing schema or generate a dynamic one
-      };
-      url = `${BASE_URL}/resize-image-${dynamicParam}kb`;
-    } else if (mode === 'convert' && dynamicParam) {
-      const format = dynamicParam.toUpperCase();
-      meta = {
-        title: `${format} to PDF Converter Online Free | Genz PDF`,
-        description: `Convert ${format} images to PDF documents instantly. High quality, no watermarks, secure online tool.`,
-        keywords: `${dynamicParam} to pdf, convert ${dynamicParam} to pdf, free ${dynamicParam} to pdf converter`,
-        schema: meta.schema,
-      };
-      url = `${BASE_URL}/${dynamicParam}-to-pdf`;
-    }
-
-    document.documentElement.lang = 'en';
-    document.title = meta.title;
-
-    const upsertMeta = (attr: string, content: string, attribute: 'name' | 'property' = 'name') => {
-      let element = document.querySelector(`meta[${attribute}="${attr}"]`);
-      if (!element) {
-        element = document.createElement('meta');
-        element.setAttribute(attribute, attr);
-        document.head.appendChild(element);
-      }
-      element.setAttribute('content', content);
-    };
-
-    upsertMeta('description', meta.description);
-    upsertMeta('keywords', meta.keywords);
-    upsertMeta('robots', 'index, follow');
-    upsertMeta('viewport', 'width=device-width, initial-scale=1');
-    upsertMeta('author', 'Genz PDF Team');
-
-    upsertMeta('og:title', meta.title, 'property');
-    upsertMeta('og:description', meta.description, 'property');
-    upsertMeta('og:url', url, 'property');
-    upsertMeta('og:type', 'website', 'property');
-    upsertMeta('og:site_name', SITE_NAME, 'property');
-    upsertMeta('og:image', DEFAULT_OG_IMAGE, 'property');
-
-    upsertMeta('twitter:card', 'summary_large_image', 'name');
-    upsertMeta('twitter:title', meta.title, 'name');
-    upsertMeta('twitter:description', meta.description, 'name');
-    upsertMeta('twitter:image', DEFAULT_OG_IMAGE, 'name');
-
-    let linkCanonical = document.querySelector('link[rel="canonical"]');
-    if (!linkCanonical) {
-      linkCanonical = document.createElement('link');
-      linkCanonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(linkCanonical);
-    }
-    linkCanonical.setAttribute('href', url);
-
-    const scriptsToRemove = ['json-ld-global', 'json-ld-page', 'json-ld-breadcrumb'];
-    scriptsToRemove.forEach(id => {
-      const oldScript = document.getElementById(id);
-      if (oldScript) oldScript.remove();
-    });
-
-    const globalScript = document.createElement('script');
-    globalScript.id = 'json-ld-global';
-    globalScript.type = 'application/ld+json';
-    globalScript.text = JSON.stringify([
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": SITE_NAME,
-        "url": BASE_URL,
-        "potentialAction": {
-          "@type": "SearchAction",
-          "target": `${BASE_URL}/search?q={search_term_string}`,
-          "query-input": "required name=search_term_string"
-        }
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": SITE_NAME,
-        "url": BASE_URL,
-        "logo": `${BASE_URL}/logo.png`,
-        "sameAs": ["https://twitter.com/genzpdf"]
-      }
-    ]);
-    document.head.appendChild(globalScript);
-
-    if (meta.schema) {
-      const pageScript = document.createElement('script');
-      pageScript.id = 'json-ld-page';
-      pageScript.type = 'application/ld+json';
-      pageScript.text = JSON.stringify({
-        ...meta.schema,
-        "@context": "https://schema.org",
-        "url": url,
-        "mainEntityOfPage": url
-      });
-      document.head.appendChild(pageScript);
-    }
-
-    if (meta.breadcrumb) {
-      const breadcrumbScript = document.createElement('script');
-      breadcrumbScript.id = 'json-ld-breadcrumb';
-      breadcrumbScript.type = 'application/ld+json';
-      breadcrumbScript.text = JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": meta.breadcrumb.map((item, index) => ({
-          "@type": "ListItem",
-          "position": index + 1,
-          "name": item.name,
-          "item": item.url
-        }))
-      });
-      document.head.appendChild(breadcrumbScript);
-    }
-  }, [mode, dynamicParam]); // Added dynamicParam to dependencies
-
+  // --- rest of handlers (unchanged) ---
   const handleFilesSelected = (newFiles: File[]) => {
     const pdfFiles: PdfFile[] = newFiles.map((file) => ({
       id: uuidv4(),
@@ -565,7 +230,6 @@ function App() {
     }
   };
 
-  // Individual Download Handler
   const handleIndividualDownload = (fileItem: PdfFile) => {
     const url = URL.createObjectURL(fileItem.file);
     const a = document.createElement('a');
@@ -577,7 +241,6 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
-  // Step 1: User clicks "Extract Pages" on PDF 2
   const handleOpenExtractEditor = (sourceId: string) => {
     const fileItem = files.find(f => f.id === sourceId);
     if (!fileItem) return;
@@ -587,12 +250,9 @@ function App() {
     setIsEditorOpen(true);
   };
 
-  // Step 2: User confirms pages to extract from PDF 2
   const handleExtractConfirm = (selectedPages: number[]) => {
     setPendingExtractedPages(selectedPages);
-    setIsEditorOpen(false); // Close extract modal
-    
-    // Immediately open Target PDF (PDF 1) in Insert Mode
+    setIsEditorOpen(false);
     setTimeout(() => {
       const targetFileItem = files.find(f => f.id === targetPdfId);
       if (targetFileItem) {
@@ -603,39 +263,28 @@ function App() {
     }, 500);
   };
 
-  // Step 3: User confirms insert position in PDF 1 -> Run processing
   const handleInsertConfirm = async (insertIndex: number) => {
-    setIsEditorOpen(false); // Close modal
-    setIsMerging(true); // Show loader
-
+    setIsEditorOpen(false);
+    setIsMerging(true);
     try {
       const targetItem = files.find(f => f.id === targetPdfId);
       const sourceItem = files.find(f => f.id === sourcePdfId);
-      
       if (!targetItem || !sourceItem) throw new Error("File missing");
-
-      // Core Logic Call
       const { newTargetFile, newSourceFile } = await transferPagesBetweenPdfs(
         targetItem.file,
         sourceItem.file,
         pendingExtractedPages,
         insertIndex
       );
-
-      // State Update with New Files
       setFiles(prev => prev.map(f => {
         if (f.id === targetPdfId) return { ...f, file: newTargetFile, size: newTargetFile.size };
         if (f.id === sourcePdfId) return { ...f, file: newSourceFile, size: newSourceFile.size };
         return f;
       }));
-
-      // Reset Target/Source
       setTargetPdfId(null);
       setSourcePdfId(null);
       setPendingExtractedPages([]);
-      
       alert("Pages successfully inserted and updated!");
-
     } catch (error) {
       console.error(error);
       alert("Error occurred while processing PDFs.");
@@ -644,7 +293,6 @@ function App() {
     }
   };
 
-  // ========== UPDATED NavButton COMPONENT WITH ANIMATION ==========
   const NavButton = ({ targetMode, icon: Icon, label, mobile = false }: { targetMode: AppMode | string, icon: any, label: string, mobile?: boolean }) => {
     const isActive = (mode === targetMode) || (targetMode === 'home' && mode === 'home');
     return (
@@ -655,7 +303,7 @@ function App() {
           "flex items-center gap-2 xl:gap-3 transition-all duration-300 font-bold rounded-xl group",
           mobile 
             ? "w-full p-4 text-base border border-slate-100 hover:bg-indigo-50 hover:shadow-sm"
-            : "px-3 py-2 text-sm hover:bg-white hover:shadow-md hover:-translate-y-0.5", // ✨ Smooth lift & shadow hover effect
+            : "px-3 py-2 text-sm hover:bg-white hover:shadow-md hover:-translate-y-0.5",
           isActive
             ? "bg-white text-indigo-600 shadow-sm ring-1 ring-indigo-100"
             : "text-slate-600 hover:text-indigo-600"
@@ -663,7 +311,7 @@ function App() {
       >
         <div className={clsx(
           "p-1.5 md:p-2 rounded-lg transition-all duration-300", 
-          isActive ? "bg-indigo-50" : "bg-slate-100 group-hover:bg-indigo-100 group-hover:scale-110" // ✨ Icon scale animation
+          isActive ? "bg-indigo-50" : "bg-slate-100 group-hover:bg-indigo-100 group-hover:scale-110"
         )}>
           <Icon size={mobile ? 20 : 16} className={clsx(
             "transition-colors duration-300",
@@ -675,12 +323,9 @@ function App() {
       </a>
     );
   };
-  // =================================================
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] font-sans selection:bg-indigo-100 selection:text-indigo-900 overflow-x-hidden">
-      
-      {/* ===== HEADER ===== */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm transition-all duration-300">
         <div className="max-w-[90rem] mx-auto px-4 sm:px-6 py-3 md:py-4 flex flex-wrap items-center justify-between gap-4 lg:gap-8">
           <a href="/" onClick={(e) => navigateTo('home', e)} className="flex items-center gap-3 group z-50 relative shrink-0">
@@ -691,8 +336,6 @@ function App() {
               Genz<span className="text-indigo-600">PDF</span>
             </span>
           </a>
-
-          {/* 🚀 Navigation order: Home > Merge > Split > Convert > Compress > Resize */}
           <div className="hidden lg:flex flex-wrap items-center justify-center gap-1 xl:gap-2 bg-slate-100/50 p-1.5 rounded-2xl border border-slate-200/60 shadow-inner flex-shrink-0">
             <NavButton targetMode="home" icon={HomeIcon} label="Home" />
             <NavButton targetMode="merge" icon={Files} label="Merge" />
@@ -700,62 +343,45 @@ function App() {
             <NavButton targetMode="convert" icon={ArrowRightLeft} label="Convert" />
             <NavButton targetMode="compress" icon={Minimize2} label="Compress" />
             <NavButton targetMode="resize" icon={Scaling} label="Resize" />
-            
-            {/* 🔥 More Tools Dropdown - HORIZONTAL VERSION */}
             <div className="relative group">
               <button className="flex items-center gap-1.5 px-3 py-2 text-sm font-bold text-slate-600 hover:text-indigo-600 hover:bg-white hover:shadow-md hover:-translate-y-0.5 rounded-xl transition-all duration-300 outline-none">
                 <span>More Tools</span>
                 <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-300 text-slate-400 group-hover:text-indigo-600" />
               </button>
-              
-              {/* 🚀 HORIZONTAL Dropdown Menu for [Protect, Sign, Unlock] */}
               <div className="absolute top-full right-0 mt-3 w-max bg-white/95 backdrop-blur-xl border border-slate-100 rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 flex flex-row gap-2 p-2 origin-top-right scale-95 group-hover:scale-100">
-                 
-                 <a href="/protect" onClick={(e) => navigateTo('protect', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'protect' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-2 rounded-lg transition-colors", mode === 'protect' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <Lock size={20} className={mode === 'protect' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
-                    </div>
-                    Protect
-                 </a>
-                 
-                 <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'signature' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-2 rounded-lg transition-colors", mode === 'signature' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <PenTool size={20} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
-                    </div>
-                    Sign
-                 </a>
-                 
-                 <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'unlock' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
-                    <div className={clsx("p-2 rounded-lg transition-colors", mode === 'unlock' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
-                      <Unlock size={20} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
-                    </div>
-                    Unlock
-                 </a>
-
+                <a href="/protect" onClick={(e) => navigateTo('protect', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'protect' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                  <div className={clsx("p-2 rounded-lg transition-colors", mode === 'protect' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                    <Lock size={20} className={mode === 'protect' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                  </div>
+                  Protect
+                </a>
+                <a href="/signature" onClick={(e) => navigateTo('signature', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'signature' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                  <div className={clsx("p-2 rounded-lg transition-colors", mode === 'signature' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                    <PenTool size={20} className={mode === 'signature' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                  </div>
+                  Sign
+                </a>
+                <a href="/unlock" onClick={(e) => navigateTo('unlock', e)} className={clsx("flex flex-col items-center justify-center gap-2 px-4 py-3 w-28 rounded-xl text-xs font-bold transition-all duration-300 group/item hover:-translate-y-1 hover:shadow-md", mode === 'unlock' ? "bg-indigo-50 text-indigo-600 shadow-sm" : "text-slate-600 hover:bg-indigo-50 hover:text-indigo-600")}>
+                  <div className={clsx("p-2 rounded-lg transition-colors", mode === 'unlock' ? "bg-white shadow-sm" : "bg-slate-100 group-hover/item:bg-white group-hover/item:shadow-sm")}>
+                    <Unlock size={20} className={mode === 'unlock' ? "text-indigo-600" : "text-slate-400 group-hover/item:text-indigo-600"} />
+                  </div>
+                  Unlock
+                </a>
               </div>
             </div>
           </div>
-
           <div className="flex items-center gap-3 shrink-0">
-            <button 
-              onClick={() => setIsAiOpen(true)}
-              className="hidden md:flex group items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-indigo-600 transition-all duration-300 shadow-xl shadow-slate-200 font-bold text-sm"
-            >
+            <button onClick={() => setIsAiOpen(true)} className="hidden md:flex group items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl hover:bg-indigo-600 transition-all duration-300 shadow-xl shadow-slate-200 font-bold text-sm">
               <Sparkles size={16} className="group-hover:animate-pulse" />
               <span>AI Assistant</span>
             </button>
-            <button 
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors z-50 relative"
-              aria-label="Toggle menu"
-            >
+            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="lg:hidden p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors z-50 relative">
               {isMobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
           </div>
         </div>
       </header>
 
-      {/* ===== MOBILE MENU ===== */}
       <div className={clsx(
         "fixed inset-0 bg-white/95 backdrop-blur-2xl z-40 md:hidden transition-all duration-500 ease-in-out flex flex-col pt-24 px-6 pb-8",
         isMobileMenuOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full pointer-events-none"
@@ -772,13 +398,8 @@ function App() {
           <NavButton targetMode="signature" icon={PenTool} label="Sign PDF" mobile />
           <NavButton targetMode="unlock" icon={Unlock} label="Unlock PDF" mobile />
           <div className="my-2 border-t border-slate-100"></div>
-          <button 
-            onClick={() => { setIsAiOpen(true); setIsMobileMenuOpen(false); }}
-            className="w-full p-4 flex items-center gap-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl shadow-lg shadow-slate-200"
-          >
-            <div className="p-2 bg-white/10 rounded-lg">
-              <Sparkles size={20} />
-            </div>
+          <button onClick={() => { setIsAiOpen(true); setIsMobileMenuOpen(false); }} className="w-full p-4 flex items-center gap-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl shadow-lg shadow-slate-200">
+            <div className="p-2 bg-white/10 rounded-lg"><Sparkles size={20} /></div>
             <span className="font-bold">Open AI Assistant</span>
           </button>
         </div>
@@ -796,263 +417,286 @@ function App() {
             <p className="text-slate-500 font-medium mt-6 animate-pulse">Loading Genz Tools...</p>
           </div>
         }>
-          {mode === 'home' ? (
-            <Home setMode={(m) => navigateTo(m)} />
-          ) : mode === 'merge' ? (
-            <article className="min-h-[600px] flex flex-col w-full">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={(e) => e.target.files && handleFilesSelected(Array.from(e.target.files))} 
-                multiple 
-                accept=".pdf" 
-                className="hidden" 
+          {/* ========== HOME ========== */}
+          {mode === 'home' && (
+            <>
+              <SEO
+                title="Genz PDF - Free Online PDF Tools | Merge, Split, Compress & Convert"
+                description="All-in-one free online PDF tools: Merge PDF, Split PDF, Compress PDF, Convert to Word/JPG. 100% client-side, secure & private. No upload, no signup, unlimited usage."
+                url="/"
+                type="SoftwareApplication"
+                keywords="free pdf tools, client-side pdf editor, secure pdf merger, compress pdf 100kb, no upload pdf tools, genz pdf, unlimited pdf converter, best free pdf website india"
               />
-
-              <div className="w-full max-w-5xl mx-auto mb-8 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-lg border border-slate-200 bg-slate-900 relative">
-                <video 
-                  autoPlay 
-                  loop 
-                  muted 
-                  playsInline 
-                  className="w-full h-[180px] md:h-[350px] object-cover"
-                >
-                  <source src="/merge-anim.mp4" type="video/mp4" />
-                </video>
-              </div>
-
-              <AnimatePresence mode="wait">
-              {files.length === 0 ? (
-                <motion.div 
-                  key="empty"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.4 }}
-                  className="text-center max-w-4xl mx-auto py-6 md:py-10"
-                >
-                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider mb-4 md:mb-8 border border-indigo-100">
-                    <Zap size={12} /> Secure & Private
-                  </div>
-                  <h1 className="text-xl md:text-6xl font-[900] text-slate-900 mb-3 md:mb-6 tracking-tight leading-[1.1]">
-                    Merge PDF Files <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">Instantly</span>
-                  </h1>
-                  <p className="text-xs md:text-lg text-slate-500 mb-8 md:mb-12 max-w-2xl mx-auto leading-relaxed px-4">
-                    Combine multiple PDFs into one document securely without uploading. Drag & drop, reorder, and merge offline.
-                  </p>
-                  
-                  <motion.div 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="bg-white p-2 rounded-[2rem] md:rounded-[2.5rem] shadow-xl md:shadow-2xl shadow-indigo-100 border border-slate-100 max-w-2xl mx-auto"
-                  >
-                    <FileUploader 
-                      onFilesSelected={handleFilesSelected} 
-                      allowMultiple={true} 
-                      acceptedFileTypes={['application/pdf']} 
-                      label="Drop PDFs here to Merge" 
-                    />
-                  </motion.div>
-
-                  <div className="mt-8 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-8">
-                    {[
-                      { icon: ShieldCheck, title: "Privacy First", desc: "Files never leave your browser. Client-side processing." },
-                      { icon: Scaling, title: "High Quality", desc: "Maintains original document resolution." },
-                      { icon: LayoutGrid, title: "Easy Ordering", desc: "Drag and drop to reorder pages before merging." }
-                    ].map((feat, i) => (
-                      <motion.div 
-                        key={i}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 + (i * 0.1) }}
-                        className="group p-4 md:p-8 bg-white rounded-2xl md:rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl transition-all duration-300"
-                      >
-                        <feat.icon className="text-indigo-600 mb-2 md:mb-4 group-hover:scale-110 transition-transform" size={24} />
-                        <h3 className="font-bold text-slate-800 text-sm md:text-lg mb-1">{feat.title}</h3>
-                        <p className="text-slate-500 text-[10px] md:text-sm leading-relaxed">{feat.desc}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="list"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col gap-4 md:gap-12"
-                >
-                  <div className="grid lg:grid-cols-3 gap-4 md:gap-8 items-start">
-                    <div className="lg:col-span-2 space-y-3 md:space-y-6">
-                      <motion.div 
-                        initial={{ y: -20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200/60 shadow-sm"
-                      >
-                        <div>
-                          <h2 className="text-base md:text-2xl font-black text-slate-900">Merge Queue</h2>
-                          <p className="text-[10px] md:text-sm text-slate-400 font-medium">Reorder files for final output</p>
-                        </div>
-                        <div className="flex gap-1 md:gap-2">
-                          <button onClick={() => handleSort(SortOrder.ASC)} className="p-2 md:p-3 bg-slate-50 text-slate-600 rounded-lg md:rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Sort A-Z"><ArrowDownAZ size={16}/></button>
-                          <button onClick={() => handleSort(SortOrder.DESC)} className="p-2 md:p-3 bg-slate-50 text-slate-600 rounded-lg md:rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Sort Z-A"><ArrowUpAZ size={16}/></button>
-                          <button onClick={handleClearAll} className="p-2 md:p-3 bg-red-50 text-red-500 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors" title="Clear All"><Trash2 size={16}/></button>
-                        </div>
-                      </motion.div>
-                      
-                      <motion.div 
-                        initial={{ scale: 0.95, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-white p-3 md:p-4 rounded-2xl md:rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100"
-                      >
-                        <FileList 
-                          files={files} 
-                          setFiles={setFiles} 
-                          onRemove={handleRemoveFile} 
-                          targetPdfId={targetPdfId}
-                          onSetTarget={setTargetPdfId}
-                          onEditPages={handleOpenExtractEditor}
-                          onIndividualDownload={handleIndividualDownload}
-                        />
-                        <button 
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full mt-3 md:mt-4 py-2 md:py-4 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all font-bold text-xs md:text-base"
-                        >
-                          <Plus size={16} /> Add More
-                        </button>
-                      </motion.div>
-                    </div>
-
-                    <div className="lg:sticky lg:top-24 space-y-3 md:space-y-6 w-full pb-6">
-                      <motion.div 
-                        initial={{ x: 20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-slate-900 p-3 md:p-8 rounded-xl md:rounded-[2.5rem] text-white shadow-xl md:shadow-2xl shadow-indigo-200 w-full"
-                      >
-                        <h3 className="text-sm md:text-xl font-black mb-2 md:mb-6">Summary</h3>
-                        <div className="space-y-2 md:space-y-4 mb-3 md:mb-8">
-                          <div className="flex justify-between text-[10px] md:text-sm border-b border-slate-700 pb-2">
-                            <span className="text-slate-400">Total Files</span>
-                            <span className="font-bold">{files.length}</span>
-                          </div>
-                          <div className="flex justify-between text-[10px] md:text-sm">
-                            <span className="text-slate-400">Status</span>
-                            <span className="text-emerald-400 font-bold flex items-center gap-1">
-                              <ShieldCheck size={12}/> Ready
-                            </span>
-                          </div>
-                        </div>
-
-                        <motion.button 
-                          onClick={handleMerge} 
-                          disabled={files.length < 2 || isMerging}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="w-full py-2 md:py-4 bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg md:rounded-2xl font-black text-xs md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 md:gap-3 relative overflow-hidden"
-                        >
-                          {isMerging ? (
-                            <>
-                              <div className="w-6 h-6 rounded-full overflow-hidden border-2 border-white/50 relative">
-                                 <video autoPlay loop muted playsInline className="w-full h-full object-cover">
-                                    <source src="/processing-loop.mp4" type="video/mp4" />
-                                 </video>
-                              </div>
-                              <span className="animate-pulse">Processing...</span>
-                            </>
-                          ) : (
-                            <>
-                              <FileStack size={14} />
-                              Merge Files
-                            </>
-                          )}
-                          {!isMerging && files.length >= 2 && (
-                            <div className="absolute inset-0 bg-white/20 -translate-x-full animate-[shimmer_2s_infinite]"></div>
-                          )}
-                        </motion.button>
-                      </motion.div>
-
-                      {targetPdfId && (
-                        <button 
-                          onClick={() => setTargetPdfId(null)} 
-                          className="text-xs text-slate-500 hover:text-red-500 mt-2 text-center w-full underline"
-                        >
-                          Cancel Target Selection
-                        </button>
-                      )}
-
-                      <AnimatePresence>
-                      {mergedPdfUrl && (
-                        <motion.div 
-                          ref={successRef} 
-                          initial={{ scale: 0.8, opacity: 0, y: 20 }}
-                          animate={{ scale: 1, opacity: 1, y: 0 }}
-                          exit={{ scale: 0.9, opacity: 0 }}
-                          className="bg-emerald-500 p-3 md:p-6 rounded-xl md:rounded-[2rem] text-white shadow-xl shadow-emerald-200 w-full overflow-hidden"
-                        >
-                          <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4">
-                            <div className="p-1 md:p-2 bg-white/20 rounded-full"><CheckCircle2 size={14} /></div>
-                            <span className="font-bold text-sm md:text-lg">Merge Success!</span>
-                          </div>
-                          <a 
-                            href={mergedPdfUrl} 
-                            download="merged-genzpdf.pdf" 
-                            className="w-full py-2 md:py-3.5 bg-white text-emerald-600 rounded-lg md:rounded-xl font-black text-center block hover:bg-emerald-50 transition-colors shadow-sm cursor-pointer text-xs md:text-base flex items-center justify-center gap-2"
-                          >
-                            <Download size={14}/> Download PDF
-                          </a>
-                        </motion.div>
-                      )}
-                      </AnimatePresence>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-8 pb-10">
-                    {[
-                      { icon: ShieldCheck, title: "Privacy First", desc: "Files never leave your browser." },
-                      { icon: Scaling, title: "High Quality", desc: "Maintains original document resolution." },
-                      { icon: LayoutGrid, title: "Easy Ordering", desc: "Drag and drop to reorder pages." }
-                    ].map((feat, i) => (
-                      <motion.div 
-                        key={i}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.2 + (i * 0.1) }}
-                        className="group p-4 md:p-8 bg-white rounded-2xl md:rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl transition-all duration-300"
-                      >
-                        <feat.icon className="text-indigo-600 mb-2 md:mb-4 group-hover:scale-110 transition-transform" size={24} />
-                        <h3 className="font-bold text-slate-800 text-sm md:text-lg mb-1">{feat.title}</h3>
-                        <p className="text-slate-500 text-[10px] md:text-sm leading-relaxed">{feat.desc}</p>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                </motion.div>
-              )}
-              </AnimatePresence>
-            </article>
-          ) : mode === 'protect' ? (
-            <ProtectTool />
-          ) : mode === 'signature' ? (
-            <SignatureTool />
-          ) : mode === 'unlock' ? (
-            <UnlockTool />
-          ) : (
-            <div className="bg-white p-4 md:p-12 rounded-[2rem] md:rounded-[2.5rem] shadow-xl border border-slate-100 min-h-[500px]">
-              {mode === 'split' && <SplitTool />}
-              {/* --- UPDATED: pass dynamicParam as prop to ConverterTool and ResizeTool --- */}
-              {mode === 'convert' && <ConverterTool initialFormat={dynamicParam} />}
-              {mode === 'compress' && <CompressTool />}
-              {mode === 'resize' && <ResizeTool initialTargetKb={dynamicParam} />}
-              {/* 🆕 Render the new blog pages here */}
-              {mode === 'blog-merge' && <MergePdfBlog />}
-              {mode === 'blog-split' && <SplitPdfBlog />}
-              {mode === 'about' && <About />}
-              {mode === 'contact' && <Contact />}
-              {mode === 'policy' && <Policy />}
-              {mode === 'terms' && <Terms />}
-            </div>
+              <Home setMode={(m) => navigateTo(m)} />
+            </>
           )}
+
+          {/* ========== MERGE ========== */}
+          {mode === 'merge' && (
+            <>
+              <SEO
+                title="Merge PDF Free - Combine PDF Files Online Without Uploading | Genz PDF"
+                description="Combine multiple PDF files into one instantly. Client-side merge, no upload, secure and private. Arrange PDF pages online free. Best PDF Merger."
+                url="/merge"
+                type="SoftwareApplication"
+                keywords="merge pdf, combine pdf, join pdf files, pdf merger free, merge pdf online, combine pdf without uploading"
+              />
+              <article className="min-h-[600px] flex flex-col w-full">
+                {/* merge content – same as before, unchanged */}
+                <input type="file" ref={fileInputRef} onChange={(e) => e.target.files && handleFilesSelected(Array.from(e.target.files))} multiple accept=".pdf" className="hidden" />
+                <div className="w-full max-w-5xl mx-auto mb-8 rounded-2xl md:rounded-[2rem] overflow-hidden shadow-lg border border-slate-200 bg-slate-900 relative">
+                  <video autoPlay loop muted playsInline className="w-full h-[180px] md:h-[350px] object-cover">
+                    <source src="/merge-anim.mp4" type="video/mp4" />
+                  </video>
+                </div>
+                <AnimatePresence mode="wait">
+                  {files.length === 0 ? (
+                    <motion.div key="empty" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.4 }} className="text-center max-w-4xl mx-auto py-6 md:py-10">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] md:text-xs font-bold uppercase tracking-wider mb-4 md:mb-8 border border-indigo-100">
+                        <Zap size={12} /> Secure & Private
+                      </div>
+                      <h1 className="text-xl md:text-6xl font-[900] text-slate-900 mb-3 md:mb-6 tracking-tight leading-[1.1]">
+                        Merge PDF Files <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-500">Instantly</span>
+                      </h1>
+                      <p className="text-xs md:text-lg text-slate-500 mb-8 md:mb-12 max-w-2xl mx-auto leading-relaxed px-4">
+                        Combine multiple PDFs into one document securely without uploading. Drag & drop, reorder, and merge offline.
+                      </p>
+                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="bg-white p-2 rounded-[2rem] md:rounded-[2.5rem] shadow-xl md:shadow-2xl shadow-indigo-100 border border-slate-100 max-w-2xl mx-auto">
+                        <FileUploader onFilesSelected={handleFilesSelected} allowMultiple={true} acceptedFileTypes={['application/pdf']} label="Drop PDFs here to Merge" />
+                      </motion.div>
+                      <div className="mt-8 md:mt-20 grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-8">
+                        {[
+                          { icon: ShieldCheck, title: "Privacy First", desc: "Files never leave your browser. Client-side processing." },
+                          { icon: Scaling, title: "High Quality", desc: "Maintains original document resolution." },
+                          { icon: LayoutGrid, title: "Easy Ordering", desc: "Drag and drop to reorder pages before merging." }
+                        ].map((feat, i) => (
+                          <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + (i * 0.1) }} className="group p-4 md:p-8 bg-white rounded-2xl md:rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl transition-all duration-300">
+                            <feat.icon className="text-indigo-600 mb-2 md:mb-4 group-hover:scale-110 transition-transform" size={24} />
+                            <h3 className="font-bold text-slate-800 text-sm md:text-lg mb-1">{feat.title}</h3>
+                            <p className="text-slate-500 text-[10px] md:text-sm leading-relaxed">{feat.desc}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 md:gap-12">
+                      <div className="grid lg:grid-cols-3 gap-4 md:gap-8 items-start">
+                        <div className="lg:col-span-2 space-y-3 md:space-y-6">
+                          <motion.div initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-3 md:p-6 rounded-2xl md:rounded-3xl border border-slate-200/60 shadow-sm">
+                            <div><h2 className="text-base md:text-2xl font-black text-slate-900">Merge Queue</h2><p className="text-[10px] md:text-sm text-slate-400 font-medium">Reorder files for final output</p></div>
+                            <div className="flex gap-1 md:gap-2">
+                              <button onClick={() => handleSort(SortOrder.ASC)} className="p-2 md:p-3 bg-slate-50 text-slate-600 rounded-lg md:rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Sort A-Z"><ArrowDownAZ size={16}/></button>
+                              <button onClick={() => handleSort(SortOrder.DESC)} className="p-2 md:p-3 bg-slate-50 text-slate-600 rounded-lg md:rounded-xl hover:bg-indigo-50 hover:text-indigo-600 transition-colors" title="Sort Z-A"><ArrowUpAZ size={16}/></button>
+                              <button onClick={handleClearAll} className="p-2 md:p-3 bg-red-50 text-red-500 rounded-lg md:rounded-xl hover:bg-red-100 transition-colors" title="Clear All"><Trash2 size={16}/></button>
+                            </div>
+                          </motion.div>
+                          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.1 }} className="bg-white p-3 md:p-4 rounded-2xl md:rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100">
+                            <FileList files={files} setFiles={setFiles} onRemove={handleRemoveFile} targetPdfId={targetPdfId} onSetTarget={setTargetPdfId} onEditPages={handleOpenExtractEditor} onIndividualDownload={handleIndividualDownload} />
+                            <button onClick={() => fileInputRef.current?.click()} className="w-full mt-3 md:mt-4 py-2 md:py-4 border-2 border-dashed border-slate-200 rounded-xl md:rounded-2xl flex items-center justify-center gap-2 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all font-bold text-xs md:text-base">
+                              <Plus size={16} /> Add More
+                            </button>
+                          </motion.div>
+                        </div>
+                        <div className="lg:sticky lg:top-24 space-y-3 md:space-y-6 w-full pb-6">
+                          <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="bg-slate-900 p-3 md:p-8 rounded-xl md:rounded-[2.5rem] text-white shadow-xl md:shadow-2xl shadow-indigo-200 w-full">
+                            <h3 className="text-sm md:text-xl font-black mb-2 md:mb-6">Summary</h3>
+                            <div className="space-y-2 md:space-y-4 mb-3 md:mb-8">
+                              <div className="flex justify-between text-[10px] md:text-sm border-b border-slate-700 pb-2"><span className="text-slate-400">Total Files</span><span className="font-bold">{files.length}</span></div>
+                              <div className="flex justify-between text-[10px] md:text-sm"><span className="text-slate-400">Status</span><span className="text-emerald-400 font-bold flex items-center gap-1"><ShieldCheck size={12}/> Ready</span></div>
+                            </div>
+                            <motion.button onClick={handleMerge} disabled={files.length < 2 || isMerging} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full py-2 md:py-4 bg-indigo-500 hover:bg-indigo-400 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg md:rounded-2xl font-black text-xs md:text-lg shadow-lg transition-all flex items-center justify-center gap-2 md:gap-3 relative overflow-hidden">
+                              {isMerging ? (
+                                <>
+                                  <div className="w-6 h-6 rounded-full overflow-hidden border-2 border-white/50 relative"><video autoPlay loop muted playsInline className="w-full h-full object-cover"><source src="/processing-loop.mp4" type="video/mp4" /></video></div>
+                                  <span className="animate-pulse">Processing...</span>
+                                </>
+                              ) : (
+                                <><FileStack size={14} /> Merge Files</>
+                              )}
+                              {!isMerging && files.length >= 2 && <div className="absolute inset-0 bg-white/20 -translate-x-full animate-[shimmer_2s_infinite]"></div>}
+                            </motion.button>
+                          </motion.div>
+                          {targetPdfId && <button onClick={() => setTargetPdfId(null)} className="text-xs text-slate-500 hover:text-red-500 mt-2 text-center w-full underline">Cancel Target Selection</button>}
+                          <AnimatePresence>
+                            {mergedPdfUrl && (
+                              <motion.div ref={successRef} initial={{ scale: 0.8, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-emerald-500 p-3 md:p-6 rounded-xl md:rounded-[2rem] text-white shadow-xl shadow-emerald-200 w-full overflow-hidden">
+                                <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-4"><div className="p-1 md:p-2 bg-white/20 rounded-full"><CheckCircle2 size={14} /></div><span className="font-bold text-sm md:text-lg">Merge Success!</span></div>
+                                <a href={mergedPdfUrl} download="merged-genzpdf.pdf" className="w-full py-2 md:py-3.5 bg-white text-emerald-600 rounded-lg md:rounded-xl font-black text-center block hover:bg-emerald-50 transition-colors shadow-sm cursor-pointer text-xs md:text-base flex items-center justify-center gap-2"><Download size={14}/> Download PDF</a>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-8 pb-10">
+                        {[
+                          { icon: ShieldCheck, title: "Privacy First", desc: "Files never leave your browser." },
+                          { icon: Scaling, title: "High Quality", desc: "Maintains original document resolution." },
+                          { icon: LayoutGrid, title: "Easy Ordering", desc: "Drag and drop to reorder pages." }
+                        ].map((feat, i) => (
+                          <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + (i * 0.1) }} className="group p-4 md:p-8 bg-white rounded-2xl md:rounded-3xl border border-slate-100 hover:border-indigo-100 hover:shadow-xl transition-all duration-300">
+                            <feat.icon className="text-indigo-600 mb-2 md:mb-4 group-hover:scale-110 transition-transform" size={24} />
+                            <h3 className="font-bold text-slate-800 text-sm md:text-lg mb-1">{feat.title}</h3>
+                            <p className="text-slate-500 text-[10px] md:text-sm leading-relaxed">{feat.desc}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </article>
+            </>
+          )}
+
+          {/* ========== SPLIT ========== */}
+          {mode === 'split' && (
+            <>
+              <SEO
+                title="Split PDF Online - Extract or Remove Pages Free | Genz PDF"
+                description="Separate PDF pages, extract pages from PDF free, remove pages from PDF online. Split large PDF files instantly in your browser."
+                url="/split"
+                type="SoftwareApplication"
+                keywords="split pdf, extract pdf pages, separate pdf, cut pdf, remove pdf pages, pdf page remover"
+              />
+              <SplitTool />
+            </>
+          )}
+
+          {/* ========== CONVERT ========== */}
+          {mode === 'convert' && (
+            <>
+              <SEO
+                title={dynamicParam ? `${dynamicParam.toUpperCase()} to PDF Converter Online Free | Genz PDF` : "PDF Converter - PDF to Word, JPG, PNG Free | Genz PDF"}
+                description={dynamicParam ? `Convert ${dynamicParam.toUpperCase()} images to PDF documents instantly. High quality, no watermarks, secure online tool.` : "Convert PDF to Word editable, PDF to JPG high quality, convert images to PDF free. Secure DOCX to PDF converter. All client-side."}
+                url={dynamicParam ? `/${dynamicParam}-to-pdf` : "/convert"}
+                type="SoftwareApplication"
+                keywords={dynamicParam ? `${dynamicParam} to pdf, convert ${dynamicParam} to pdf, free ${dynamicParam} to pdf converter` : "pdf converter, pdf to word, pdf to jpg, convert pdf, pdf to png, pdf to excel"}
+              />
+              <ConverterTool initialFormat={dynamicParam} />
+            </>
+          )}
+
+          {/* ========== COMPRESS ========== */}
+          {mode === 'compress' && (
+            <>
+              <SEO
+                title={dynamicParam ? `Compress PDF to ${dynamicParam}KB Online Free | Genz PDF` : "Compress PDF - Reduce PDF Size to 100kb Free | Genz PDF"}
+                description={dynamicParam ? `Reduce PDF file size to exactly ${dynamicParam}KB instantly. 100% free, client-side, no upload. Perfect for email attachments.` : "Reduce PDF file size for email or web. Compress PDF to 100kb, 200kb without losing quality. Optimize PDF for web, shrink PDF file size free."}
+                url={dynamicParam ? `/compress-pdf-${dynamicParam}kb` : "/compress"}
+                type="SoftwareApplication"
+                keywords={dynamicParam ? `compress pdf to ${dynamicParam}kb, reduce pdf size to ${dynamicParam}kb, pdf compressor ${dynamicParam}kb` : "compress pdf, reduce pdf size, shrink pdf, optimize pdf, pdf compressor"}
+              />
+              <CompressTool initialTargetKb={dynamicParam} />
+            </>
+          )}
+
+          {/* ========== RESIZE ========== */}
+          {mode === 'resize' && (
+            <>
+              <SEO
+                title={dynamicParam ? `Resize Image to ${dynamicParam}KB Online Free | Genz PDF` : "Resize PDF & Images - Change Dimensions & KB | Genz PDF"}
+                description={dynamicParam ? `Instantly compress and resize your image to exact ${dynamicParam}KB online for free. Secure, fast, and 100% client-side processing.` : "Resize PDF pages to A4, letter, or custom dimensions. Resize image in kb, change photo dimensions online. Client-side free tool."}
+                url={dynamicParam ? `/resize-image-${dynamicParam}kb` : "/resize"}
+                type="SoftwareApplication"
+                keywords={dynamicParam ? `resize image to ${dynamicParam}kb, compress image to ${dynamicParam}kb, ${dynamicParam}kb photo resizer` : "resize pdf, change pdf page size, pdf dimensions, pdf page size editor, resize image in kb"}
+              />
+              <ResizeTool initialTargetKb={dynamicParam} />
+            </>
+          )}
+
+          {/* ========== PROTECT ========== */}
+          {mode === 'protect' && (
+            <>
+              <SEO
+                title="Protect PDF - Encrypt & Lock PDF Online Free | Genz PDF"
+                description="Secure your PDF with a strong password. Encrypt PDF files online for free. 100% client-side military-grade security. No upload needed."
+                url="/protect"
+                type="SoftwareApplication"
+                keywords="protect pdf, encrypt pdf, password protect pdf, lock pdf, secure pdf online, pdf security free"
+              />
+              <ProtectTool />
+            </>
+          )}
+
+          {/* ========== SIGNATURE ========== */}
+          {mode === 'signature' && (
+            <>
+              <SEO
+                title="Sign PDF Online Free - Add E-Signature & Date | Genz PDF"
+                description="Add signature to PDF online for free. Draw, type, or upload your e-signature. 100% secure, client-side processing. No files are uploaded to our servers."
+                url="/signature"
+                type="SoftwareApplication"
+                keywords="sign pdf online, add signature to pdf, esign pdf free, draw signature on pdf, electronic signature pdf"
+              />
+              <SignatureTool />
+            </>
+          )}
+
+          {/* ========== UNLOCK ========== */}
+          {mode === 'unlock' && (
+            <>
+              <SEO
+                title="Unlock PDF - Remove Password from PDF Online Free | Genz PDF"
+                description="Remove password from PDF files instantly. Unlock secured PDFs online for free. 100% client-side, no upload, no signup."
+                url="/unlock"
+                type="SoftwareApplication"
+                keywords="unlock pdf, remove pdf password, pdf password remover, unlock secured pdf, free pdf unlocker"
+              />
+              <UnlockTool />
+            </>
+          )}
+
+          {/* ========== BLOG PAGES ========== */}
+          {mode === 'blog-merge' && (
+            <>
+              <SEO
+                title="How Our Merge PDF Tool Works - Architecture & FAQs | Genz PDF"
+                description="Read the comprehensive technical guide on how Genz PDF merges your documents 100% locally in your browser for maximum privacy and security."
+                url="/blog/merge-pdf"
+                type="article"
+                keywords="how merge pdf works, pdf-lib react, client side pdf merge, genz pdf tech stack"
+              />
+              <MergePdfBlog />
+            </>
+          )}
+          {mode === 'blog-split' && (
+            <>
+              <SEO
+                title="How to Split & Extract PDF Pages Free - Visual Guide | Genz PDF"
+                description="Learn how to visually split PDFs, extract specific pages, or divide by size (MB) using our 100% secure, offline PDF splitter tool."
+                url="/blog/split-pdf"
+                type="article"
+                keywords="how to split pdf, extract pdf pages visually, split pdf by size, offline pdf splitter guide"
+              />
+              <SplitPdfBlog />
+            </>
+          )}
+
+          {/* ========== STATIC PAGES ========== */}
+          {mode === 'about' && (
+            <>
+              <SEO title="About Us - Genz PDF Team" description="Learn about the mission behind Genz PDF. We provide free, secure, client-side PDF tools for everyone." url="/about" type="website" keywords="about genz pdf, pdf tools team" />
+              <About />
+            </>
+          )}
+          {mode === 'contact' && (
+            <>
+              <SEO title="Contact Support - Genz PDF" description="Get help with Genz PDF tools. Contact our support team for any questions or feedback." url="/contact" type="website" keywords="contact pdf support, help with pdf tools" />
+              <Contact />
+            </>
+          )}
+          {mode === 'policy' && (
+            <>
+              <SEO title="Privacy Policy - Genz PDF" description="We value your privacy. Read our policy to understand how we protect your data. No files are ever uploaded." url="/policy" type="website" keywords="privacy policy, pdf tool privacy" />
+              <Policy />
+            </>
+          )}
+          {mode === 'terms' && (
+            <>
+              <SEO title="Terms of Service - Genz PDF" description="Terms and conditions for using Genz PDF. Free usage, client-side processing, and user responsibilities." url="/terms" type="website" keywords="terms of service, pdf terms" />
+              <Terms />
+            </>
+          )}
+
         </Suspense>
       </main>
 
@@ -1078,13 +722,11 @@ function App() {
           100% { transform: scale(1); }
         }
         .animate-bounce-in { animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-
         @keyframes shimmer {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
       `}</style>
-
     </div>
   );
 }
