@@ -5,6 +5,7 @@
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/sitemap.xml", "destination": "/sitemap.xml" },
     { "source": "/robots.txt", "destination": "/robots.txt" },
+    { "source": "/blog/(.*)", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
