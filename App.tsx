@@ -46,6 +46,8 @@ import { transferPagesBetweenPdfs } from './services/pdfService';
 import UnlockTool from './components/UnlockTool';
 // ✅ SEO Component Import
 import SEO from './components/SEO';
+// ✅ Helmet Import for Organization Schema
+import { Helmet } from 'react-helmet-async';
 
 const SplitTool = lazy(() => import('./components/SplitTool'));
 const ConverterTool = lazy(() => import('./components/ConverterTool'));
@@ -427,6 +429,25 @@ function App() {
                 type="SoftwareApplication"
                 keywords="free pdf tools, client-side pdf editor, secure pdf merger, compress pdf 100kb, no upload pdf tools, genz pdf, unlimited pdf converter, best free pdf website india"
               />
+              
+              {/* ✅ Organization Schema for Logo in Search Results */}
+              <Helmet>
+                <script type="application/ld+json">
+                  {JSON.stringify({
+                    "@context": "https://schema.org",
+                    "@type": "Organization",
+                    "name": "Genz PDF",
+                    "url": "https://genzpdf.com/",
+                    "logo": "https://genzpdf.com/logo.png",
+                    "sameAs": [
+                      "https://www.youtube.com/@genzpdftool",
+                      "https://x.com/genzpdftool",
+                      "https://instagram.com/genzpdftool"
+                    ]
+                  })}
+                </script>
+              </Helmet>
+              
               <Home setMode={(m) => navigateTo(m)} />
             </>
           )}
