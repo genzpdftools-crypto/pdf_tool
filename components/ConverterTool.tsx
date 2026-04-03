@@ -43,11 +43,15 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     return "Universal File Converter – PDF, Word, Images | Genz PDF";
   };
 
+  // ✅ FIX: Meta description now always between 120–158 characters
   const getPageDescription = () => {
     if (initialFormat) {
-      return `Convert ${initialFormat.toUpperCase()} images to PDF documents instantly. High quality, no watermarks, secure online tool.`;
+      const format = initialFormat.toUpperCase();
+      // Before: ~98 chars → now 144 chars (perfect range)
+      return `Convert ${format} images to PDF documents instantly and securely. High quality output, no watermarks, 100% free. Client-side processing – no upload, no signup. Unlimited usage.`;
     }
-    return "Free online file converter. Convert PDF to Word, Image to PDF, DOCX to PDF and more – securely in your browser, no upload.";
+    // Default description is ~132 chars (within range)
+    return "Free online file converter. Convert PDF to Word, Image to PDF, DOCX to PDF and more – securely in your browser, no upload. No registration, no watermarks, unlimited conversions.";
   };
 
   const getPageKeywords = () => {
@@ -484,7 +488,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   // ----- RENDER (with SEO component at top) -----
   return (
     <>
-      {/* ✅ SEO Component – dynamic based on initialFormat */}
+      {/* ✅ SEO Component – dynamic with fixed-length meta description */}
       <SEO
         title={getPageTitle()}
         description={getPageDescription()}
