@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Google Analytics (same as before) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-YXLX4H7LG4"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -12,13 +13,11 @@
         gtag('config', 'G-YXLX4H7LG4');
     </script>
 
-    <!-- ✅ FIX 1: Title shortened from 95 to 58 chars -->
-    <title>Genz PDF: Free & Unlimited PDF Tools | Merge, Split, Compress</title>
-    <meta name="title" content="Genz PDF - 100% Free & Unlimited PDF Tools | Merge, Split, Compress & Convert Online">
-    
-    <!-- ✅ FIX 2: Meta description shortened from ~200 to 156 chars -->
-    <meta name="description" content="Genz PDF is a 100% free, secure, unlimited online PDF tool. Merge, Split, Convert, Compress PDFs & Resize Images. Client-side – no upload, no signup, no watermarks. Made in India.">
-    
+    <!-- ❌ REMOVED static <title> tag (now handled by React SEO component) -->
+    <!-- ❌ REMOVED static <meta name="title"> -->
+    <!-- ❌ REMOVED static <meta name="description"> (now handled by React SEO component) -->
+
+    <!-- ✅ Kept: keywords, robots, author, language, revisit-after, theme-color -->
     <meta name="keywords" content="free pdf tools, secure pdf merger, compress pdf online, client-side pdf converter, no upload pdf tools, unlimited pdf editor, genz pdf, indian pdf tools, unlimited pdf merger, compress pdf 100kb, pdf to word converter free, resize image online, merge pdf free, split pdf free, convert pdf to jpg, reduce pdf size, best free pdf website india, privacy-focused pdf tools">
     <meta name="robots" content="index, follow">
     <meta name="author" content="Genz PDF (Pintu & Raushan)">
@@ -26,6 +25,7 @@
     <meta name="revisit-after" content="1 days">
     <meta name="theme-color" content="#ffffff">
 
+    <!-- Open Graph / Twitter Cards (kept as fallback – these are fine) -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://genzpdf.com/">
     <meta property="og:title" content="Genz PDF - Unlimited Free PDF Tools">
@@ -44,12 +44,12 @@
     <link rel="icon" type="image/png" href="/logos.png" />
     <link rel="apple-touch-icon" href="/logos.png">
 
-    <!-- canonical link removed (will be set dynamically by Helmet) -->
-
+    <!-- Canonical will be set dynamically by React Helmet (SEO component) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
 
+    <!-- Tailwind CSS config (unchanged) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -74,7 +74,7 @@
 
     <style>
         body { background-color: #f8fafc; }
-        /* Scrollbar Styling */
+        /* Scrollbar Styling (unchanged) */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -84,20 +84,10 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* ✅ FIX 3: Visually hidden H1 –不影响设计/功能 */
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border-width: 0;
-        }
+        /* ❌ REMOVED .sr-only class – no longer needed because we removed the hidden H1 */
     </style>
 
+    <!-- JSON-LD structured data (unchanged) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -143,8 +133,8 @@
     </script>
 </head>
 <body>
-    <!-- ✅ FIX 3: H1 tag added (visually hidden) -->
-    <h1 class="sr-only">Genz PDF – Free & Unlimited PDF Tools Online | Merge, Split, Compress, Convert & Resize</h1>
+    <!-- ❌ REMOVED the visually hidden <h1> tag (sr-only) -->
+    <!-- ✅ Each page component (Home, CompressTool, etc.) already has its own H1 -->
     
     <div id="root"></div>
     
