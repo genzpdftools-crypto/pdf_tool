@@ -422,9 +422,10 @@ function App() {
           {/* ========== HOME ========== */}
           {mode === 'home' && (
             <>
+              {/* ✅ FIX: Shortened title (58 chars) and description (136 chars) */}
               <SEO
-                title="Genz PDF - Free Online PDF Tools | Merge, Split, Compress & Convert"
-                description="All-in-one free online PDF tools: Merge PDF, Split PDF, Compress PDF, Convert to Word/JPG. 100% client-side, secure & private. No upload, no signup, unlimited usage."
+                title="Genz PDF: Free PDF Tools | Merge, Split, Compress, Convert"
+                description="Free online PDF tools: Merge, Split, Compress, Convert, Resize. 100% client-side, secure & private. No upload or signup. Unlimited usage."
                 url="/"
                 type="SoftwareApplication"
                 keywords="free pdf tools, client-side pdf editor, secure pdf merger, compress pdf 100kb, no upload pdf tools, genz pdf, unlimited pdf converter, best free pdf website india"
@@ -455,8 +456,9 @@ function App() {
           {/* ========== MERGE ========== */}
           {mode === 'merge' && (
             <>
+              {/* ✅ FIX: Shortened title (58 chars) */}
               <SEO
-                title="Merge PDF Free - Combine PDF Files Online Without Uploading | Genz PDF"
+                title="Merge PDF Online Free - Combine Files Instantly | Genz PDF"
                 description="Combine multiple PDF files into one instantly. Client-side merge, no upload, secure and private. Arrange PDF pages online free. Best PDF Merger."
                 url="/merge"
                 type="SoftwareApplication"
@@ -571,8 +573,9 @@ function App() {
           {/* ========== SPLIT ========== */}
           {mode === 'split' && (
             <>
+              {/* ✅ FIX: Shortened title (56 chars) */}
               <SEO
-                title="Split PDF Online - Extract or Remove Pages Free | Genz PDF"
+                title="Split PDF - Extract or Remove Pages Free | Genz PDF"
                 description="Separate PDF pages, extract pages from PDF free, remove pages from PDF online. Split large PDF files instantly in your browser."
                 url="/split"
                 type="SoftwareApplication"
