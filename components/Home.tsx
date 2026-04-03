@@ -54,10 +54,6 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
     trackVisit();
   }, []);
 
-  // ========== REMOVED: manual meta-update useEffect ==========
-  // All SEO is now handled globally by <SEO /> component in App.tsx
-  // ==========================================================
-
   // Tools data (unchanged)
   const tools = [
     {
@@ -147,6 +143,8 @@ export const Home: React.FC<HomeProps> = ({ setMode }) => {
 
   return (
     <div className="relative w-full min-h-screen overflow-hidden bg-slate-50">
+      {/* ✅ FIX: Added visually hidden H1 for SEO –不影响设计 */}
+      <h1 className="sr-only">Genz PDF - Free Online PDF Tools | Merge, Split, Compress, Convert & More</h1>
       
       {/* BACKGROUND EFFECTS */}
       <div className="absolute inset-0 z-0 pointer-events-none">
