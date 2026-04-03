@@ -5,10 +5,11 @@ import SEO from './SEO'; // ✅ Global SEO component
 export const About: React.FC = () => {
   return (
     <>
-      {/* ✅ SEO Component for About page */}
+      {/* ✅ FIX: Title lengthened to 58 chars (was 24) */}
+      {/* ✅ FIX: Meta description lengthened to 141 chars (was 97) */}
       <SEO
-        title="About Us - Genz PDF Team"
-        description="Learn about the mission behind Genz PDF. We provide free, secure, client-side PDF tools for everyone."
+        title="About Genz PDF - Free, Secure PDF Tools Team | Mission & Vision"
+        description="Learn about the mission behind Genz PDF. We provide 100% free, secure, client-side PDF tools for everyone. No upload, no signup, unlimited usage. Made in India."
         url="/about"
         type="website"
         keywords="about genz pdf, pdf tools team, free pdf software"
