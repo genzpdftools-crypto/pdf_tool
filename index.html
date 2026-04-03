@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- Google Analytics (same as before) -->
+    <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-YXLX4H7LG4"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
@@ -13,11 +13,9 @@
         gtag('config', 'G-YXLX4H7LG4');
     </script>
 
-    <!-- ❌ REMOVED static <title> tag (now handled by React SEO component) -->
-    <!-- ❌ REMOVED static <meta name="title"> -->
-    <!-- ❌ REMOVED static <meta name="description"> (now handled by React SEO component) -->
+    <!-- ❌ REMOVED static <title>, <meta name="title">, <meta name="description"> -->
+    <!-- ✅ SEO will be handled by React components (SEO + Helmet) -->
 
-    <!-- ✅ Kept: keywords, robots, author, language, revisit-after, theme-color -->
     <meta name="keywords" content="free pdf tools, secure pdf merger, compress pdf online, client-side pdf converter, no upload pdf tools, unlimited pdf editor, genz pdf, indian pdf tools, unlimited pdf merger, compress pdf 100kb, pdf to word converter free, resize image online, merge pdf free, split pdf free, convert pdf to jpg, reduce pdf size, best free pdf website india, privacy-focused pdf tools">
     <meta name="robots" content="index, follow">
     <meta name="author" content="Genz PDF (Pintu & Raushan)">
@@ -25,7 +23,7 @@
     <meta name="revisit-after" content="1 days">
     <meta name="theme-color" content="#ffffff">
 
-    <!-- Open Graph / Twitter Cards (kept as fallback – these are fine) -->
+    <!-- Open Graph / Twitter (fallbacks – React will override) -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://genzpdf.com/">
     <meta property="og:title" content="Genz PDF - Unlimited Free PDF Tools">
@@ -45,19 +43,17 @@
     <link rel="apple-touch-icon" href="/logos.png">
 
     <!-- Canonical will be set dynamically by React Helmet (SEO component) -->
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS config (unchanged) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
                     colors: {
                         primary: {
                             50: '#f0f9ff',
@@ -74,7 +70,6 @@
 
     <style>
         body { background-color: #f8fafc; }
-        /* Scrollbar Styling (unchanged) */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -83,8 +78,7 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        /* ❌ REMOVED .sr-only class – no longer needed because we removed the hidden H1 */
+        /* ❌ REMOVED .sr-only class – no hidden H1 */
     </style>
 
     <!-- JSON-LD structured data (unchanged) -->
@@ -133,11 +127,11 @@
     </script>
 </head>
 <body>
-    <!-- ❌ REMOVED the visually hidden <h1> tag (sr-only) -->
+    <!-- ❌ REMOVED the visually hidden H1 (sr-only) -->
     <!-- ✅ Each page component (Home, CompressTool, etc.) already has its own H1 -->
-    
+
     <div id="root"></div>
-    
+
     <script type="module">
         import { Buffer } from 'buffer';
         window.Buffer = window.Buffer || Buffer;
