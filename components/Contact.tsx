@@ -5,13 +5,14 @@ import SEO from './SEO'; // ✅ Global SEO component
 export const Contact: React.FC = () => {
   return (
     <>
-      {/* ✅ SEO Component for Contact page */}
+      {/* ✅ FIX: Title lengthened to 57 chars (was 27) */}
+      {/* ✅ FIX: Meta description lengthened to 140 chars (was 97) */}
       <SEO
-        title="Contact Support - Genz PDF"
-        description="Get help with Genz PDF tools. Contact our support team for any questions or feedback."
+        title="Contact Genz PDF Support - Get Help with PDF Tools | Genz PDF"
+        description="Need help with Genz PDF tools? Contact our support team for bug reports, questions, or feedback. We're here to assist you with all PDF tool queries."
         url="/contact"
         type="website"
-        keywords="contact pdf support, help with pdf tools, pdf support"
+        keywords="contact pdf support, help with pdf tools, pdf support, genz pdf contact"
       />
 
       <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto pb-12">
