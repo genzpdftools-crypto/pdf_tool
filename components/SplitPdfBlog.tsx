@@ -358,17 +358,19 @@ export const SplitPdfBlog = () => {
               Step-by-Step Guide: How Our Tool Works
             </h2>
 
-            {/* Video Placeholder */}
+            {/* Quick Demo Video */}
             <div className="bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] p-2 md:p-3 mb-10 shadow-2xl shadow-slate-900/20 relative overflow-hidden group not-prose">
               <div className="absolute inset-0 bg-gradient-to-tr from-rose-500/10 to-blue-500/10 opacity-50 pointer-events-none"></div>
               
-              <div className="aspect-[16/9] sm:aspect-[21/9] bg-slate-800 rounded-xl md:rounded-2xl flex flex-col items-center justify-center relative overflow-hidden border border-slate-700/50">
-                <PlayCircle className="w-14 h-14 md:w-20 md:h-20 text-rose-500 mb-3 md:mb-4 group-hover:scale-110 transition-transform duration-300 cursor-pointer drop-shadow-[0_0_15px_rgba(244,63,94,0.4)]" />
-                <h4 className="text-white font-bold text-base md:text-xl tracking-tight z-10 text-center px-4">15-Second Ka Quick Demo Dekhein</h4>
-                <p className="text-slate-400 text-xs md:text-sm mt-1.5 z-10 px-4 text-center max-w-md">Dekhiye pages ko split aur extract karna kitna aasan hai. Sirf click karein, select karein aur export karein!</p>
-                <div className="absolute top-4 left-4 px-2.5 py-1 bg-white/10 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-lg border border-white/10 flex items-center gap-1.5 shadow-lg">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> Video Placeholder
-                </div>
+              <div className="aspect-video w-full bg-slate-800 rounded-xl md:rounded-2xl relative overflow-hidden border border-slate-700/50 shadow-inner">
+                <iframe
+                  className="w-full h-full absolute top-0 left-0"
+                  src="https://www.youtube.com/embed/O_Pbz_CYl8c?rel=0"
+                  title="GenZ PDF Splitter Quick Demo"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                ></iframe>
               </div>
             </div>
             
