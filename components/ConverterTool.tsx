@@ -131,9 +131,12 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const initPdfWorker = async () => {
       try {
         const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
-        const version = pdfjs.version || '3.11.174';
-        if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
-          pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+        const lib = (pdfjs as any).default || pdfjs; // Get the correct object reference
+        const version = lib.version || '3.11.174';
+        
+        // Ensure GlobalWorkerOptions is set correctly on the library object
+        if (lib.GlobalWorkerOptions) {
+           lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
         }
       } catch (e) {
         console.error('PDF worker initialization failed', e);
@@ -181,6 +184,12 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
 
+      // Make sure the worker is set before getting the document
+      const version = lib.version || '3.11.174';
+      if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const loadingTask = lib.getDocument({ data: arrayBuffer });
       const pdf = await loadingTask.promise;
@@ -223,6 +232,12 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     try {
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
+      
+      const version = lib.version || '3.11.174';
+      if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
 
@@ -249,6 +264,12 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
+
+      const version = lib.version || '3.11.174';
+      if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+      }
+
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
 
