@@ -50,30 +50,6 @@ const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedF
     </div>
   );
 };
-
-const imagesToPdf = async (files: File[]) => {
-  const { PDFDocument } = await import('https://esm.sh/pdf-lib');
-  const pdfDoc = await PDFDocument.create();
-  for (const file of files) {
-    const imageBytes = await file.arrayBuffer();
-    let image;
-    if (file.type === 'image/jpeg') {
-      image = await pdfDoc.embedJpg(imageBytes);
-    } else if (file.type === 'image/png') {
-      image = await pdfDoc.embedPng(imageBytes);
-    } else {
-      continue;
-    }
-    const page = pdfDoc.addPage([image.width, image.height]);
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
-  }
-  return await pdfDoc.save();
-};
-
-const createPdfUrl = (pdfBytes: Uint8Array) => {
-  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-  return URL.createObjectURL(blob);
-};
 // ----------------------------------------
 
 interface ConverterToolProps {
@@ -91,6 +67,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState<string>('');
   const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); // Added mode for PDF to DOCX
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait'); // Naya state orientation (Layout) ke liye
 
   // ----- DYNAMIC SEO DATA (based on initialFormat) -----
   const getPageTitle = () => {
@@ -365,12 +342,49 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
-  // ----- IMAGE TO X CONVERSIONS (unchanged) -----
+  // ----- IMAGE TO X CONVERSIONS (updated with orientation support) -----
   const convertImagesToPdf = async () => {
     if (imageFiles.length === 0) return;
     try {
-      const pdfBytes = await imagesToPdf(imageFiles);
-      setDownloadUrl(createPdfUrl(pdfBytes));
+      const { PDFDocument } = await import('https://esm.sh/pdf-lib');
+      const pdfDoc = await PDFDocument.create();
+      
+      for (const file of imageFiles) {
+        const imageBytes = await file.arrayBuffer();
+        let image;
+        if (file.type === 'image/jpeg') {
+          image = await pdfDoc.embedJpg(imageBytes);
+        } else if (file.type === 'image/png') {
+          image = await pdfDoc.embedPng(imageBytes);
+        } else {
+          continue;
+        }
+
+        // A4 page dimensions in points (72 points per inch)
+        const a4Width = 595.28;
+        const a4Height = 841.89;
+        
+        // Layout set karna orientation ke hisab se (Portrait ya Landscape)
+        const pageWidth = orientation === 'landscape' ? a4Height : a4Width;
+        const pageHeight = orientation === 'landscape' ? a4Width : a4Height;
+
+        const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+        // Image ko scale karna taki page me perfectly fit ho jaye
+        const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
+        const scaledWidth = image.width * scale;
+        const scaledHeight = image.height * scale;
+
+        // Image ko page ke center me align karna
+        const x = (pageWidth - scaledWidth) / 2;
+        const y = (pageHeight - scaledHeight) / 2;
+
+        page.drawImage(image, { x, y, width: scaledWidth, height: scaledHeight });
+      }
+      
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      setDownloadUrl(URL.createObjectURL(blob));
       setDownloadName('converted-images.pdf');
     } catch (err) {
       console.error(err);
@@ -384,14 +398,29 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
       const paragraphs = [];
 
+      // Docx me image size ki max limit orientation ke hisab se set karna
+      const maxWidth = orientation === 'landscape' ? 700 : 500;
+      const maxHeight = orientation === 'landscape' ? 500 : 700;
+
       for (const imgFile of imageFiles) {
         const buffer = await imgFile.arrayBuffer();
+        
+        // Image ki asli size nikalna resize scale karne ke liye
+        const imgUrl = URL.createObjectURL(imgFile);
+        const img = new Image();
+        img.src = imgUrl;
+        await new Promise(r => img.onload = r);
+        
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+        const finalWidth = Math.round(img.width * scale);
+        const finalHeight = Math.round(img.height * scale);
+
         paragraphs.push(
           new Paragraph({
             children: [
               new ImageRun({
                 data: buffer,
-                transformation: { width: 500, height: 500 },
+                transformation: { width: finalWidth, height: finalHeight },
                 type: imgFile.type === 'image/png' ? 'png' : 'jpg'
               })
             ],
@@ -404,9 +433,22 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             spacing: { after: 800 }
           })
         );
+        URL.revokeObjectURL(imgUrl);
       }
 
-      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
+      // Document ki orientation property apply karna (Landscape ya Portrait)
+      const doc = new Document({ 
+        sections: [{ 
+          properties: {
+            page: {
+              size: {
+                orientation: orientation === 'landscape' ? "landscape" : "portrait"
+              }
+            }
+          }, 
+          children: paragraphs 
+        }] 
+      });
       const blob = await Packer.toBlob(doc);
       setDownloadUrl(URL.createObjectURL(blob));
       setDownloadName('images-to-word.docx');
@@ -722,6 +764,32 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                             </div>
                           )}
                           
+                          {/* NEW ORIENTATION SELECTOR FOR IMAGE TO PDF/DOCX */}
+                          {mode === 'img-to-x' && (targetFormat === 'pdf' || targetFormat === 'docx') && (
+                            <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
+                              <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Aakar chunein)</label>
+                              <div className="flex gap-4">
+                                {/* Portrait */}
+                                <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                  <input type="radio" name="orientation" value="portrait" checked={orientation === 'portrait'} onChange={() => setOrientation('portrait')} className="sr-only" />
+                                  <div className="w-10 h-14 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'portrait' ? '#4f46e5' : '#cbd5e1' }}>
+                                    <ImageIcon size={18} className={orientation === 'portrait' ? 'text-indigo-500' : 'text-slate-400'} />
+                                  </div>
+                                  <span className={`font-bold text-sm ${orientation === 'portrait' ? 'text-indigo-900' : 'text-slate-700'}`}>Portrait (Khada)</span>
+                                </label>
+
+                                {/* Landscape */}
+                                <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'landscape' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                  <input type="radio" name="orientation" value="landscape" checked={orientation === 'landscape'} onChange={() => setOrientation('landscape')} className="sr-only" />
+                                  <div className="w-14 h-10 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'landscape' ? '#4f46e5' : '#cbd5e1' }}>
+                                    <ImageIcon size={18} className={orientation === 'landscape' ? 'text-indigo-500' : 'text-slate-400'} />
+                                  </div>
+                                  <span className={`font-bold text-sm ${orientation === 'landscape' ? 'text-indigo-900' : 'text-slate-700'}`}>Landscape (Aada)</span>
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
                         </div>
                       ) : (
                         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800">
