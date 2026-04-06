@@ -56,7 +56,7 @@ const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedF
   );
 };
 
-// --- NAYA COMPONENT: VISUAL THUMBNAILS KE LIYE ---
+// --- UPDATED COMPONENT: BADE VISUAL THUMBNAILS KE LIYE ---
 const FileThumbnail: React.FC<{ file: File }> = ({ file }) => {
   const [url, setUrl] = useState<string | null>(null);
 
@@ -69,20 +69,22 @@ const FileThumbnail: React.FC<{ file: File }> = ({ file }) => {
   }, [file]);
 
   if (url) {
-    return <img src={url} alt={file.name} className="w-10 h-10 object-cover rounded-md shadow-sm border border-slate-200 shrink-0" />;
+    return <img src={url} alt={file.name} className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 object-cover rounded-lg shadow-sm border-2 border-slate-200 shrink-0" />;
   }
   
   if (file.type === 'application/pdf') {
     return (
-      <div className="w-10 h-10 bg-red-50 flex items-center justify-center rounded-md shadow-sm border border-red-100 text-red-500 shrink-0">
-        <FileType size={20} />
+      <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-red-50 flex flex-col items-center justify-center rounded-lg shadow-sm border-2 border-red-100 text-red-500 shrink-0">
+        <FileType size={32} className="md:w-12 md:h-12 mb-1" />
+        <span className="text-[10px] md:text-xs font-bold">PDF</span>
       </div>
     );
   }
   
   return (
-    <div className="w-10 h-10 bg-blue-50 flex items-center justify-center rounded-md shadow-sm border border-blue-100 text-blue-500 shrink-0">
-      <FileText size={20} />
+    <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-blue-50 flex flex-col items-center justify-center rounded-lg shadow-sm border-2 border-blue-100 text-blue-500 shrink-0">
+      <FileText size={32} className="md:w-12 md:h-12 mb-1" />
+      <span className="text-[10px] md:text-xs font-bold">DOCX</span>
     </div>
   );
 };
@@ -104,7 +106,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   // Feature States
   const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); 
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait'); 
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // State Rearrange / Drag-Drop ke liye
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // ----- DERIVED BATCH ANALYSIS -----
   const { hasPdf, hasImage, hasDocx, isMixed, availableOptions } = useMemo(() => {
@@ -864,7 +866,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                             </span>
                           </div>
                           
-                          <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                          <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1 custom-scrollbar">
                             {files.map((file, index) => (
                               <div 
                                 key={`${file.name}-${index}`}
@@ -873,46 +875,47 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragOver={(e) => handleDragOver(e, index)}
                                 onDragEnd={handleDragEnd}
-                                className={`flex items-center justify-between p-3 rounded-xl border transition-all bg-white
+                                className={`flex flex-row items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white
                                   ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
                               >
-                                <div className="flex items-center gap-3 overflow-hidden">
+                                <div className="flex items-center gap-3 sm:gap-5 overflow-hidden flex-1">
                                   {/* Drag Handle - Restricted for Mobile touch to prevent scrolling issues */}
                                   <div 
-                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-2 -ml-2 touch-none"
+                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-2 -ml-2 touch-none shrink-0"
                                     onTouchStart={(e) => handleTouchStart(e, index)}
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={handleTouchEnd}
                                   >
-                                    <GripVertical size={20} />
+                                    <GripVertical size={24} />
                                   </div>
                                   
-                                  {/* Visual Thumbnail */}
+                                  {/* BADA VISUAL THUMBNAIL */}
                                   <FileThumbnail file={file} />
                                   
-                                  <div className="flex flex-col overflow-hidden">
-                                    <span className="text-xs sm:text-sm font-semibold text-slate-700 truncate w-24 sm:w-40 md:w-56">
+                                  <div className="flex flex-col justify-center overflow-hidden h-full py-1">
+                                    <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-24 sm:w-40 md:w-64" title={file.name}>
                                       {file.name}
                                     </span>
-                                    <span className="text-[10px] font-medium text-slate-400">
+                                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1">
                                       {(file.size / 1024 / 1024).toFixed(2)} MB
                                     </span>
                                   </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-1">
+                                <div className="flex flex-col sm:flex-row items-center gap-2 shrink-0">
                                   {files.length > 1 && (
-                                    <>
-                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-lg transition-colors" title="Move Up">
-                                        <ArrowUp size={16} />
+                                    <div className="flex sm:flex-row items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-100">
+                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:hover:shadow-none rounded-md transition-all" title="Move Up">
+                                        <ArrowUp size={18} />
                                       </button>
-                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-lg transition-colors" title="Move Down">
-                                        <ArrowDown size={16} />
+                                      <div className="w-px h-6 bg-slate-200 hidden sm:block"></div>
+                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:hover:shadow-none rounded-md transition-all" title="Move Down">
+                                        <ArrowDown size={18} />
                                       </button>
-                                    </>
+                                    </div>
                                   )}
-                                  <button onClick={() => removeFile(index)} className="p-2 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove File">
-                                    <X size={16} />
+                                  <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Remove File">
+                                    <X size={20} />
                                   </button>
                                 </div>
                               </div>
