@@ -55,6 +55,37 @@ const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedF
     </div>
   );
 };
+
+// --- NAYA COMPONENT: VISUAL THUMBNAILS KE LIYE ---
+const FileThumbnail: React.FC<{ file: File }> = ({ file }) => {
+  const [url, setUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (file.type.startsWith('image/')) {
+      const objUrl = URL.createObjectURL(file);
+      setUrl(objUrl);
+      return () => URL.revokeObjectURL(objUrl);
+    }
+  }, [file]);
+
+  if (url) {
+    return <img src={url} alt={file.name} className="w-10 h-10 object-cover rounded-md shadow-sm border border-slate-200 shrink-0" />;
+  }
+  
+  if (file.type === 'application/pdf') {
+    return (
+      <div className="w-10 h-10 bg-red-50 flex items-center justify-center rounded-md shadow-sm border border-red-100 text-red-500 shrink-0">
+        <FileType size={20} />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="w-10 h-10 bg-blue-50 flex items-center justify-center rounded-md shadow-sm border border-blue-100 text-blue-500 shrink-0">
+      <FileText size={20} />
+    </div>
+  );
+};
 // ----------------------------------------
 
 interface ConverterToolProps {
@@ -73,7 +104,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   // Feature States
   const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); 
   const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait'); 
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // Naya state Rearrange / Drag-Drop ke liye
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // State Rearrange / Drag-Drop ke liye
 
   // ----- DERIVED BATCH ANALYSIS -----
   const { hasPdf, hasImage, hasDocx, isMixed, availableOptions } = useMemo(() => {
@@ -194,7 +225,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setFiles(newFiles);
   };
 
-  // Drag & Drop Handlers
+  // Drag & Drop Handlers (Desktop)
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -214,6 +245,33 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   };
 
   const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  // Touch Handlers (Mobile Optimization)
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (draggedIndex === null) return;
+    const touch = e.touches[0];
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetItem = target?.closest('[data-index]');
+    if (targetItem) {
+      const targetIndex = parseInt(targetItem.getAttribute('data-index') || '-1', 10);
+      if (targetIndex !== -1 && targetIndex !== draggedIndex) {
+        const newFiles = [...files];
+        const draggedFile = newFiles[draggedIndex];
+        newFiles.splice(draggedIndex, 1);
+        newFiles.splice(targetIndex, 0, draggedFile);
+        setDraggedIndex(targetIndex);
+        setFiles(newFiles);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
     setDraggedIndex(null);
   };
 
@@ -787,54 +845,74 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                   {!downloadUrl ? (
                     <div className="space-y-6">
                       
-                      {/* NAYA FEATURE: REARRANGE FILES SECTION */}
+                      {/* REARRANGE FILES SECTION WITH THUMBNAILS */}
                       {files.length > 0 && (
                         <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 shadow-sm animate-in fade-in zoom-in-95">
                           <div className="flex justify-between items-center mb-3">
-                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">
-                              {files.length > 1 ? "Files Set Karein (Drag or Move)" : "Selected File"}
-                            </label>
+                            <div className="flex flex-col">
+                              <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">
+                                {files.length > 1 ? "Files Set Karein" : "Selected File"}
+                              </label>
+                              {files.length > 1 && (
+                                <span className="text-[10px] text-slate-500">
+                                  Mobile pe dots (⋮⋮) pakad ke khiskaye
+                                </span>
+                              )}
+                            </div>
                             <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md">
                               {files.length} Item{files.length > 1 ? 's' : ''}
                             </span>
                           </div>
                           
-                          <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                          <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                             {files.map((file, index) => (
                               <div 
                                 key={`${file.name}-${index}`}
+                                data-index={index}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragOver={(e) => handleDragOver(e, index)}
                                 onDragEnd={handleDragEnd}
-                                className={`flex items-center justify-between p-2.5 rounded-lg border transition-all bg-white
-                                  ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
+                                className={`flex items-center justify-between p-3 rounded-xl border transition-all bg-white
+                                  ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
                               >
                                 <div className="flex items-center gap-3 overflow-hidden">
-                                  <div className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors">
-                                    <GripVertical size={18} />
+                                  {/* Drag Handle - Restricted for Mobile touch to prevent scrolling issues */}
+                                  <div 
+                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-2 -ml-2 touch-none"
+                                    onTouchStart={(e) => handleTouchStart(e, index)}
+                                    onTouchMove={handleTouchMove}
+                                    onTouchEnd={handleTouchEnd}
+                                  >
+                                    <GripVertical size={20} />
                                   </div>
-                                  <div className={`p-1.5 rounded-md ${file.type.startsWith('image/') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                                    {file.type.startsWith('image/') ? <ImageIcon size={14} /> : <FileText size={14} />}
+                                  
+                                  {/* Visual Thumbnail */}
+                                  <FileThumbnail file={file} />
+                                  
+                                  <div className="flex flex-col overflow-hidden">
+                                    <span className="text-xs sm:text-sm font-semibold text-slate-700 truncate w-24 sm:w-40 md:w-56">
+                                      {file.name}
+                                    </span>
+                                    <span className="text-[10px] font-medium text-slate-400">
+                                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                                    </span>
                                   </div>
-                                  <span className="text-xs sm:text-sm font-semibold text-slate-700 truncate max-w-[120px] sm:max-w-[250px]">
-                                    {file.name}
-                                  </span>
                                 </div>
                                 
                                 <div className="flex items-center gap-1">
                                   {files.length > 1 && (
                                     <>
-                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-md transition-colors" title="Move Up">
-                                        <ArrowUp size={14} />
+                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-lg transition-colors" title="Move Up">
+                                        <ArrowUp size={16} />
                                       </button>
-                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-md transition-colors" title="Move Down">
-                                        <ArrowDown size={14} />
+                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-lg transition-colors" title="Move Down">
+                                        <ArrowDown size={16} />
                                       </button>
                                     </>
                                   )}
-                                  <button onClick={() => removeFile(index)} className="p-1.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Remove File">
-                                    <X size={14} />
+                                  <button onClick={() => removeFile(index)} className="p-2 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Remove File">
+                                    <X size={16} />
                                   </button>
                                 </div>
                               </div>
