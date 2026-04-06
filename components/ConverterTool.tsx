@@ -1,5 +1,5 @@
 // components/ConverterTool.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FileText,
   Image as ImageIcon,
@@ -13,10 +13,15 @@ import {
   ShieldCheck,
   RefreshCw,
   FileType,
-  Upload
+  Upload,
+  Files,
+  ArrowUp,
+  ArrowDown,
+  X,
+  GripVertical
 } from 'lucide-react';
 
-type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt';
+type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'unsupported';
 
 // --- INLINED DEPENDENCIES FOR PREVIEW ---
 const SEO: React.FC<any> = ({ title, description }) => {
@@ -53,53 +58,88 @@ const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedF
 // ----------------------------------------
 
 interface ConverterToolProps {
-  initialFormat?: string | null; // e.g., 'jpg', 'jpeg', 'png', 'word'
+  initialFormat?: string | null;
 }
 
 export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) => {
   // ----- APP STATE -----
-  const [file, setFile] = useState<File | null>(null);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [mode, setMode] = useState<'pdf-to-x' | 'img-to-x' | 'docx-to-pdf' | null>(null);
-  const [targetFormat, setTargetFormat] = useState<ConversionFormat>('jpg');
+  const [files, setFiles] = useState<File[]>([]);
+  const [targetFormat, setTargetFormat] = useState<ConversionFormat>('pdf');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState<string>('');
-  const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); // Added mode for PDF to DOCX
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait'); // Naya state orientation (Layout) ke liye
+  
+  // Feature States
+  const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); 
+  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait'); 
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null); // Naya state Rearrange / Drag-Drop ke liye
 
-  // ----- DYNAMIC SEO DATA (based on initialFormat) -----
-  const getPageTitle = () => {
-    if (initialFormat) {
-      const format = initialFormat.toUpperCase();
-      return `${format} to PDF Converter Online Free | Genz PDF`;
+  // ----- DERIVED BATCH ANALYSIS -----
+  const { hasPdf, hasImage, hasDocx, isMixed, availableOptions } = useMemo(() => {
+    const hasP = files.some(f => f.type === 'application/pdf');
+    const hasI = files.some(f => f.type.startsWith('image/'));
+    const hasD = files.some(f => f.name.endsWith('.docx') || f.type.includes('wordprocessingml'));
+    const mixed = (hasP ? 1 : 0) + (hasI ? 1 : 0) + (hasD ? 1 : 0) > 1;
+
+    let options: { value: ConversionFormat, label: string }[] = [];
+
+    if (hasD && files.length > 1) {
+      options = [{ value: 'unsupported', label: 'DOCX file ko akela upload karein batch ke liye nahi' }];
+    } else if (hasD) {
+      options = [{ value: 'pdf', label: 'PDF Document (.pdf)' }];
+    } else if (mixed && hasP && hasI) {
+      options = [{ value: 'pdf', label: 'Merge into Single PDF (.pdf)' }];
+    } else if (hasI && !hasP && !hasD) {
+      options = [
+        { value: 'pdf', label: 'PDF Document (.pdf)' },
+        { value: 'docx', label: 'Word Document (.docx)' },
+        { value: 'jpg', label: 'Convert to JPG' },
+        { value: 'png', label: 'Convert to PNG' }
+      ];
+    } else if (hasP && !hasI && !hasD) {
+      options = [
+        { value: 'docx', label: 'Word Document (.docx)' },
+        { value: 'jpg', label: 'Extract Images (.jpg)' },
+        { value: 'png', label: 'Extract Images (.png)' },
+        { value: 'txt', label: 'Extract Text (.txt)' },
+      ];
+      if (files.length > 1) {
+        options.unshift({ value: 'pdf', label: 'Merge PDFs into One (.pdf)' });
+      }
     }
+
+    return { hasPdf: hasP, hasImage: hasI, hasDocx: hasD, isMixed: mixed, availableOptions: options };
+  }, [files]);
+
+  // Ensure selected target format is always valid when options change
+  useEffect(() => {
+    if (availableOptions.length > 0 && !availableOptions.some(opt => opt.value === targetFormat)) {
+      setTargetFormat(availableOptions[0].value);
+    }
+  }, [availableOptions, targetFormat]);
+
+
+  // ----- DYNAMIC SEO DATA -----
+  const getPageTitle = () => {
+    if (initialFormat) return `${initialFormat.toUpperCase()} to PDF Converter Online Free | Genz PDF`;
     return "Universal File Converter – PDF, Word, Images | Genz PDF";
   };
 
-  // ✅ FIX: Meta description now always between 120–158 characters
   const getPageDescription = () => {
     if (initialFormat) {
-      const format = initialFormat.toUpperCase();
-      // Before: ~98 chars → now 144 chars (perfect range)
-      return `Convert ${format} images to PDF documents instantly and securely. High quality output, no watermarks, 100% free. Client-side processing – no upload, no signup. Unlimited usage.`;
+      return `Convert ${initialFormat.toUpperCase()} images to PDF documents instantly and securely. High quality output, no watermarks, 100% free. Client-side processing – no upload, no signup. Unlimited usage.`;
     }
-    // Default description is ~132 chars (within range)
     return "Free online file converter. Convert PDF to Word, Image to PDF, DOCX to PDF and more – securely in your browser, no upload. No registration, no watermarks, unlimited conversions.";
   };
 
   const getPageKeywords = () => {
-    if (initialFormat) {
-      return `${initialFormat} to pdf, convert ${initialFormat} to pdf, free ${initialFormat} to pdf converter`;
-    }
+    if (initialFormat) return `${initialFormat} to pdf, convert ${initialFormat} to pdf, free ${initialFormat} to pdf converter`;
     return "pdf converter, pdf to word, pdf to jpg, convert pdf, pdf to png, pdf to excel, docx to pdf, jpg to pdf";
   };
 
   const getCanonicalUrl = () => {
-    if (initialFormat) {
-      return `https://genzpdf.com/${initialFormat}-to-pdf`;
-    }
+    if (initialFormat) return `https://genzpdf.com/${initialFormat}-to-pdf`;
     return "https://genzpdf.com/convert";
   };
 
@@ -108,10 +148,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const initPdfWorker = async () => {
       try {
         const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
-        const lib = (pdfjs as any).default || pdfjs; // Get the correct object reference
+        const lib = (pdfjs as any).default || pdfjs; 
         const version = lib.version || '3.11.174';
         
-        // Ensure GlobalWorkerOptions is set correctly on the library object
         if (lib.GlobalWorkerOptions) {
            lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
         }
@@ -128,84 +167,168 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const loadDocxPreview = async () => await import('https://esm.sh/docx-preview');
 
   // ----- FILE SELECTION HANDLER -----
-  const handleFilesSelected = useCallback((files: File[]) => {
+  const handleFilesSelected = useCallback((incomingFiles: File[]) => {
     setError(null);
     setDownloadUrl(null);
-    const firstFile = files[0];
-
-    if (firstFile.type === 'application/pdf') {
-      setMode('pdf-to-x');
-      setFile(firstFile);
-      setTargetFormat('docx');
-    } else if (firstFile.type.startsWith('image/')) {
-      setMode('img-to-x');
-      setImageFiles(files);
-      setTargetFormat('pdf');
-    } else if (
-      firstFile.name.endsWith('.docx') ||
-      firstFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ) {
-      setMode('docx-to-pdf');
-      setFile(firstFile);
-      setTargetFormat('pdf');
-    } else {
-      setError('Unsupported file. Please upload PDF, DOCX, or images (JPG/PNG).');
-    }
+    setFiles(prev => [...prev, ...incomingFiles]); // Nayi files ko purani files ke aage jod (append) dega
   }, []);
 
-  // ----- PDF TO X CONVERSIONS (unchanged) -----
+  // ----- REARRANGE & REMOVE FILE HANDLERS -----
+  const removeFile = (indexToRemove: number) => {
+    const newFiles = files.filter((_, idx) => idx !== indexToRemove);
+    setFiles(newFiles);
+    if (newFiles.length === 0) handleReset();
+  };
+
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    const newFiles = [...files];
+    [newFiles[index - 1], newFiles[index]] = [newFiles[index], newFiles[index - 1]]; // Swap memory trick
+    setFiles(newFiles);
+  };
+
+  const moveDown = (index: number) => {
+    if (index === files.length - 1) return;
+    const newFiles = [...files];
+    [newFiles[index + 1], newFiles[index]] = [newFiles[index], newFiles[index + 1]]; // Swap memory trick
+    setFiles(newFiles);
+  };
+
+  // Drag & Drop Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+  
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    const newFiles = [...files];
+    const draggedFile = newFiles[draggedIndex];
+    newFiles.splice(draggedIndex, 1);
+    newFiles.splice(index, 0, draggedFile);
+    
+    setDraggedIndex(index);
+    setFiles(newFiles);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  // ----- UNIVERSAL MERGE TO PDF (Images + PDFs) -----
+  const mergeMixedToPdf = async () => {
+    if (files.length === 0) return;
+    try {
+      const { PDFDocument } = await import('https://esm.sh/pdf-lib');
+      const mergedPdf = await PDFDocument.create();
+      
+      for (const f of files) {
+        if (f.type.startsWith('image/')) {
+          const imgBytes = await f.arrayBuffer();
+          let image;
+          if (f.type === 'image/jpeg') {
+            image = await mergedPdf.embedJpg(imgBytes);
+          } else if (f.type === 'image/png') {
+            image = await mergedPdf.embedPng(imgBytes);
+          } else {
+            continue;
+          }
+
+          const a4Width = 595.28;
+          const a4Height = 841.89;
+          const pageWidth = orientation === 'landscape' ? a4Height : a4Width;
+          const pageHeight = orientation === 'landscape' ? a4Width : a4Height;
+
+          const page = mergedPdf.addPage([pageWidth, pageHeight]);
+          const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
+          const scaledWidth = image.width * scale;
+          const scaledHeight = image.height * scale;
+
+          const x = (pageWidth - scaledWidth) / 2;
+          const y = (pageHeight - scaledHeight) / 2;
+
+          page.drawImage(image, { x, y, width: scaledWidth, height: scaledHeight });
+        } else if (f.type === 'application/pdf') {
+          const pdfBytes = await f.arrayBuffer();
+          const pdfToMerge = await PDFDocument.load(pdfBytes);
+          const copiedPages = await mergedPdf.copyPages(pdfToMerge, pdfToMerge.getPageIndices());
+          copiedPages.forEach((page: any) => mergedPdf.addPage(page));
+        }
+      }
+      
+      const pdfBytes = await mergedPdf.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      setDownloadUrl(URL.createObjectURL(blob));
+      setDownloadName(files.length > 1 ? 'merged-document.pdf' : `${files[0].name.replace(/\.[^/.]+$/, "")}.pdf`);
+    } catch (err) {
+      console.error(err);
+      setError('PDF banane me error aayi.');
+    }
+  };
+
+
+  // ----- EXTRACT IMAGES FROM PDF(S) -----
   const convertPdfToImages = async (format: 'jpg' | 'png') => {
-    if (!file) return;
     try {
       const JSZip = await loadJSZip();
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
 
-      // Make sure the worker is set before getting the document
       const version = lib.version || '3.11.174';
       if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
         lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const loadingTask = lib.getDocument({ data: arrayBuffer });
-      const pdf = await loadingTask.promise;
-
       const zip = new JSZip();
-      const folderName = file.name.replace(/\.pdf$/i, '');
-      const folder = zip.folder(folderName);
+      let processedAny = false;
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 2.0 });
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) continue;
+      for (const f of files) {
+        if (f.type !== 'application/pdf') continue;
 
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        await page.render({ canvasContext: context, viewport }).promise;
+        const arrayBuffer = await f.arrayBuffer();
+        const loadingTask = lib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
 
-        const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
-        const dataUrl = canvas.toDataURL(mimeType, 0.9);
-        const base64Data = dataUrl.split(',')[1];
-        folder?.file(`page_${i}.${format}`, base64Data, { base64: true });
+        const folderName = f.name.replace(/\.pdf$/i, '');
+        const folder = files.length > 1 ? zip.folder(folderName) : zip;
 
-        canvas.width = 0;
-        canvas.height = 0;
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 });
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          if (!context) continue;
+
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport }).promise;
+
+          const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+          const dataUrl = canvas.toDataURL(mimeType, 0.9);
+          const base64Data = dataUrl.split(',')[1];
+          folder?.file(`page_${i}.${format}`, base64Data, { base64: true });
+          
+          processedAny = true;
+        }
       }
 
-      const content = await zip.generateAsync({ type: 'blob' });
-      setDownloadUrl(URL.createObjectURL(content));
-      setDownloadName(`${folderName}-${format}.zip`);
+      if (processedAny) {
+        const content = await zip.generateAsync({ type: 'blob' });
+        setDownloadUrl(URL.createObjectURL(content));
+        setDownloadName(files.length > 1 ? `extracted-images-${format}.zip` : `${files[0].name.replace(/\.pdf$/i, '')}-${format}.zip`);
+      } else {
+        setError('No valid PDFs found to extract.');
+      }
     } catch (err) {
       console.error(err);
-      setError('PDF to image conversion failed. Ensure the file is not password protected.');
+      setError('PDF se image nikalne me error aayi. Check password protection.');
     }
   };
 
+  // ----- EXTRACT TEXT FROM PDF(S) -----
   const convertPdfToText = async () => {
-    if (!file) return;
     try {
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
@@ -215,28 +338,34 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
-
       let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(' ');
-        fullText += `--- Page ${i} ---\n\n${pageText}\n\n`;
+      for (const f of files) {
+        if (f.type !== 'application/pdf') continue;
+
+        if (files.length > 1) fullText += `\n\n=== Document: ${f.name} ===\n\n`;
+
+        const arrayBuffer = await f.arrayBuffer();
+        const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          fullText += `--- Page ${i} ---\n\n${pageText}\n\n`;
+        }
       }
 
       const blob = new Blob([fullText], { type: 'text/plain' });
       setDownloadUrl(URL.createObjectURL(blob));
-      setDownloadName(`${file.name.replace('.pdf', '')}.txt`);
+      setDownloadName(files.length > 1 ? 'extracted-texts.txt' : `${files[0].name.replace(/\.pdf$/i, '')}.txt`);
     } catch (err) {
       console.error(err);
-      setError('Could not extract text from PDF.');
+      setError('Text extract karne me error aayi.');
     }
   };
 
+  // ----- CONVERT PDF(S) TO DOCX -----
   const convertPdfToDocx = async () => {
-    if (!file) return;
     try {
       const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
@@ -247,87 +376,91 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+      const docSections: any[] = [];
 
-      const docSections = [];
+      for (const f of files) {
+        if (f.type !== 'application/pdf') continue;
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const hasText = textContent.items.length > 5;
+        const arrayBuffer = await f.arrayBuffer();
+        const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
 
-        // Force image mode if user selected 'image', otherwise check if page has text
-        if (!hasText || pdfDocxMode === 'image') {
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          if (context) {
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            await page.render({ canvasContext: context, viewport }).promise;
-            const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
+        if (files.length > 1) {
+           docSections.push({
+             children: [
+               new Paragraph({ children: [new TextRun({ text: `--- Document: ${f.name} ---`, bold: true, size: 28 })], spacing: { after: 400 } })
+             ]
+           });
+        }
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const hasText = textContent.items.length > 5;
+
+          if (!hasText || pdfDocxMode === 'image') {
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (context) {
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              await page.render({ canvasContext: context, viewport }).promise;
+              const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
+
+              docSections.push({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        data: buffer,
+                        transformation: { width: 500, height: (500 / viewport.width) * viewport.height },
+                        type: 'jpg'
+                      })
+                    ],
+                    spacing: { after: 200 }
+                  }),
+                  new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                ]
+              });
+            }
+          } else {
+            const paragraphs = [];
+            const items = textContent.items.map((item: any) => ({
+              text: item.str,
+              x: item.transform[4],
+              y: item.transform[5]
+            }));
+
+            items.sort((a, b) => {
+              const lineThreshold = 5;
+              if (Math.abs(a.y - b.y) < lineThreshold) return a.x - b.x;
+              return b.y - a.y;
+            });
+
+            let currentLine = '';
+            let lastY = -99999;
+            for (const item of items) {
+              if (lastY !== -99999 && Math.abs(item.y - lastY) > 10) {
+                if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                currentLine = '';
+              }
+              currentLine += item.text + ' ';
+              lastY = item.y;
+            }
+            if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
 
             docSections.push({
               children: [
                 new Paragraph({
-                  children: [
-                    new ImageRun({
-                      data: buffer,
-                      transformation: {
-                        width: 500,
-                        height: (500 / viewport.width) * viewport.height
-                      },
-                      type: 'jpg'
-                    })
-                  ],
+                  children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })],
                   spacing: { after: 200 }
                 }),
+                ...paragraphs,
                 new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
               ]
             });
           }
-        } else {
-          const paragraphs = [];
-          const items = textContent.items.map((item: any) => ({
-            text: item.str,
-            x: item.transform[4],
-            y: item.transform[5]
-          }));
-
-          items.sort((a, b) => {
-            const lineThreshold = 5;
-            if (Math.abs(a.y - b.y) < lineThreshold) return a.x - b.x;
-            return b.y - a.y;
-          });
-
-          let currentLine = '';
-          let lastY = -99999;
-          for (const item of items) {
-            if (lastY !== -99999 && Math.abs(item.y - lastY) > 10) {
-              if (currentLine.trim()) {
-                paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
-              }
-              currentLine = '';
-            }
-            currentLine += item.text + ' ';
-            lastY = item.y;
-          }
-          if (currentLine.trim()) {
-            paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
-          }
-
-          docSections.push({
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })],
-                spacing: { after: 200 }
-              }),
-              ...paragraphs,
-              new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
-            ]
-          });
         }
       }
 
@@ -335,78 +468,28 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const doc = new Document({ sections: [{ properties: {}, children: allChildren }] });
       const blob = await Packer.toBlob(doc);
       setDownloadUrl(URL.createObjectURL(blob));
-      setDownloadName(`${file.name.replace('.pdf', '')}.docx`);
+      setDownloadName(files.length > 1 ? 'merged-documents.docx' : `${files[0].name.replace(/\.pdf$/i, '')}.docx`);
     } catch (err) {
       console.error(err);
-      setError('Conversion to Word document failed.');
+      setError('Word document me convert hone me error aayi.');
     }
   };
 
-  // ----- IMAGE TO X CONVERSIONS (updated with orientation support) -----
-  const convertImagesToPdf = async () => {
-    if (imageFiles.length === 0) return;
-    try {
-      const { PDFDocument } = await import('https://esm.sh/pdf-lib');
-      const pdfDoc = await PDFDocument.create();
-      
-      for (const file of imageFiles) {
-        const imageBytes = await file.arrayBuffer();
-        let image;
-        if (file.type === 'image/jpeg') {
-          image = await pdfDoc.embedJpg(imageBytes);
-        } else if (file.type === 'image/png') {
-          image = await pdfDoc.embedPng(imageBytes);
-        } else {
-          continue;
-        }
 
-        // A4 page dimensions in points (72 points per inch)
-        const a4Width = 595.28;
-        const a4Height = 841.89;
-        
-        // Layout set karna orientation ke hisab se (Portrait ya Landscape)
-        const pageWidth = orientation === 'landscape' ? a4Height : a4Width;
-        const pageHeight = orientation === 'landscape' ? a4Width : a4Height;
-
-        const page = pdfDoc.addPage([pageWidth, pageHeight]);
-
-        // Image ko scale karna taki page me perfectly fit ho jaye
-        const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
-        const scaledWidth = image.width * scale;
-        const scaledHeight = image.height * scale;
-
-        // Image ko page ke center me align karna
-        const x = (pageWidth - scaledWidth) / 2;
-        const y = (pageHeight - scaledHeight) / 2;
-
-        page.drawImage(image, { x, y, width: scaledWidth, height: scaledHeight });
-      }
-      
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      setDownloadUrl(URL.createObjectURL(blob));
-      setDownloadName('converted-images.pdf');
-    } catch (err) {
-      console.error(err);
-      setError('Failed to create PDF from images.');
-    }
-  };
-
+  // ----- CONVERT IMAGES TO DOCX -----
   const convertImagesToDocx = async () => {
-    if (imageFiles.length === 0) return;
     try {
       const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
       const paragraphs = [];
 
-      // Docx me image size ki max limit orientation ke hisab se set karna
       const maxWidth = orientation === 'landscape' ? 700 : 500;
       const maxHeight = orientation === 'landscape' ? 500 : 700;
 
-      for (const imgFile of imageFiles) {
-        const buffer = await imgFile.arrayBuffer();
-        
-        // Image ki asli size nikalna resize scale karne ke liye
-        const imgUrl = URL.createObjectURL(imgFile);
+      for (const f of files) {
+        if (!f.type.startsWith('image/')) continue;
+
+        const buffer = await f.arrayBuffer();
+        const imgUrl = URL.createObjectURL(f);
         const img = new Image();
         img.src = imgUrl;
         await new Promise(r => img.onload = r);
@@ -421,7 +504,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
               new ImageRun({
                 data: buffer,
                 transformation: { width: finalWidth, height: finalHeight },
-                type: imgFile.type === 'image/png' ? 'png' : 'jpg'
+                type: f.type === 'image/png' ? 'png' : 'jpg'
               })
             ],
             spacing: { after: 400 }
@@ -429,23 +512,16 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         );
         paragraphs.push(
           new Paragraph({
-            children: [new TextRun({ text: imgFile.name, size: 20, color: '666666' })],
+            children: [new TextRun({ text: f.name, size: 20, color: '666666' })],
             spacing: { after: 800 }
           })
         );
         URL.revokeObjectURL(imgUrl);
       }
 
-      // Document ki orientation property apply karna (Landscape ya Portrait)
       const doc = new Document({ 
         sections: [{ 
-          properties: {
-            page: {
-              size: {
-                orientation: orientation === 'landscape' ? "landscape" : "portrait"
-              }
-            }
-          }, 
+          properties: { page: { size: { orientation: orientation === 'landscape' ? "landscape" : "portrait" } } }, 
           children: paragraphs 
         }] 
       });
@@ -454,14 +530,15 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       setDownloadName('images-to-word.docx');
     } catch (err) {
       console.error(err);
-      setError('Failed to convert images to Word.');
+      setError('Images ko Word me convert karne me error aayi.');
     }
   };
 
+  // ----- CONVERT IMAGE FORMATS -----
   const convertImageFormat = async (target: 'jpg' | 'png') => {
-    if (imageFiles.length === 0) return;
     try {
       const JSZip = await loadJSZip();
+      const imageFiles = files.filter(f => f.type.startsWith('image/'));
 
       if (imageFiles.length > 1) {
         const zip = new JSZip();
@@ -490,7 +567,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         const content = await zip.generateAsync({ type: 'blob' });
         setDownloadUrl(URL.createObjectURL(content));
         setDownloadName(`converted-images.zip`);
-      } else {
+      } else if (imageFiles.length === 1) {
         const imgFile = imageFiles[0];
         const img = new Image();
         const objectUrl = URL.createObjectURL(imgFile);
@@ -516,8 +593,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
-  // ----- DOCX TO PDF (unchanged) -----
+  // ----- DOCX TO PDF (Unchanged, handles only one file due to print constraints) -----
   const convertDocxToPdf = async () => {
+    const file = files.find(f => f.name.endsWith('.docx') || f.type.includes('wordprocessingml'));
     if (!file) return;
     setIsProcessing(true);
     let iframe: HTMLIFrameElement | null = null;
@@ -573,23 +651,29 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
-  // ----- MAIN CONVERT HANDLER (unchanged) -----
+  // ----- MAIN CONVERT HANDLER -----
   const handleConvert = async () => {
+    if (targetFormat === 'unsupported') {
+      setError('Error: Please upload DOCX files one at a time for processing.');
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 300)); // Smooth UI feedback
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (mode === 'pdf-to-x') {
-        if (targetFormat === 'docx') await convertPdfToDocx();
-        else if (targetFormat === 'jpg' || targetFormat === 'png') await convertPdfToImages(targetFormat);
-        else if (targetFormat === 'txt') await convertPdfToText();
-      } else if (mode === 'img-to-x') {
-        if (targetFormat === 'pdf') await convertImagesToPdf();
-        else if (targetFormat === 'docx') await convertImagesToDocx();
-        else if (targetFormat === 'jpg' || targetFormat === 'png') await convertImageFormat(targetFormat);
-      } else if (mode === 'docx-to-pdf') {
-        await convertDocxToPdf();
+      if (targetFormat === 'pdf') {
+        if (hasDocx) await convertDocxToPdf();
+        else await mergeMixedToPdf(); 
+      } else if (targetFormat === 'docx') {
+        if (hasPdf) await convertPdfToDocx();
+        else if (hasImage) await convertImagesToDocx();
+      } else if (targetFormat === 'jpg' || targetFormat === 'png') {
+        if (hasPdf) await convertPdfToImages(targetFormat);
+        else if (hasImage) await convertImageFormat(targetFormat);
+      } else if (targetFormat === 'txt') {
+        if (hasPdf) await convertPdfToText();
       }
     } catch (err) {
       console.error(err);
@@ -600,17 +684,14 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   };
 
   const handleReset = () => {
-    setFile(null);
-    setImageFiles([]);
-    setMode(null);
+    setFiles([]);
     setDownloadUrl(null);
     setError(null);
   };
 
-  // ----- RENDER (with SEO component at top) -----
+  // ----- RENDER -----
   return (
     <>
-      {/* ✅ SEO Component – dynamic with fixed-length meta description */}
       <SEO
         title={getPageTitle()}
         description={getPageDescription()}
@@ -624,13 +705,13 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         <section className="text-center mb-8 md:mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="inline-flex items-center gap-2 px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] md:text-xs font-bold uppercase tracking-wide mb-4 md:mb-6">
             <Zap size={12} className="fill-indigo-700" />
-            v2.0 • 100% Client-Side
+            v2.0 • 100% Client-Side • Batch Ready
           </div>
           <h1 className="text-2xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-4 md:mb-6">
             Convert <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Anything</span> to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Everything</span>
           </h1>
           <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
-            The most secure file converter on the web. Transform PDFs, Images, and Documents instantly without your data ever leaving this browser tab.
+            The most secure file converter on the web. Transform and merge PDFs, Images, and Documents instantly without your data ever leaving this browser tab.
           </p>
         </section>
 
@@ -639,7 +720,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
           <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-violet-500 transform rotate-1 rounded-3xl opacity-20 blur-xl"></div>
           <div className="relative bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
             
-            {!mode ? (
+            {files.length === 0 ? (
               // ----- UPLOAD STATE -----
               <div className="p-5 md:p-12 bg-slate-50/50">
                 <div className="w-full min-h-[220px] md:min-h-auto shadow-sm hover:shadow-md transition-shadow duration-300 rounded-2xl overflow-hidden bg-white">
@@ -652,8 +733,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                       'image/png',
                       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                     ]}
-                    label="Tap to Upload"
-                    subLabel="PDF, DOCX, JPG, PNG"
+                    label="Tap to Upload Files"
+                    subLabel="Multiple PDFs, DOCX, JPG, PNG allowed"
                   />
                 </div>
 
@@ -678,15 +759,15 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                 {/* File info header */}
                 <div className="bg-slate-50 px-4 py-4 md:px-8 md:py-6 border-b border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 md:p-3 rounded-xl shadow-sm ${mode.includes('img') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                      {mode === 'img-to-x' ? <ImageIcon size={20} /> : <FileText size={20} />}
+                    <div className={`p-2 md:p-3 rounded-xl shadow-sm ${isMixed ? 'bg-indigo-100 text-indigo-600' : hasImage ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                      {isMixed ? <Files size={20} /> : hasImage ? <ImageIcon size={20} /> : <FileText size={20} />}
                     </div>
                     <div>
                       <h3 className="font-bold text-slate-800 text-sm md:text-lg truncate max-w-[150px] md:max-w-xs">
-                        {mode === 'img-to-x' ? `${imageFiles.length} Image${imageFiles.length > 1 ? 's' : ''}` : file?.name}
+                        {files.length === 1 ? files[0].name : `${files.length} Files Selected`}
                       </h3>
                       <p className="text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                        {mode === 'img-to-x' ? 'Batch Processing' : 'Single File'}
+                        {isMixed ? 'Mixed Batch' : files.length > 1 ? 'Batch Processing' : 'Single File'}
                       </p>
                     </div>
                   </div>
@@ -705,93 +786,136 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
                   {!downloadUrl ? (
                     <div className="space-y-6">
-                      {mode !== 'docx-to-pdf' ? (
-                        <div className="space-y-3">
-                          <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">Target Format</label>
-                          <div className="relative">
-                            <select 
-                              value={targetFormat} 
-                              onChange={(e) => setTargetFormat(e.target.value as ConversionFormat)}
-                              className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-base md:text-lg font-medium rounded-xl px-4 py-3 md:px-5 md:py-4 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all cursor-pointer"
-                            >
-                              {mode === 'pdf-to-x' && (
-                                <>
-                                  <option value="docx">Word Document (.docx)</option>
-                                  <option value="jpg">Images (.jpg)</option>
-                                  <option value="png">Images (.png)</option>
-                                  <option value="txt">Text (.txt)</option>
-                                </>
-                              )}
-                              {mode === 'img-to-x' && (
-                                <>
-                                  <option value="pdf">PDF Document (.pdf)</option>
-                                  <option value="docx">Word Document (.docx)</option>
-                                  <option value="jpg">Convert to JPG</option>
-                                  <option value="png">Convert to PNG</option>
-                                </>
-                              )}
-                            </select>
-                            <ArrowRightLeft className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                      
+                      {/* NAYA FEATURE: REARRANGE FILES SECTION */}
+                      {files.length > 0 && (
+                        <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 shadow-sm animate-in fade-in zoom-in-95">
+                          <div className="flex justify-between items-center mb-3">
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">
+                              {files.length > 1 ? "Files Set Karein (Drag or Move)" : "Selected File"}
+                            </label>
+                            <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md">
+                              {files.length} Item{files.length > 1 ? 's' : ''}
+                            </span>
                           </div>
-
-                          {/* NEW MODE SELECTOR FOR PDF TO DOCX */}
-                          {mode === 'pdf-to-x' && targetFormat === 'docx' && (
-                            <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                              <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode</label>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'text' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                                  <input type="radio" name="pdfDocxMode" value="text" checked={pdfDocxMode === 'text'} onChange={() => setPdfDocxMode('text')} className="sr-only" />
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'text' ? 'border-indigo-600' : 'border-slate-300'}`}>
-                                      {pdfDocxMode === 'text' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
-                                    </div>
-                                    <span className={`font-bold text-sm ${pdfDocxMode === 'text' ? 'text-indigo-900' : 'text-slate-700'}`}>Text Editable</span>
-                                  </div>
-                                  <p className="text-xs text-slate-500 pl-6">Extracts text. Layout might break if PDF has complex images.</p>
-                                </label>
-
-                                <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'image' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                                  <input type="radio" name="pdfDocxMode" value="image" checked={pdfDocxMode === 'image'} onChange={() => setPdfDocxMode('image')} className="sr-only" />
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'image' ? 'border-indigo-600' : 'border-slate-300'}`}>
-                                      {pdfDocxMode === 'image' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
-                                    </div>
-                                    <span className={`font-bold text-sm ${pdfDocxMode === 'image' ? 'text-indigo-900' : 'text-slate-700'}`}>Exact Layout</span>
-                                  </div>
-                                  <p className="text-xs text-slate-500 pl-6">Saves pages as images in DOCX. Looks perfect, but not editable.</p>
-                                </label>
-                              </div>
-                            </div>
-                          )}
                           
-                          {/* NEW ORIENTATION SELECTOR FOR IMAGE TO PDF/DOCX */}
-                          {mode === 'img-to-x' && (targetFormat === 'pdf' || targetFormat === 'docx') && (
-                            <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                              <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Aakar chunein)</label>
-                              <div className="flex gap-4">
-                                {/* Portrait */}
-                                <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                                  <input type="radio" name="orientation" value="portrait" checked={orientation === 'portrait'} onChange={() => setOrientation('portrait')} className="sr-only" />
-                                  <div className="w-10 h-14 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'portrait' ? '#4f46e5' : '#cbd5e1' }}>
-                                    <ImageIcon size={18} className={orientation === 'portrait' ? 'text-indigo-500' : 'text-slate-400'} />
+                          <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                            {files.map((file, index) => (
+                              <div 
+                                key={`${file.name}-${index}`}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, index)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDragEnd={handleDragEnd}
+                                className={`flex items-center justify-between p-2.5 rounded-lg border transition-all bg-white
+                                  ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
+                              >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                  <div className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors">
+                                    <GripVertical size={18} />
                                   </div>
-                                  <span className={`font-bold text-sm ${orientation === 'portrait' ? 'text-indigo-900' : 'text-slate-700'}`}>Portrait (Khada)</span>
-                                </label>
-
-                                {/* Landscape */}
-                                <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'landscape' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                                  <input type="radio" name="orientation" value="landscape" checked={orientation === 'landscape'} onChange={() => setOrientation('landscape')} className="sr-only" />
-                                  <div className="w-14 h-10 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'landscape' ? '#4f46e5' : '#cbd5e1' }}>
-                                    <ImageIcon size={18} className={orientation === 'landscape' ? 'text-indigo-500' : 'text-slate-400'} />
+                                  <div className={`p-1.5 rounded-md ${file.type.startsWith('image/') ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                                    {file.type.startsWith('image/') ? <ImageIcon size={14} /> : <FileText size={14} />}
                                   </div>
-                                  <span className={`font-bold text-sm ${orientation === 'landscape' ? 'text-indigo-900' : 'text-slate-700'}`}>Landscape (Aada)</span>
-                                </label>
+                                  <span className="text-xs sm:text-sm font-semibold text-slate-700 truncate max-w-[120px] sm:max-w-[250px]">
+                                    {file.name}
+                                  </span>
+                                </div>
+                                
+                                <div className="flex items-center gap-1">
+                                  {files.length > 1 && (
+                                    <>
+                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-md transition-colors" title="Move Up">
+                                        <ArrowUp size={14} />
+                                      </button>
+                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 rounded-md transition-colors" title="Move Down">
+                                        <ArrowDown size={14} />
+                                      </button>
+                                    </>
+                                  )}
+                                  <button onClick={() => removeFile(index)} className="p-1.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Remove File">
+                                    <X size={14} />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          )}
-
+                            ))}
+                          </div>
                         </div>
-                      ) : (
+                      )}
+
+                      <div className="space-y-3">
+                        <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">Kya banana hai? (Target Format)</label>
+                        <div className="relative">
+                          <select 
+                            value={targetFormat} 
+                            onChange={(e) => setTargetFormat(e.target.value as ConversionFormat)}
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-base md:text-lg font-medium rounded-xl px-4 py-3 md:px-5 md:py-4 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                          >
+                            {availableOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <ArrowRightLeft className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                        </div>
+
+                        {/* MODE SELECTOR FOR PDF TO DOCX */}
+                        {hasPdf && targetFormat === 'docx' && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'text' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="pdfDocxMode" value="text" checked={pdfDocxMode === 'text'} onChange={() => setPdfDocxMode('text')} className="sr-only" />
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'text' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                                    {pdfDocxMode === 'text' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                  </div>
+                                  <span className={`font-bold text-sm ${pdfDocxMode === 'text' ? 'text-indigo-900' : 'text-slate-700'}`}>Text Editable</span>
+                                </div>
+                                <p className="text-xs text-slate-500 pl-6">Extracts text. Layout might break if PDF has complex images.</p>
+                              </label>
+
+                              <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'image' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="pdfDocxMode" value="image" checked={pdfDocxMode === 'image'} onChange={() => setPdfDocxMode('image')} className="sr-only" />
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'image' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                                    {pdfDocxMode === 'image' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                  </div>
+                                  <span className={`font-bold text-sm ${pdfDocxMode === 'image' ? 'text-indigo-900' : 'text-slate-700'}`}>Exact Layout</span>
+                                </div>
+                                <p className="text-xs text-slate-500 pl-6">Saves pages as images in DOCX. Looks perfect, but not editable.</p>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* ORIENTATION SELECTOR FOR IMAGE TO PDF/DOCX OR MIXED MERGE */}
+                        {((hasImage && targetFormat === 'pdf') || (hasImage && targetFormat === 'docx')) && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Aakar chunein)</label>
+                            <div className="flex gap-4">
+                              {/* Portrait */}
+                              <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="orientation" value="portrait" checked={orientation === 'portrait'} onChange={() => setOrientation('portrait')} className="sr-only" />
+                                <div className="w-10 h-14 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'portrait' ? '#4f46e5' : '#cbd5e1' }}>
+                                  <ImageIcon size={18} className={orientation === 'portrait' ? 'text-indigo-500' : 'text-slate-400'} />
+                                </div>
+                                <span className={`font-bold text-sm ${orientation === 'portrait' ? 'text-indigo-900' : 'text-slate-700'}`}>Portrait (Khada)</span>
+                              </label>
+
+                              {/* Landscape */}
+                              <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'landscape' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="orientation" value="landscape" checked={orientation === 'landscape'} onChange={() => setOrientation('landscape')} className="sr-only" />
+                                <div className="w-14 h-10 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'landscape' ? '#4f46e5' : '#cbd5e1' }}>
+                                  <ImageIcon size={18} className={orientation === 'landscape' ? 'text-indigo-500' : 'text-slate-400'} />
+                                </div>
+                                <span className={`font-bold text-sm ${orientation === 'landscape' ? 'text-indigo-900' : 'text-slate-700'}`}>Landscape (Aada)</span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {hasDocx && targetFormat === 'pdf' && (
                         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800">
                           <Zap className="shrink-0 mt-0.5" size={18} />
                           <p className="text-sm">We use the native browser print engine for DOCX to PDF. It ensures 100% layout accuracy.</p>
@@ -800,11 +924,13 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
                       <button
                         onClick={handleConvert}
-                        disabled={isProcessing}
+                        disabled={isProcessing || targetFormat === 'unsupported'}
                         className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base md:text-lg font-bold py-3.5 md:py-4 rounded-xl shadow-lg shadow-indigo-200 transform transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-3"
                       >
                         {isProcessing ? (
                           <><Loader2 className="animate-spin" /> Converting...</>
+                        ) : targetFormat === 'unsupported' ? (
+                          <>Invalid Selection</>
                         ) : (
                           <>Start Conversion <ArrowRightLeft size={20} /></>
                         )}
@@ -817,7 +943,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                         <CheckCircle2 size={32} />
                       </div>
                       <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">It's Ready!</h2>
-                      <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Your file has been successfully converted.</p>
+                      <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Your files have been successfully processed.</p>
                       
                       <div className="flex flex-col sm:flex-row gap-3">
                         <a 
@@ -831,7 +957,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                           onClick={handleReset}
                           className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-colors"
                         >
-                          Convert Another
+                          Convert More Files
                         </button>
                       </div>
                     </div>
