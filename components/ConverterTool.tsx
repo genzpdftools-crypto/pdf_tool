@@ -12,12 +12,69 @@ import {
   Zap,
   ShieldCheck,
   RefreshCw,
-  FileType
+  FileType,
+  Upload
 } from 'lucide-react';
-import { FileUploader } from './FileUploader';
-import { imagesToPdf, createPdfUrl } from '../services/pdfService';
-import { ConversionFormat } from '../types';
-import SEO from './SEO'; // ✅ SEO component import
+
+type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt';
+
+// --- INLINED DEPENDENCIES FOR PREVIEW ---
+const SEO: React.FC<any> = ({ title, description }) => {
+  useEffect(() => {
+    if (title) document.title = title;
+    if (description) {
+      let meta = document.querySelector('meta[name="description"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'description');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', description);
+    }
+  }, [title, description]);
+  return null;
+};
+
+const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedFileTypes, label, subLabel }) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      onFilesSelected(Array.from(e.target.files));
+    }
+  };
+  return (
+    <div className="flex flex-col items-center justify-center p-8 h-full min-h-[220px] border-2 border-dashed border-slate-300 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative">
+      <input type="file" multiple={allowMultiple} accept={acceptedFileTypes?.join(',')} onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+      <Upload size={48} className="text-indigo-400 mb-4" />
+      <h3 className="text-lg font-semibold text-slate-700">{label || "Upload"}</h3>
+      <p className="text-sm text-slate-500 mt-2">{subLabel}</p>
+    </div>
+  );
+};
+
+const imagesToPdf = async (files: File[]) => {
+  const { PDFDocument } = await import('https://esm.sh/pdf-lib');
+  const pdfDoc = await PDFDocument.create();
+  for (const file of files) {
+    const imageBytes = await file.arrayBuffer();
+    let image;
+    if (file.type === 'image/jpeg') {
+      image = await pdfDoc.embedJpg(imageBytes);
+    } else if (file.type === 'image/png') {
+      image = await pdfDoc.embedPng(imageBytes);
+    } else {
+      continue;
+    }
+    const page = pdfDoc.addPage([image.width, image.height]);
+    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height });
+  }
+  return await pdfDoc.save();
+};
+
+const createPdfUrl = (pdfBytes: Uint8Array) => {
+  const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+  return URL.createObjectURL(blob);
+};
+// ----------------------------------------
 
 interface ConverterToolProps {
   initialFormat?: string | null; // e.g., 'jpg', 'jpeg', 'png', 'word'
@@ -33,6 +90,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState<string>('');
+  const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); // Added mode for PDF to DOCX
 
   // ----- DYNAMIC SEO DATA (based on initialFormat) -----
   const getPageTitle = () => {
@@ -68,11 +126,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     return "https://genzpdf.com/convert";
   };
 
-  // ----- PDF WORKER INIT (unchanged) -----
+  // ----- PDF WORKER INIT -----
   useEffect(() => {
     const initPdfWorker = async () => {
       try {
-        const pdfjs = await import('pdfjs-dist');
+        const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
         const version = pdfjs.version || '3.11.174';
         if (pdfjs.GlobalWorkerOptions && !pdfjs.GlobalWorkerOptions.workerSrc) {
           pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
@@ -84,10 +142,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     initPdfWorker();
   }, []);
 
-  // ----- LAZY LOADERS (unchanged) -----
-  const loadJSZip = async () => (await import('jszip')).default;
-  const loadDocx = async () => await import('docx');
-  const loadDocxPreview = async () => await import('docx-preview');
+  // ----- LAZY LOADERS -----
+  const loadJSZip = async () => (await import('https://esm.sh/jszip')).default;
+  const loadDocx = async () => await import('https://esm.sh/docx');
+  const loadDocxPreview = async () => await import('https://esm.sh/docx-preview');
 
   // ----- FILE SELECTION HANDLER -----
   const handleFilesSelected = useCallback((files: File[]) => {
@@ -120,7 +178,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     if (!file) return;
     try {
       const JSZip = await loadJSZip();
-      const pdfjs = await import('pdfjs-dist');
+      const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
 
       const arrayBuffer = await file.arrayBuffer();
@@ -163,7 +221,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const convertPdfToText = async () => {
     if (!file) return;
     try {
-      const pdfjs = await import('pdfjs-dist');
+      const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
@@ -189,7 +247,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     if (!file) return;
     try {
       const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
-      const pdfjs = await import('pdfjs-dist');
+      const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
@@ -201,7 +259,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         const textContent = await page.getTextContent();
         const hasText = textContent.items.length > 5;
 
-        if (!hasText) {
+        // Force image mode if user selected 'image', otherwise check if page has text
+        if (!hasText || pdfDocxMode === 'image') {
           const viewport = page.getViewport({ scale: 1.5 });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
@@ -611,6 +670,37 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                             </select>
                             <ArrowRightLeft className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                           </div>
+
+                          {/* NEW MODE SELECTOR FOR PDF TO DOCX */}
+                          {mode === 'pdf-to-x' && targetFormat === 'docx' && (
+                            <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
+                              <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode</label>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'text' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                  <input type="radio" name="pdfDocxMode" value="text" checked={pdfDocxMode === 'text'} onChange={() => setPdfDocxMode('text')} className="sr-only" />
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'text' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                                      {pdfDocxMode === 'text' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                    </div>
+                                    <span className={`font-bold text-sm ${pdfDocxMode === 'text' ? 'text-indigo-900' : 'text-slate-700'}`}>Text Editable</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 pl-6">Extracts text. Layout might break if PDF has complex images.</p>
+                                </label>
+
+                                <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'image' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                  <input type="radio" name="pdfDocxMode" value="image" checked={pdfDocxMode === 'image'} onChange={() => setPdfDocxMode('image')} className="sr-only" />
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'image' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                                      {pdfDocxMode === 'image' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                    </div>
+                                    <span className={`font-bold text-sm ${pdfDocxMode === 'image' ? 'text-indigo-900' : 'text-slate-700'}`}>Exact Layout</span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 pl-6">Saves pages as images in DOCX. Looks perfect, but not editable.</p>
+                                </label>
+                              </div>
+                            </div>
+                          )}
+                          
                         </div>
                       ) : (
                         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800">
