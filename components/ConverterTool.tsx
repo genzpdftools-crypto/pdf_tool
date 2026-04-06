@@ -878,10 +878,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                 className={`flex flex-row items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white
                                   ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
                               >
-                                <div className="flex items-center gap-3 sm:gap-5 overflow-hidden flex-1">
+                                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
                                   {/* Drag Handle - Restricted for Mobile touch to prevent scrolling issues */}
                                   <div 
-                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-2 -ml-2 touch-none shrink-0"
+                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1 -ml-1 sm:p-2 sm:-ml-2 touch-none shrink-0"
                                     onTouchStart={(e) => handleTouchStart(e, index)}
                                     onTouchMove={handleTouchMove}
                                     onTouchEnd={handleTouchEnd}
@@ -890,10 +890,12 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                   </div>
                                   
                                   {/* BADA VISUAL THUMBNAIL */}
-                                  <FileThumbnail file={file} />
+                                  <div className="shrink-0">
+                                    <FileThumbnail file={file} />
+                                  </div>
                                   
-                                  <div className="flex flex-col justify-center overflow-hidden h-full py-1">
-                                    <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-24 sm:w-40 md:w-64" title={file.name}>
+                                  <div className="flex flex-col justify-center flex-1 min-w-0 pl-1">
+                                    <span className="text-sm sm:text-base font-bold text-slate-700 truncate block w-full" title={file.name}>
                                       {file.name}
                                     </span>
                                     <span className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1">
@@ -902,7 +904,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                   </div>
                                 </div>
                                 
-                                <div className="flex flex-col sm:flex-row items-center gap-2 shrink-0">
+                                <div className="flex flex-col sm:flex-row items-center gap-2 shrink-0 ml-2">
                                   {files.length > 1 && (
                                     <div className="flex sm:flex-row items-center gap-1 bg-slate-50 rounded-lg p-1 border border-slate-100">
                                       <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-white hover:shadow-sm disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400 disabled:hover:shadow-none rounded-md transition-all" title="Move Up">
@@ -914,7 +916,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                       </button>
                                     </div>
                                   )}
-                                  <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Remove File">
+                                  <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100" title="Remove File">
                                     <X size={20} />
                                   </button>
                                 </div>
