@@ -21,7 +21,7 @@ import {
   GripVertical
 } from 'lucide-react';
 
-type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'unsupported';
+type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'unsupported' | 'individual';
 
 // --- INLINED DEPENDENCIES FOR PREVIEW ---
 const SEO: React.FC<any> = ({ title, description }) => {
@@ -98,6 +98,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   // ----- APP STATE -----
   const [files, setFiles] = useState<File[]>([]);
   const [targetFormat, setTargetFormat] = useState<ConversionFormat>('pdf');
+  const [individualFormats, setIndividualFormats] = useState<Record<string, ConversionFormat>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -117,28 +118,59 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
     let options: { value: ConversionFormat, label: string }[] = [];
 
-    if (hasD && files.length > 1) {
-      options = [{ value: 'unsupported', label: 'DOCX file ko akela upload karein batch ke liye nahi' }];
-    } else if (hasD) {
-      options = [{ value: 'pdf', label: 'PDF Document (.pdf)' }];
-    } else if (mixed && hasP && hasI) {
-      options = [{ value: 'pdf', label: 'Merge into Single PDF (.pdf)' }];
-    } else if (hasI && !hasP && !hasD) {
-      options = [
-        { value: 'pdf', label: 'PDF Document (.pdf)' },
-        { value: 'docx', label: 'Word Document (.docx)' },
-        { value: 'jpg', label: 'Convert to JPG' },
-        { value: 'png', label: 'Convert to PNG' }
-      ];
-    } else if (hasP && !hasI && !hasD) {
-      options = [
-        { value: 'docx', label: 'Word Document (.docx)' },
-        { value: 'jpg', label: 'Extract Images (.jpg)' },
-        { value: 'png', label: 'Extract Images (.png)' },
-        { value: 'txt', label: 'Extract Text (.txt)' },
-      ];
-      if (files.length > 1) {
-        options.unshift({ value: 'pdf', label: 'Merge PDFs into One (.pdf)' });
+    if (files.length === 0) {
+      return { hasPdf: false, hasImage: false, hasDocx: false, isMixed: false, availableOptions: [] };
+    }
+
+    if (files.length === 1) {
+      if (hasD) {
+        options = [{ value: 'pdf', label: 'PDF Document (.pdf)' }];
+      } else if (hasI) {
+        options = [
+          { value: 'pdf', label: 'PDF Document (.pdf)' },
+          { value: 'docx', label: 'Word Document (.docx)' },
+          { value: 'jpg', label: 'Convert to JPG' },
+          { value: 'png', label: 'Convert to PNG' }
+        ];
+      } else if (hasP) {
+        options = [
+          { value: 'docx', label: 'Word Document (.docx)' },
+          { value: 'jpg', label: 'Extract Images (.jpg)' },
+          { value: 'png', label: 'Extract Images (.png)' },
+          { value: 'txt', label: 'Extract Text (.txt)' },
+        ];
+      }
+    } else {
+      if (hasD) {
+        if (mixed) {
+          options = [
+            { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
+          ];
+        } else {
+          options = [{ value: 'unsupported', label: 'DOCX files ek sath process nahi hote' }];
+        }
+      } else if (mixed) {
+        options = [
+          { value: 'pdf', label: 'Merge into Single PDF (.pdf)' },
+          { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
+        ];
+      } else if (hasI) {
+        options = [
+          { value: 'pdf', label: 'Merge into Single PDF (.pdf)' },
+          { value: 'docx', label: 'Word Document (.docx)' },
+          { value: 'jpg', label: 'Convert to JPG' },
+          { value: 'png', label: 'Convert to PNG' },
+          { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
+        ];
+      } else if (hasP) {
+        options = [
+          { value: 'pdf', label: 'Merge PDFs into One (.pdf)' },
+          { value: 'docx', label: 'Word Document (.docx)' },
+          { value: 'jpg', label: 'Extract Images (.jpg)' },
+          { value: 'png', label: 'Extract Images (.png)' },
+          { value: 'txt', label: 'Extract Text (.txt)' },
+          { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
+        ];
       }
     }
 
@@ -204,7 +236,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setError(null);
     setDownloadUrl(null);
     
-    // Add unique IDs to files to prevent DOM remounting during drag-and-drop
     const filesWithIds = incomingFiles.map(f => {
       const fileObj = f as any;
       if (!fileObj._id) fileObj._id = Math.random().toString(36).substring(2, 11);
@@ -224,14 +255,14 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const moveUp = (index: number) => {
     if (index === 0) return;
     const newFiles = [...files];
-    [newFiles[index - 1], newFiles[index]] = [newFiles[index], newFiles[index - 1]]; // Swap memory trick
+    [newFiles[index - 1], newFiles[index]] = [newFiles[index], newFiles[index - 1]]; 
     setFiles(newFiles);
   };
 
   const moveDown = (index: number) => {
     if (index === files.length - 1) return;
     const newFiles = [...files];
-    [newFiles[index + 1], newFiles[index]] = [newFiles[index], newFiles[index + 1]]; // Swap memory trick
+    [newFiles[index + 1], newFiles[index]] = [newFiles[index], newFiles[index + 1]]; 
     setFiles(newFiles);
   };
 
@@ -283,6 +314,219 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
   const handleTouchEnd = () => {
     setDraggedIndex(null);
+  };
+
+  // ----- BARI-BARI SE (INDIVIDUAL BATCH) PROCESSING -----
+  const processIndividualFiles = async () => {
+    try {
+      const JSZip = await loadJSZip();
+      const zip = new JSZip();
+
+      const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
+      const lib = (pdfjs as any).default || pdfjs;
+      const version = lib.version || '3.11.174';
+      if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+      }
+      
+      const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
+      const { PDFDocument } = await import('https://esm.sh/pdf-lib');
+
+      let processedCount = 0;
+
+      for (let fIndex = 0; fIndex < files.length; fIndex++) {
+        const f = files[fIndex];
+        const fId = (f as any)._id;
+        const isDocxFile = f.name.endsWith('.docx') || f.type.includes('wordprocessingml');
+        
+        if (isDocxFile) continue;
+
+        const tFmt = individualFormats[fId] || (f.type.startsWith('image/') ? 'pdf' : 'docx');
+        const baseName = f.name.replace(/\.[^/.]+$/, '');
+
+        processedCount++;
+
+        if (f.type === 'application/pdf') {
+          const arrayBuffer = await f.arrayBuffer();
+          const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+
+          if (tFmt === 'docx') {
+            const docSections: any[] = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              const hasText = textContent.items.length > 5;
+
+              if (!hasText || pdfDocxMode === 'image') {
+                const unscaledViewport = page.getViewport({ scale: 1.0 });
+                let scale = 1.5;
+                if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
+                  scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
+                }
+                const viewport = page.getViewport({ scale });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                if (context) {
+                  canvas.height = viewport.height;
+                  canvas.width = viewport.width;
+                  context.fillStyle = '#ffffff';
+                  context.fillRect(0, 0, canvas.width, canvas.height);
+                  await page.render({ canvasContext: context, viewport }).promise;
+                  const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                  const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
+
+                  docSections.push({
+                    children: [
+                      new Paragraph({
+                        children: [
+                          new ImageRun({
+                            data: buffer,
+                            transformation: { width: 500, height: (500 / viewport.width) * viewport.height },
+                            type: 'jpg'
+                          })
+                        ],
+                        spacing: { after: 200 }
+                      }),
+                      new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                    ]
+                  });
+                }
+              } else {
+                const paragraphs = [];
+                const items = textContent.items.map((item: any) => ({
+                  text: item.str, x: item.transform[4], y: item.transform[5]
+                }));
+                items.sort((a: any, b: any) => Math.abs(a.y - b.y) < 5 ? a.x - b.x : b.y - a.y);
+
+                let currentLine = ''; let lastY = -99999;
+                for (const item of items) {
+                  if (lastY !== -99999 && Math.abs(item.y - lastY) > 10) {
+                    if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                    currentLine = '';
+                  }
+                  currentLine += item.text + ' '; lastY = item.y;
+                }
+                if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+
+                docSections.push({
+                  children: [
+                    new Paragraph({ children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })], spacing: { after: 200 } }),
+                    ...paragraphs,
+                    new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                  ]
+                });
+              }
+            }
+            const allChildren = docSections.flatMap((s) => s.children);
+            const doc = new Document({ sections: [{ properties: {}, children: allChildren }] });
+            const blob = await Packer.toBlob(doc);
+            zip.file(`${baseName}.docx`, blob);
+
+          } else if (tFmt === 'jpg' || tFmt === 'png') {
+            const folder = zip.folder(baseName);
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              
+              // Mobile Canvas Memory Limit Fix
+              const unscaledViewport = page.getViewport({ scale: 1.0 });
+              let scale = 2.0;
+              if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
+                scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
+              }
+              
+              const viewport = page.getViewport({ scale });
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d');
+              if (context) {
+                canvas.height = viewport.height; 
+                canvas.width = viewport.width;
+                
+                if (tFmt === 'jpg') {
+                  context.fillStyle = '#ffffff';
+                  context.fillRect(0, 0, canvas.width, canvas.height);
+                }
+
+                await page.render({ canvasContext: context, viewport }).promise;
+                const mimeType = tFmt === 'jpg' ? 'image/jpeg' : 'image/png';
+                const dataUrl = canvas.toDataURL(mimeType, 0.9);
+                folder?.file(`page_${i}.${tFmt}`, dataUrl.split(',')[1], { base64: true });
+              }
+            }
+          } else if (tFmt === 'txt') {
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.map((item: any) => item.str).join(' ');
+              fullText += `--- Page ${i} ---\n\n${pageText}\n\n`;
+            }
+            zip.file(`${baseName}.txt`, new Blob([fullText], { type: 'text/plain' }));
+          }
+
+        } else if (f.type.startsWith('image/')) {
+          if (tFmt === 'pdf') {
+            const pdfDoc = await PDFDocument.create();
+            const imgBytes = await f.arrayBuffer();
+            let image = f.type === 'image/jpeg' ? await pdfDoc.embedJpg(imgBytes) : await pdfDoc.embedPng(imgBytes);
+            
+            const a4Width = 595.28; const a4Height = 841.89;
+            const pageWidth = orientation === 'landscape' ? a4Height : a4Width;
+            const pageHeight = orientation === 'landscape' ? a4Width : a4Height;
+            const page = pdfDoc.addPage([pageWidth, pageHeight]);
+            const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
+            const scaledWidth = image.width * scale; const scaledHeight = image.height * scale;
+            page.drawImage(image, { x: (pageWidth - scaledWidth) / 2, y: (pageHeight - scaledHeight) / 2, width: scaledWidth, height: scaledHeight });
+            
+            const pdfBytes = await pdfDoc.save();
+            zip.file(`${baseName}.pdf`, new Blob([pdfBytes], { type: 'application/pdf' }));
+
+          } else if (tFmt === 'docx') {
+            const buffer = await f.arrayBuffer();
+            const imgUrl = URL.createObjectURL(f);
+            const img = new Image(); img.src = imgUrl; await new Promise(r => img.onload = r);
+            const maxWidth = orientation === 'landscape' ? 700 : 500;
+            const maxHeight = orientation === 'landscape' ? 500 : 700;
+            const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+            
+            const doc = new Document({ 
+              sections: [{ 
+                properties: { page: { size: { orientation: orientation === 'landscape' ? "landscape" : "portrait" } } }, 
+                children: [
+                  new Paragraph({ children: [new ImageRun({ data: buffer, transformation: { width: Math.round(img.width * scale), height: Math.round(img.height * scale) }, type: f.type === 'image/png' ? 'png' : 'jpg' })] })
+                ] 
+              }] 
+            });
+            zip.file(`${baseName}.docx`, await Packer.toBlob(doc));
+            URL.revokeObjectURL(imgUrl);
+
+          } else if (tFmt === 'jpg' || tFmt === 'png') {
+            const imgUrl = URL.createObjectURL(f);
+            const img = new Image(); img.src = imgUrl; await new Promise(r => img.onload = r);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width; canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              const dataUrl = canvas.toDataURL(tFmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.9);
+              zip.file(`${baseName}.${tFmt}`, dataUrl.split(',')[1], { base64: true });
+            }
+            URL.revokeObjectURL(imgUrl);
+          }
+        }
+      }
+
+      if (processedCount === 0) {
+        setError('No processable files found in batch.');
+        return;
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      setDownloadUrl(URL.createObjectURL(content));
+      setDownloadName('converted-files-batch.zip');
+    } catch (err) {
+      console.error(err);
+      setError('Batch process karne me error aayi.');
+    }
   };
 
   // ----- UNIVERSAL MERGE TO PDF (Images + PDFs) -----
@@ -364,13 +608,28 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
-          const viewport = page.getViewport({ scale: 2.0 });
+          
+          // Mobile Canvas Memory Limit Fix
+          const unscaledViewport = page.getViewport({ scale: 1.0 });
+          let scale = 2.0;
+          if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
+            scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
+          }
+          
+          const viewport = page.getViewport({ scale });
           const canvas = document.createElement('canvas');
           const context = canvas.getContext('2d');
           if (!context) continue;
 
           canvas.height = viewport.height;
           canvas.width = viewport.width;
+
+          // Transparent pixels ko white me fix karne ke liye (Half image clipping issue fixed)
+          if (format === 'jpg') {
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+          }
+
           await page.render({ canvasContext: context, viewport }).promise;
 
           const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
@@ -466,12 +725,21 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
           const hasText = textContent.items.length > 5;
 
           if (!hasText || pdfDocxMode === 'image') {
-            const viewport = page.getViewport({ scale: 1.5 });
+            const unscaledViewport = page.getViewport({ scale: 1.0 });
+            let scale = 1.5;
+            if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
+              scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
+            }
+
+            const viewport = page.getViewport({ scale });
             const canvas = document.createElement('canvas');
             const context = canvas.getContext('2d');
             if (context) {
               canvas.height = viewport.height;
               canvas.width = viewport.width;
+              context.fillStyle = '#ffffff';
+              context.fillRect(0, 0, canvas.width, canvas.height);
+
               await page.render({ canvasContext: context, viewport }).promise;
               const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8);
               const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
@@ -731,7 +999,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     try {
       await new Promise((resolve) => setTimeout(resolve, 300));
 
-      if (targetFormat === 'pdf') {
+      if (targetFormat === 'individual') {
+        await processIndividualFiles();
+      } else if (targetFormat === 'pdf') {
         if (hasDocx) await convertDocxToPdf();
         else await mergeMixedToPdf(); 
       } else if (targetFormat === 'docx') {
@@ -755,6 +1025,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setFiles([]);
     setDownloadUrl(null);
     setError(null);
+    setIndividualFormats({});
   };
 
   // ----- RENDER -----
@@ -875,64 +1146,104 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                           </div>
                           
                           <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                            {files.map((file, index) => (
-                              <div 
-                                key={(file as any)._id || `${file.name}-${index}`}
-                                data-index={index}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, index)}
-                                onDragOver={(e) => handleDragOver(e, index)}
-                                onDragEnd={handleDragEnd}
-                                className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white gap-3 sm:gap-0
-                                  ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
-                              >
-                                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-2">
-                                  {/* Drag Handle - Touch None ensures scrolling doesn't break drag */}
-                                  <div 
-                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-2 -ml-2 shrink-0 touch-none"
-                                    onTouchStart={(e) => handleTouchStart(e, index)}
-                                    onTouchMove={handleTouchMove}
-                                    onTouchEnd={handleTouchEnd}
-                                    onContextMenu={(e) => e.preventDefault()} // Prevent context menu on long press
-                                  >
-                                    <GripVertical size={24} />
-                                  </div>
-                                  
-                                  {/* BADA VISUAL THUMBNAIL */}
-                                  <div className="shrink-0">
-                                    <FileThumbnail file={file} />
-                                  </div>
-                                  
-                                  {/* File Name & Size (Truncated correctly) */}
-                                  <div className="flex flex-col justify-center flex-1 min-w-0 ml-1">
-                                    <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-full" title={file.name}>
-                                      {file.name}
-                                    </span>
-                                    <span className="text-[10px] sm:text-xs font-medium text-slate-400 mt-1">
-                                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                {/* Right Side Actions (Fixed width, won't shrink) */}
-                                <div className="flex flex-row items-center justify-end gap-2 shrink-0 sm:ml-2">
-                                  {files.length > 1 && (
-                                    <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-200">
-                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Up">
-                                        <ArrowUp size={18} />
-                                      </button>
-                                      <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
-                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Down">
-                                        <ArrowDown size={18} />
-                                      </button>
+                            {files.map((file, index) => {
+                              const fileId = (file as any)._id;
+                              const isDocxFile = file.name.endsWith('.docx') || file.type.includes('wordprocessingml');
+
+                              return (
+                                <div 
+                                  key={fileId || `${file.name}-${index}`}
+                                  data-index={index}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, index)}
+                                  onDragOver={(e) => handleDragOver(e, index)}
+                                  onDragEnd={handleDragEnd}
+                                  className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white gap-3 sm:gap-0
+                                    ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
+                                >
+                                  <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
+                                    {/* Drag Handle - Touch None ensures scrolling doesn't break drag */}
+                                    <div 
+                                      className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1 -ml-1 sm:p-2 sm:-ml-2 shrink-0 touch-none"
+                                      onTouchStart={(e) => handleTouchStart(e, index)}
+                                      onTouchMove={handleTouchMove}
+                                      onTouchEnd={handleTouchEnd}
+                                      onContextMenu={(e) => e.preventDefault()} 
+                                    >
+                                      <GripVertical size={24} />
                                     </div>
-                                  )}
-                                  <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 bg-slate-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors" title="Remove File">
-                                    <X size={18} />
-                                  </button>
+                                    
+                                    {/* BADA VISUAL THUMBNAIL */}
+                                    <div className="shrink-0">
+                                      <FileThumbnail file={file} />
+                                    </div>
+                                    
+                                    {/* File Name, Size & Individual Select */}
+                                    <div className="flex flex-col justify-center flex-1 min-w-0 ml-1">
+                                      <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-full" title={file.name}>
+                                        {file.name}
+                                      </span>
+                                      
+                                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                        <span className="text-[10px] sm:text-xs font-medium text-slate-400">
+                                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                                        </span>
+                                        
+                                        {/* Individual Format Dropdown */}
+                                        {targetFormat === 'individual' && (
+                                          isDocxFile ? (
+                                            <span className="text-[10px] sm:text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md border border-red-100 whitespace-nowrap">
+                                              DOCX ko akele convert karein
+                                            </span>
+                                          ) : (
+                                            <select
+                                              value={individualFormats[fileId] || (file.type.startsWith('image/') ? 'pdf' : 'docx')}
+                                              onChange={(e) => setIndividualFormats({...individualFormats, [fileId]: e.target.value as ConversionFormat})}
+                                              className="text-[10px] sm:text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                                              onClick={(e) => e.stopPropagation()} 
+                                            >
+                                              {file.type.startsWith('image/') ? (
+                                                <>
+                                                  <option value="pdf">To PDF</option>
+                                                  <option value="docx">To DOCX</option>
+                                                  <option value="jpg">To JPG</option>
+                                                  <option value="png">To PNG</option>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <option value="docx">To DOCX</option>
+                                                  <option value="jpg">To JPG</option>
+                                                  <option value="png">To PNG</option>
+                                                  <option value="txt">To TXT</option>
+                                                </>
+                                              )}
+                                            </select>
+                                          )
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Right Side Actions */}
+                                  <div className="flex flex-row items-center justify-end gap-2 shrink-0 sm:ml-2">
+                                    {files.length > 1 && (
+                                      <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-200">
+                                        <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Up">
+                                          <ArrowUp size={18} />
+                                        </button>
+                                        <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
+                                        <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-1.5 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Down">
+                                          <ArrowDown size={18} />
+                                        </button>
+                                      </div>
+                                    )}
+                                    <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 bg-slate-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors" title="Remove File">
+                                      <X size={18} />
+                                    </button>
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -953,9 +1264,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                         </div>
 
                         {/* MODE SELECTOR FOR PDF TO DOCX */}
-                        {hasPdf && targetFormat === 'docx' && (
+                        {hasPdf && (targetFormat === 'docx' || targetFormat === 'individual') && (
                           <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode</label>
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode (PDF ke liye)</label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'text' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
                                 <input type="radio" name="pdfDocxMode" value="text" checked={pdfDocxMode === 'text'} onChange={() => setPdfDocxMode('text')} className="sr-only" />
@@ -983,9 +1294,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                         )}
                         
                         {/* ORIENTATION SELECTOR FOR IMAGE TO PDF/DOCX OR MIXED MERGE */}
-                        {((hasImage && targetFormat === 'pdf') || (hasImage && targetFormat === 'docx')) && (
+                        {((hasImage && targetFormat === 'pdf') || (hasImage && targetFormat === 'docx') || (hasImage && targetFormat === 'individual')) && (
                           <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Aakar chunein)</label>
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Images ke liye)</label>
                             <div className="flex gap-4">
                               {/* Portrait */}
                               <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
