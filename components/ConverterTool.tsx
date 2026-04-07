@@ -21,9 +21,25 @@ import {
   GripVertical
 } from 'lucide-react';
 
-type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'unsupported' | 'individual';
+type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'individual' | 'unsupported';
 
-// FileUploader component (unchanged)
+// --- INLINED DEPENDENCIES FOR PREVIEW ---
+const SEO: React.FC<any> = ({ title, description }) => {
+  useEffect(() => {
+    if (title) document.title = title;
+    if (description) {
+      let meta = document.querySelector('meta[name="description"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'description');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', description);
+    }
+  }, [title, description]);
+  return null;
+};
+
 const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedFileTypes, label, subLabel }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -40,7 +56,7 @@ const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedF
   );
 };
 
-// FileThumbnail component (unchanged)
+// --- UPDATED COMPONENT: BADE VISUAL THUMBNAILS KE LIYE ---
 const FileThumbnail: React.FC<{ file: File }> = ({ file }) => {
   const [url, setUrl] = useState<string | null>(null);
 
@@ -72,6 +88,7 @@ const FileThumbnail: React.FC<{ file: File }> = ({ file }) => {
     </div>
   );
 };
+// ----------------------------------------
 
 interface ConverterToolProps {
   initialFormat?: string | null;
@@ -124,14 +141,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         ];
       }
     } else {
-      if (hasD) {
-        if (mixed) {
-          options = [
-            { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
-          ];
-        } else {
-          options = [{ value: 'unsupported', label: 'DOCX files ek sath process nahi hote' }];
-        }
+      if (hasD && !hasI && !hasP) { 
+        options = [
+          { value: 'pdf', label: 'Merge into Single PDF (.pdf)' },
+          { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
+        ];
       } else if (mixed) {
         options = [
           { value: 'pdf', label: 'Merge into Single PDF (.pdf)' },
@@ -168,9 +182,28 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   }, [availableOptions, targetFormat]);
 
 
-  // ----- DYNAMIC SEO DATA (for global SEO component – not used locally, kept for reference) -----
-  // (These are only used by App.tsx's global SEO component, so they are fine.)
-  // We intentionally do NOT render any local <SEO> component here.
+  // ----- DYNAMIC SEO DATA -----
+  const getPageTitle = () => {
+    if (initialFormat) return `${initialFormat.toUpperCase()} to PDF Converter Online Free | Genz PDF`;
+    return "Universal File Converter – PDF, Word, Images | Genz PDF";
+  };
+
+  const getPageDescription = () => {
+    if (initialFormat) {
+      return `Convert ${initialFormat.toUpperCase()} images to PDF documents instantly and securely. High quality output, no watermarks, 100% free. Client-side processing – no upload, no signup. Unlimited usage.`;
+    }
+    return "Free online file converter. Convert PDF to Word, Image to PDF, DOCX to PDF and more – securely in your browser, no upload. No registration, no watermarks, unlimited conversions.";
+  };
+
+  const getPageKeywords = () => {
+    if (initialFormat) return `${initialFormat} to pdf, convert ${initialFormat} to pdf, free ${initialFormat} to pdf converter`;
+    return "pdf converter, pdf to word, pdf to jpg, convert pdf, pdf to png, pdf to excel, docx to pdf, jpg to pdf";
+  };
+
+  const getCanonicalUrl = () => {
+    if (initialFormat) return `https://genzpdf.com/${initialFormat}-to-pdf`;
+    return "https://genzpdf.com/convert";
+  };
 
   // ----- PDF WORKER INIT -----
   useEffect(() => {
@@ -230,7 +263,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setFiles(newFiles);
   };
 
-  // Drag & Drop Handlers (Desktop)
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -239,24 +271,17 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
-    
     const newFiles = [...files];
     const draggedFile = newFiles[draggedIndex];
     newFiles.splice(draggedIndex, 1);
     newFiles.splice(index, 0, draggedFile);
-    
     setDraggedIndex(index);
     setFiles(newFiles);
   };
 
-  const handleDragEnd = () => {
-    setDraggedIndex(null);
-  };
+  const handleDragEnd = () => setDraggedIndex(null);
 
-  // Touch Handlers (Mobile Optimization)
-  const handleTouchStart = (e: React.TouchEvent, index: number) => {
-    setDraggedIndex(index);
-  };
+  const handleTouchStart = (e: React.TouchEvent, index: number) => setDraggedIndex(index);
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (draggedIndex === null) return;
@@ -276,8 +301,110 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
-  const handleTouchEnd = () => {
-    setDraggedIndex(null);
+  const handleTouchEnd = () => setDraggedIndex(null);
+
+  // ----- NAYA HELPER: SMART SILENT DOCX TO PDF CONVERTER (For Batch Processing) -----
+  const convertDocxToPdfSilent = async (file: File) => {
+    const { renderAsync } = await loadDocxPreview();
+    const html2canvas = (await import('https://esm.sh/html2canvas')).default;
+    const { jsPDF } = await import('https://esm.sh/jspdf');
+
+    const container = document.createElement('div');
+    Object.assign(container.style, {
+      width: '800px', // Standard desktop reading width
+      padding: '40px',
+      background: 'white',
+      position: 'absolute',
+      left: '-9999px',
+      top: '0',
+      color: 'black',
+      minHeight: '1122px' // Minimum A4 height
+    });
+    document.body.appendChild(container);
+
+    const arrayBuffer = await file.arrayBuffer();
+    await renderAsync(arrayBuffer, container, null, { inWrapper: false, ignoreWidth: false, experimental: true });
+
+    // Wait for all embedded images to load correctly
+    const images = Array.from(container.getElementsByTagName('img'));
+    await Promise.all(images.map(img => {
+      if (img.complete) return Promise.resolve();
+      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+    }));
+
+    // Render large canvas from DOCX HTML
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+    document.body.removeChild(container);
+
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    // Calculate A4 aspect ratio height based on canvas width
+    const a4Ratio = 297 / 210;
+    const maxSliceHeight = Math.floor(width * a4Ratio);
+
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+
+    let y = 0;
+    let pageNum = 0;
+
+    // SMART PAGE SPLITTER ALGORITHM: Prevents cutting text in half!
+    while (y < height) {
+      let sliceHeight = Math.min(maxSliceHeight, height - y);
+      
+      // Look for a blank white line (space between paragraphs/lines) near the bottom to avoid cutting text
+      if (y + sliceHeight < height) {
+        const imageData = ctx?.getImageData(0, y, width, sliceHeight);
+        const data = imageData?.data;
+        
+        if (data) {
+          // Scan the bottom 300 pixels of the current chunk upwards
+          for (let scanY = sliceHeight - 1; scanY > sliceHeight - 300 && scanY > 0; scanY--) {
+            let isBlank = true;
+            for (let x = 0; x < width; x++) {
+              const idx = (scanY * width + x) * 4;
+              const r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
+              
+              // If pixel is not white or transparent, then line is not blank
+              if ((r < 250 || g < 250 || b < 250) && a > 10) {
+                isBlank = false;
+                break;
+              }
+            }
+            if (isBlank) {
+              // Found a clean space between lines to cut!
+              sliceHeight = scanY;
+              break;
+            }
+          }
+        }
+      }
+
+      // Create a slice canvas for just this page
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width = width;
+      sliceCanvas.height = sliceHeight;
+      const sliceCtx = sliceCanvas.getContext('2d');
+      
+      if (sliceCtx) {
+        sliceCtx.fillStyle = '#ffffff';
+        sliceCtx.fillRect(0, 0, width, sliceHeight);
+        sliceCtx.drawImage(canvas, 0, y, width, sliceHeight, 0, 0, width, sliceHeight);
+        
+        const imgData = sliceCanvas.toDataURL('image/jpeg', 0.98);
+        const renderedHeight = (sliceHeight * pdfWidth) / width; // maintain correct aspect ratio in PDF
+        
+        if (pageNum > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, renderedHeight);
+        pageNum++;
+      }
+      
+      y += sliceHeight;
+    }
+
+    return pdf.output('blob');
   };
 
   // ----- BARI-BARI SE (INDIVIDUAL BATCH) PROCESSING -----
@@ -302,13 +429,18 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         const f = files[fIndex];
         const fId = (f as any)._id;
         const isDocxFile = f.name.endsWith('.docx') || f.type.includes('wordprocessingml');
-        
-        if (isDocxFile) continue;
-
-        const tFmt = individualFormats[fId] || (f.type.startsWith('image/') ? 'pdf' : 'docx');
+        const tFmt = individualFormats[fId] || (isDocxFile ? 'pdf' : (f.type.startsWith('image/') ? 'pdf' : 'docx'));
         const baseName = f.name.replace(/\.[^/.]+$/, '');
 
         processedCount++;
+
+        if (isDocxFile) {
+          if (tFmt === 'pdf') {
+            const pdfBlob = await convertDocxToPdfSilent(f);
+            zip.file(`${baseName}.pdf`, pdfBlob);
+          }
+          continue;
+        }
 
         if (f.type === 'application/pdf') {
           const arrayBuffer = await f.arrayBuffer();
@@ -390,25 +522,20 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             const folder = zip.folder(baseName);
             for (let i = 1; i <= pdf.numPages; i++) {
               const page = await pdf.getPage(i);
-              
               const unscaledViewport = page.getViewport({ scale: 1.0 });
               let scale = 2.0;
               if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
                 scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
               }
-              
               const viewport = page.getViewport({ scale });
               const canvas = document.createElement('canvas');
               const context = canvas.getContext('2d');
               if (context) {
-                canvas.height = viewport.height; 
-                canvas.width = viewport.width;
-                
+                canvas.height = viewport.height; canvas.width = viewport.width;
                 if (tFmt === 'jpg') {
                   context.fillStyle = '#ffffff';
                   context.fillRect(0, 0, canvas.width, canvas.height);
                 }
-
                 await page.render({ canvasContext: context, viewport }).promise;
                 const mimeType = tFmt === 'jpg' ? 'image/jpeg' : 'image/png';
                 const dataUrl = canvas.toDataURL(mimeType, 0.9);
@@ -492,7 +619,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
-  // ----- UNIVERSAL MERGE TO PDF (Images + PDFs) -----
+  // ----- UNIVERSAL MERGE TO PDF (Images + PDFs + DOCX) -----
   const mergeMixedToPdf = async () => {
     if (files.length === 0) return;
     try {
@@ -527,6 +654,13 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
           page.drawImage(image, { x, y, width: scaledWidth, height: scaledHeight });
         } else if (f.type === 'application/pdf') {
           const pdfBytes = await f.arrayBuffer();
+          const pdfToMerge = await PDFDocument.load(pdfBytes);
+          const copiedPages = await mergedPdf.copyPages(pdfToMerge, pdfToMerge.getPageIndices());
+          copiedPages.forEach((page: any) => mergedPdf.addPage(page));
+        } else if (f.name.endsWith('.docx') || f.type.includes('wordprocessingml')) {
+          // Smart Silent Docx Merge
+          const pdfBlob = await convertDocxToPdfSilent(f);
+          const pdfBytes = await pdfBlob.arrayBuffer();
           const pdfToMerge = await PDFDocument.load(pdfBytes);
           const copiedPages = await mergedPdf.copyPages(pdfToMerge, pdfToMerge.getPageIndices());
           copiedPages.forEach((page: any) => mergedPdf.addPage(page));
@@ -890,7 +1024,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
-  // ----- DOCX TO PDF (Unchanged, handles only one file due to print constraints) -----
+  // ----- DOCX TO PDF (NATIVE PRINT FOR SINGLE FILES) -----
   const convertDocxToPdf = async () => {
     const file = files.find(f => f.name.endsWith('.docx') || f.type.includes('wordprocessingml'));
     if (!file) return;
@@ -950,11 +1084,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
   // ----- MAIN CONVERT HANDLER -----
   const handleConvert = async () => {
-    if (targetFormat === 'unsupported') {
-      setError('Error: Please upload DOCX files one at a time for processing.');
-      return;
-    }
-
     setIsProcessing(true);
     setError(null);
     try {
@@ -963,8 +1092,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       if (targetFormat === 'individual') {
         await processIndividualFiles();
       } else if (targetFormat === 'pdf') {
-        if (hasDocx) await convertDocxToPdf();
-        else await mergeMixedToPdf(); 
+        if (hasDocx && files.length === 1) await convertDocxToPdf(); // Single docx native print for text selection
+        else await mergeMixedToPdf(); // Merge all files (including multiple docx) into one PDF
       } else if (targetFormat === 'docx') {
         if (hasPdf) await convertPdfToDocx();
         else if (hasImage) await convertImagesToDocx();
@@ -991,387 +1120,406 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
   // ----- RENDER -----
   return (
-    <div className="w-full max-w-5xl mx-auto px-3 py-6 md:px-4 md:py-8">
-      {/* HERO SECTION */}
-      <section className="text-center mb-8 md:mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="inline-flex items-center gap-2 px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] md:text-xs font-bold uppercase tracking-wide mb-4 md:mb-6">
-          <Zap size={12} className="fill-indigo-700" />
-          v2.0 • 100% Client-Side • Batch Ready
-        </div>
-        <h1 className="text-2xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-4 md:mb-6">
-          Convert <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Anything</span> to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Everything</span>
-        </h1>
-        <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
-          The most secure file converter on the web. Transform and merge PDFs, Images, and Documents instantly without your data ever leaving this browser tab.
-        </p>
-      </section>
+    <>
+      <SEO
+        title={getPageTitle()}
+        description={getPageDescription()}
+        url={getCanonicalUrl()}
+        type="SoftwareApplication"
+        keywords={getPageKeywords()}
+      />
 
-      {/* MAIN TOOL CARD */}
-      <section className="relative z-10 max-w-3xl mx-auto">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-violet-500 transform rotate-1 rounded-3xl opacity-20 blur-xl"></div>
-        <div className="relative bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
-          
-          {files.length === 0 ? (
-            // ----- UPLOAD STATE -----
-            <div className="p-5 md:p-12 bg-slate-50/50">
-              <div className="w-full min-h-[220px] md:min-h-auto shadow-sm hover:shadow-md transition-shadow duration-300 rounded-2xl overflow-hidden bg-white">
-                <FileUploader
-                  onFilesSelected={handleFilesSelected}
-                  allowMultiple={true}
-                  acceptedFileTypes={[
-                    'application/pdf',
-                    'image/jpeg',
-                    'image/png',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                  ]}
-                  label="Tap to Upload Files"
-                  subLabel="Multiple PDFs, DOCX, JPG, PNG allowed"
-                />
-              </div>
+      <div className="w-full max-w-5xl mx-auto px-3 py-6 md:px-4 md:py-8">
+        {/* HERO SECTION */}
+        <section className="text-center mb-8 md:mb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div className="inline-flex items-center gap-2 px-3 py-1 md:px-4 md:py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] md:text-xs font-bold uppercase tracking-wide mb-4 md:mb-6">
+            <Zap size={12} className="fill-indigo-700" />
+            v2.0 • 100% Client-Side • Batch Ready
+          </div>
+          <h1 className="text-2xl md:text-6xl font-extrabold text-slate-900 tracking-tight mb-4 md:mb-6">
+            Convert <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Anything</span> to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Everything</span>
+          </h1>
+          <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+            The most secure file converter on the web. Transform and merge PDFs, Images, and Documents instantly without your data ever leaving this browser tab.
+          </p>
+        </section>
 
-              <div className="mt-4 flex flex-row flex-wrap justify-center gap-2 md:gap-3">
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
-                  <div className="p-1 bg-red-100 rounded text-red-600"><FileType size={14}/></div>
-                  <span>PDF</span>
+        {/* MAIN TOOL CARD */}
+        <section className="relative z-10 max-w-3xl mx-auto">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-violet-500 transform rotate-1 rounded-3xl opacity-20 blur-xl"></div>
+          <div className="relative bg-white rounded-2xl md:rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+            
+            {files.length === 0 ? (
+              // ----- UPLOAD STATE -----
+              <div className="p-5 md:p-12 bg-slate-50/50">
+                <div className="w-full min-h-[220px] md:min-h-auto shadow-sm hover:shadow-md transition-shadow duration-300 rounded-2xl overflow-hidden bg-white">
+                  <FileUploader
+                    onFilesSelected={handleFilesSelected}
+                    allowMultiple={true}
+                    acceptedFileTypes={[
+                      'application/pdf',
+                      'image/jpeg',
+                      'image/png',
+                      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    ]}
+                    label="Tap to Upload Files"
+                    subLabel="Multiple PDFs, DOCX, JPG, PNG allowed"
+                  />
                 </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
-                   <div className="p-1 bg-blue-100 rounded text-blue-600"><FileType size={14}/></div>
-                  <span>DOCX</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
-                   <div className="p-1 bg-purple-100 rounded text-purple-600"><ImageIcon size={14}/></div>
-                  <span>IMG</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            // ----- CONVERSION WORKFLOW -----
-            <div className="p-0">
-              {/* File info header */}
-              <div className="bg-slate-50 px-4 py-4 md:px-8 md:py-6 border-b border-slate-200 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 md:p-3 rounded-xl shadow-sm ${isMixed ? 'bg-indigo-100 text-indigo-600' : hasImage ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
-                    {isMixed ? <Files size={20} /> : hasImage ? <ImageIcon size={20} /> : <FileText size={20} />}
+
+                <div className="mt-4 flex flex-row flex-wrap justify-center gap-2 md:gap-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
+                    <div className="p-1 bg-red-100 rounded text-red-600"><FileType size={14}/></div>
+                    <span>PDF</span>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-sm md:text-lg truncate max-w-[150px] md:max-w-xs">
-                      {files.length === 1 ? files[0].name : `${files.length} Files Selected`}
-                    </h3>
-                    <p className="text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wider">
-                      {isMixed ? 'Mixed Batch' : files.length > 1 ? 'Batch Processing' : 'Single File'}
-                    </p>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
+                     <div className="p-1 bg-blue-100 rounded text-blue-600"><FileType size={14}/></div>
+                    <span>DOCX</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
+                     <div className="p-1 bg-purple-100 rounded text-purple-600"><ImageIcon size={14}/></div>
+                    <span>IMG</span>
                   </div>
                 </div>
-                <button onClick={handleReset} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400 hover:text-red-500">
-                  <RefreshCw size={18} />
-                </button>
               </div>
-
-              {/* Body */}
-              <div className="p-5 md:p-8 space-y-6 md:space-y-8">
-                {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-center gap-3 text-sm animate-in slide-in-from-top-2">
-                    <AlertCircle size={18} /> <span className="font-medium">{error}</span>
+            ) : (
+              // ----- CONVERSION WORKFLOW -----
+              <div className="p-0">
+                {/* File info header */}
+                <div className="bg-slate-50 px-4 py-4 md:px-8 md:py-6 border-b border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 md:p-3 rounded-xl shadow-sm ${isMixed ? 'bg-indigo-100 text-indigo-600' : hasImage ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'}`}>
+                      {isMixed ? <Files size={20} /> : hasImage ? <ImageIcon size={20} /> : <FileText size={20} />}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm md:text-lg truncate max-w-[150px] md:max-w-xs">
+                        {files.length === 1 ? files[0].name : `${files.length} Files Selected`}
+                      </h3>
+                      <p className="text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        {isMixed ? 'Mixed Batch' : files.length > 1 ? 'Batch Processing' : 'Single File'}
+                      </p>
+                    </div>
                   </div>
-                )}
+                  <button onClick={handleReset} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400 hover:text-red-500">
+                    <RefreshCw size={18} />
+                  </button>
+                </div>
 
-                {!downloadUrl ? (
-                  <div className="space-y-6">
-                    
-                    {/* REARRANGE FILES SECTION WITH THUMBNAILS */}
-                    {files.length > 0 && (
-                      <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 shadow-sm animate-in fade-in zoom-in-95">
-                        <div className="flex justify-between items-center mb-3">
-                          <div className="flex flex-col">
-                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">
-                              {files.length > 1 ? "Files Set Karein" : "Selected File"}
-                            </label>
-                            {files.length > 1 && (
-                              <span className="text-[10px] text-slate-500">
-                                Mobile pe dots (⋮⋮) pakad ke khiskaye
-                              </span>
-                            )}
+                {/* Body */}
+                <div className="p-5 md:p-8 space-y-6 md:space-y-8">
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-center gap-3 text-sm animate-in slide-in-from-top-2">
+                      <AlertCircle size={18} /> <span className="font-medium">{error}</span>
+                    </div>
+                  )}
+
+                  {!downloadUrl ? (
+                    <div className="space-y-6">
+                      
+                      {/* REARRANGE FILES SECTION WITH THUMBNAILS */}
+                      {files.length > 0 && (
+                        <div className="bg-slate-50/50 border border-slate-200 rounded-xl p-4 shadow-sm animate-in fade-in zoom-in-95">
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="flex flex-col">
+                              <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">
+                                {files.length > 1 ? "Files Set Karein" : "Selected File"}
+                              </label>
+                              {files.length > 1 && (
+                                <span className="text-[10px] text-slate-500">
+                                  Mobile pe dots (⋮⋮) pakad ke khiskaye
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md">
+                              {files.length} Item{files.length > 1 ? 's' : ''}
+                            </span>
                           </div>
-                          <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-md">
-                            {files.length} Item{files.length > 1 ? 's' : ''}
-                          </span>
-                        </div>
-                        
-                        <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                          {files.map((file, index) => {
-                            const fileId = (file as any)._id;
-                            const isDocxFile = file.name.endsWith('.docx') || file.type.includes('wordprocessingml');
+                          
+                          <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                            {files.map((file, index) => {
+                              const fileId = (file as any)._id;
+                              const isDocxFile = file.name.endsWith('.docx') || file.type.includes('wordprocessingml');
 
-                            return (
-                              <div 
-                                key={fileId || `${file.name}-${index}`}
-                                data-index={index}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, index)}
-                                onDragOver={(e) => handleDragOver(e, index)}
-                                onDragEnd={handleDragEnd}
-                                className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white gap-3 sm:gap-0
-                                  ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
-                              >
-                                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
-                                  <div 
-                                    className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1 -ml-1 sm:p-2 sm:-ml-2 shrink-0 touch-none"
-                                    onTouchStart={(e) => handleTouchStart(e, index)}
-                                    onTouchMove={handleTouchMove}
-                                    onTouchEnd={handleTouchEnd}
-                                    onContextMenu={(e) => e.preventDefault()} 
-                                  >
-                                    <GripVertical size={24} />
-                                  </div>
-                                  
-                                  <div className="shrink-0">
-                                    <FileThumbnail file={file} />
-                                  </div>
-                                  
-                                  <div className="flex flex-col justify-center flex-1 min-w-0 ml-1">
-                                    <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-full" title={file.name}>
-                                      {file.name}
-                                    </span>
+                              return (
+                                <div 
+                                  key={fileId || `${file.name}-${index}`}
+                                  data-index={index}
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, index)}
+                                  onDragOver={(e) => handleDragOver(e, index)}
+                                  onDragEnd={handleDragEnd}
+                                  className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white gap-3 sm:gap-0
+                                    ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
+                                >
+                                  <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
+                                    {/* Drag Handle */}
+                                    <div 
+                                      className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-1 -ml-1 sm:p-2 sm:-ml-2 shrink-0 touch-none"
+                                      onTouchStart={(e) => handleTouchStart(e, index)}
+                                      onTouchMove={handleTouchMove}
+                                      onTouchEnd={handleTouchEnd}
+                                      onContextMenu={(e) => e.preventDefault()} 
+                                    >
+                                      <GripVertical size={24} />
+                                    </div>
                                     
-                                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                      <span className="text-[10px] sm:text-xs font-medium text-slate-400">
-                                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                                    {/* THUMBNAIL */}
+                                    <div className="shrink-0">
+                                      <FileThumbnail file={file} />
+                                    </div>
+                                    
+                                    {/* File Name, Size & Individual Select */}
+                                    <div className="flex flex-col justify-center flex-1 min-w-0 ml-1">
+                                      <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-full" title={file.name}>
+                                        {file.name}
                                       </span>
                                       
-                                      {targetFormat === 'individual' && (
-                                        isDocxFile ? (
-                                          <span className="text-[10px] sm:text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md border border-red-100 whitespace-nowrap">
-                                            DOCX ko akele convert karein
-                                          </span>
-                                        ) : (
-                                          <select
-                                            value={individualFormats[fileId] || (file.type.startsWith('image/') ? 'pdf' : 'docx')}
-                                            onChange={(e) => setIndividualFormats({...individualFormats, [fileId]: e.target.value as ConversionFormat})}
-                                            className="text-[10px] sm:text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                                            onClick={(e) => e.stopPropagation()} 
-                                          >
-                                            {file.type.startsWith('image/') ? (
-                                              <>
-                                                <option value="pdf">To PDF</option>
-                                                <option value="docx">To DOCX</option>
-                                                <option value="jpg">To JPG</option>
-                                                <option value="png">To PNG</option>
-                                              </>
-                                            ) : (
-                                              <>
-                                                <option value="docx">To DOCX</option>
-                                                <option value="jpg">To JPG</option>
-                                                <option value="png">To PNG</option>
-                                                <option value="txt">To TXT</option>
-                                              </>
-                                            )}
-                                          </select>
-                                        )
-                                      )}
+                                      <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                        <span className="text-[10px] sm:text-xs font-medium text-slate-400">
+                                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                                        </span>
+                                        
+                                        {/* Individual Format Dropdown */}
+                                        {targetFormat === 'individual' && (
+                                          isDocxFile ? (
+                                            <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 whitespace-nowrap">
+                                              To PDF
+                                            </span>
+                                          ) : (
+                                            <select
+                                              value={individualFormats[fileId] || (file.type.startsWith('image/') ? 'pdf' : 'docx')}
+                                              onChange={(e) => setIndividualFormats({...individualFormats, [fileId]: e.target.value as ConversionFormat})}
+                                              className="text-[10px] sm:text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                                              onClick={(e) => e.stopPropagation()} 
+                                            >
+                                              {file.type.startsWith('image/') ? (
+                                                <>
+                                                  <option value="pdf">To PDF</option>
+                                                  <option value="docx">To DOCX</option>
+                                                  <option value="jpg">To JPG</option>
+                                                  <option value="png">To PNG</option>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <option value="docx">To DOCX</option>
+                                                  <option value="jpg">To JPG</option>
+                                                  <option value="png">To PNG</option>
+                                                  <option value="txt">To TXT</option>
+                                                </>
+                                              )}
+                                            </select>
+                                          )
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
+                                  
+                                  {/* Right Side Actions */}
+                                  <div className="flex flex-row items-center justify-end gap-2 shrink-0 sm:ml-2">
+                                    {files.length > 1 && (
+                                      <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-200">
+                                        <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Up">
+                                          <ArrowUp size={18} />
+                                        </button>
+                                        <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
+                                        <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-1.5 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Down">
+                                          <ArrowDown size={18} />
+                                        </button>
+                                      </div>
+                                    )}
+                                    <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 bg-slate-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors" title="Remove File">
+                                      <X size={18} />
+                                    </button>
+                                  </div>
                                 </div>
-                                
-                                <div className="flex flex-row items-center justify-end gap-2 shrink-0 sm:ml-2">
-                                  {files.length > 1 && (
-                                    <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-200">
-                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Up">
-                                        <ArrowUp size={18} />
-                                      </button>
-                                      <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
-                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-1.5 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Down">
-                                        <ArrowDown size={18} />
-                                      </button>
-                                    </div>
-                                  )}
-                                  <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 bg-slate-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors" title="Remove File">
-                                    <X size={18} />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-3">
-                      <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">Kya banana hai? (Target Format)</label>
-                      <div className="relative">
-                        <select 
-                          value={targetFormat} 
-                          onChange={(e) => setTargetFormat(e.target.value as ConversionFormat)}
-                          className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-base md:text-lg font-medium rounded-xl px-4 py-3 md:px-5 md:py-4 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all cursor-pointer"
-                        >
-                          {availableOptions.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                        <ArrowRightLeft className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
-                      </div>
-
-                      {hasPdf && (targetFormat === 'docx' || targetFormat === 'individual') && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                          <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode (PDF ke liye)</label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'text' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                              <input type="radio" name="pdfDocxMode" value="text" checked={pdfDocxMode === 'text'} onChange={() => setPdfDocxMode('text')} className="sr-only" />
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'text' ? 'border-indigo-600' : 'border-slate-300'}`}>
-                                  {pdfDocxMode === 'text' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
-                                </div>
-                                <span className={`font-bold text-sm ${pdfDocxMode === 'text' ? 'text-indigo-900' : 'text-slate-700'}`}>Text Editable</span>
-                              </div>
-                              <p className="text-xs text-slate-500 pl-6">Extracts text. Layout might break if PDF has complex images.</p>
-                            </label>
-
-                            <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'image' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                              <input type="radio" name="pdfDocxMode" value="image" checked={pdfDocxMode === 'image'} onChange={() => setPdfDocxMode('image')} className="sr-only" />
-                              <div className="flex items-center gap-2 mb-1">
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'image' ? 'border-indigo-600' : 'border-slate-300'}`}>
-                                  {pdfDocxMode === 'image' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
-                                </div>
-                                <span className={`font-bold text-sm ${pdfDocxMode === 'image' ? 'text-indigo-900' : 'text-slate-700'}`}>Exact Layout</span>
-                              </div>
-                              <p className="text-xs text-slate-500 pl-6">Saves pages as images in DOCX. Looks perfect, but not editable.</p>
-                            </label>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
-                      
-                      {((hasImage && targetFormat === 'pdf') || (hasImage && targetFormat === 'docx') || (hasImage && targetFormat === 'individual')) && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                          <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Images ke liye)</label>
-                          <div className="flex gap-4">
-                            <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                              <input type="radio" name="orientation" value="portrait" checked={orientation === 'portrait'} onChange={() => setOrientation('portrait')} className="sr-only" />
-                              <div className="w-10 h-14 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'portrait' ? '#4f46e5' : '#cbd5e1' }}>
-                                <ImageIcon size={18} className={orientation === 'portrait' ? 'text-indigo-500' : 'text-slate-400'} />
-                              </div>
-                              <span className={`font-bold text-sm ${orientation === 'portrait' ? 'text-indigo-900' : 'text-slate-700'}`}>Portrait (Khada)</span>
-                            </label>
 
-                            <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'landscape' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                              <input type="radio" name="orientation" value="landscape" checked={orientation === 'landscape'} onChange={() => setOrientation('landscape')} className="sr-only" />
-                              <div className="w-14 h-10 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'landscape' ? '#4f46e5' : '#cbd5e1' }}>
-                                <ImageIcon size={18} className={orientation === 'landscape' ? 'text-indigo-500' : 'text-slate-400'} />
-                              </div>
-                              <span className={`font-bold text-sm ${orientation === 'landscape' ? 'text-indigo-900' : 'text-slate-700'}`}>Landscape (Aada)</span>
-                            </label>
+                      <div className="space-y-3">
+                        <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide">Kya banana hai? (Target Format)</label>
+                        <div className="relative">
+                          <select 
+                            value={targetFormat} 
+                            onChange={(e) => setTargetFormat(e.target.value as ConversionFormat)}
+                            className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-800 text-base md:text-lg font-medium rounded-xl px-4 py-3 md:px-5 md:py-4 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all cursor-pointer"
+                          >
+                            {availableOptions.map(opt => (
+                              <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                          </select>
+                          <ArrowRightLeft className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                        </div>
+
+                        {/* MODE SELECTOR FOR PDF TO DOCX */}
+                        {hasPdf && (targetFormat === 'docx' || targetFormat === 'individual') && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Conversion Mode (PDF ke liye)</label>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'text' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="pdfDocxMode" value="text" checked={pdfDocxMode === 'text'} onChange={() => setPdfDocxMode('text')} className="sr-only" />
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'text' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                                    {pdfDocxMode === 'text' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                  </div>
+                                  <span className={`font-bold text-sm ${pdfDocxMode === 'text' ? 'text-indigo-900' : 'text-slate-700'}`}>Text Editable</span>
+                                </div>
+                                <p className="text-xs text-slate-500 pl-6">Extracts text. Layout might break if PDF has complex images.</p>
+                              </label>
+
+                              <label className={`relative flex flex-col p-4 cursor-pointer rounded-xl border-2 transition-all ${pdfDocxMode === 'image' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="pdfDocxMode" value="image" checked={pdfDocxMode === 'image'} onChange={() => setPdfDocxMode('image')} className="sr-only" />
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${pdfDocxMode === 'image' ? 'border-indigo-600' : 'border-slate-300'}`}>
+                                    {pdfDocxMode === 'image' && <div className="w-2 h-2 bg-indigo-600 rounded-full" />}
+                                  </div>
+                                  <span className={`font-bold text-sm ${pdfDocxMode === 'image' ? 'text-indigo-900' : 'text-slate-700'}`}>Exact Layout</span>
+                                </div>
+                                <p className="text-xs text-slate-500 pl-6">Saves pages as images in DOCX. Looks perfect, but not editable.</p>
+                              </label>
+                            </div>
                           </div>
+                        )}
+                        
+                        {/* ORIENTATION SELECTOR FOR IMAGE TO PDF/DOCX OR MIXED MERGE */}
+                        {((hasImage && targetFormat === 'pdf') || (hasImage && targetFormat === 'docx') || (hasImage && targetFormat === 'individual')) && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
+                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Images ke liye)</label>
+                            <div className="flex gap-4">
+                              {/* Portrait */}
+                              <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="orientation" value="portrait" checked={orientation === 'portrait'} onChange={() => setOrientation('portrait')} className="sr-only" />
+                                <div className="w-10 h-14 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'portrait' ? '#4f46e5' : '#cbd5e1' }}>
+                                  <ImageIcon size={18} className={orientation === 'portrait' ? 'text-indigo-500' : 'text-slate-400'} />
+                                </div>
+                                <span className={`font-bold text-sm ${orientation === 'portrait' ? 'text-indigo-900' : 'text-slate-700'}`}>Portrait (Khada)</span>
+                              </label>
+
+                              {/* Landscape */}
+                              <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'landscape' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
+                                <input type="radio" name="orientation" value="landscape" checked={orientation === 'landscape'} onChange={() => setOrientation('landscape')} className="sr-only" />
+                                <div className="w-14 h-10 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'landscape' ? '#4f46e5' : '#cbd5e1' }}>
+                                  <ImageIcon size={18} className={orientation === 'landscape' ? 'text-indigo-500' : 'text-slate-400'} />
+                                </div>
+                                <span className={`font-bold text-sm ${orientation === 'landscape' ? 'text-indigo-900' : 'text-slate-700'}`}>Landscape (Aada)</span>
+                              </label>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {hasDocx && files.length === 1 && targetFormat === 'pdf' && (
+                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800 animate-in fade-in zoom-in-95">
+                          <Zap className="shrink-0 mt-0.5" size={18} />
+                          <p className="text-sm">Single file ke liye native print engine use hoga. Yeh 100% original text format banaye rakhega.</p>
                         </div>
                       )}
-                    </div>
 
-                    {hasDocx && targetFormat === 'pdf' && (
-                      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800">
-                        <Zap className="shrink-0 mt-0.5" size={18} />
-                        <p className="text-sm">We use the native browser print engine for DOCX to PDF. It ensures 100% layout accuracy.</p>
-                      </div>
-                    )}
-
-                    <button
-                      onClick={handleConvert}
-                      disabled={isProcessing || targetFormat === 'unsupported'}
-                      className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base md:text-lg font-bold py-3.5 md:py-4 rounded-xl shadow-lg shadow-indigo-200 transform transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-3"
-                    >
-                      {isProcessing ? (
-                        <><Loader2 className="animate-spin" /> Converting...</>
-                      ) : targetFormat === 'unsupported' ? (
-                        <>Invalid Selection</>
-                      ) : (
-                        <>Start Conversion <ArrowRightLeft size={20} /></>
-                      )}
-                    </button>
-                  </div>
-                ) : (
-                  // ----- SUCCESS / DOWNLOAD STATE -----
-                  <div className="text-center animate-in zoom-in-95 duration-300">
-                    <div className="w-16 h-16 md:w-20 md:h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-inner">
-                      <CheckCircle2 size={32} />
-                    </div>
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">It's Ready!</h2>
-                    <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Your files have been successfully processed.</p>
-                    
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <a 
-                        href={downloadUrl} 
-                        download={downloadName}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-green-200 flex justify-center items-center gap-2 transition-transform hover:-translate-y-0.5"
+                      <button
+                        onClick={handleConvert}
+                        disabled={isProcessing || targetFormat === 'unsupported'}
+                        className="w-full bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-base md:text-lg font-bold py-3.5 md:py-4 rounded-xl shadow-lg shadow-indigo-200 transform transition-all hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-3 mt-4"
                       >
-                        <Download size={20} /> Download File
-                      </a>
-                      <button 
-                        onClick={handleReset}
-                        className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-colors"
-                      >
-                        Convert More Files
+                        {isProcessing ? (
+                          <><Loader2 className="animate-spin" /> Process ho raha hai...</>
+                        ) : targetFormat === 'unsupported' ? (
+                          <>Invalid Selection</>
+                        ) : (
+                          <>Start Conversion <ArrowRightLeft size={20} /></>
+                        )}
                       </button>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    // ----- SUCCESS / DOWNLOAD STATE -----
+                    <div className="text-center animate-in zoom-in-95 duration-300">
+                      <div className="w-16 h-16 md:w-20 md:h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6 shadow-inner">
+                        <CheckCircle2 size={32} />
+                      </div>
+                      <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">It's Ready!</h2>
+                      <p className="text-sm md:text-base text-slate-500 mb-6 md:mb-8">Your files have been successfully processed.</p>
+                      
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <a 
+                          href={downloadUrl} 
+                          download={downloadName}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-green-200 flex justify-center items-center gap-2 transition-transform hover:-translate-y-0.5"
+                        >
+                          <Download size={20} /> Download File
+                        </a>
+                        <button 
+                          onClick={handleReset}
+                          className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold py-3.5 px-6 rounded-xl transition-colors"
+                        >
+                          Convert More Files
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* FEATURES GRID */}
-      <section className="mt-12 md:mt-24 grid md:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto">
-        {[
-          {
-            icon: <ShieldCheck size={28} />,
-            title: "Private & Secure",
-            desc: "We process files locally. No data is ever uploaded to a server.",
-            color: "text-emerald-600", bg: "bg-emerald-50"
-          },
-          {
-            icon: <Zap size={28} />,
-            title: "Lightning Fast",
-            desc: "Powered by WebAssembly for instant conversions without lag.",
-            color: "text-amber-600", bg: "bg-amber-50"
-          },
-          {
-            icon: <FileCheck size={28} />,
-            title: "High Precision",
-            desc: "Preserves layout, fonts, and images during conversion.",
-            color: "text-blue-600", bg: "bg-blue-50"
-          }
-        ].map((feature, idx) => (
-          <div key={idx} className="bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
-            <div className={`w-10 h-10 md:w-14 md:h-14 ${feature.bg} ${feature.color} rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6`}>
-              {feature.icon}
-            </div>
-            <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-2">{feature.title}</h3>
-            <p className="text-sm md:text-base text-slate-600 leading-relaxed">{feature.desc}</p>
+            )}
           </div>
-        ))}
-      </section>
+        </section>
 
-      {/* FAQ SECTION */}
-      <section className="mt-12 md:mt-20 max-w-3xl mx-auto">
-        <h2 className="text-2xl md:text-3xl font-bold text-center text-slate-900 mb-6 md:mb-10">Frequently Asked Questions</h2>
-        <div className="space-y-3 md:space-y-4">
+        {/* FEATURES GRID */}
+        <section className="mt-12 md:mt-24 grid md:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto">
           {[
-            { q: "How do I convert PDF to Word for free?", a: "Upload your PDF, select DOCX as the format, and click Convert. It runs instantly in your browser." },
-            { q: "Is it safe to use this converter?", a: "Yes. Unlike other sites, we do NOT upload your files. Everything happens on your computer." },
-            { q: "Does it support scanned PDFs?", a: "It extracts images and text layers. For OCR (scanned text), results may vary." },
-            { q: "Can I merge multiple images into one PDF?", a: "Yes! Select multiple images at once (JPG or PNG) and choose PDF Document. They will be merged into a single PDF." },
-            { q: "What if I have a password-protected PDF?", a: "The tool does not support password-protected PDFs. Please remove password protection first." }
-          ].map((item, i) => (
-            <details key={i} className="group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer transition-all hover:border-indigo-200">
-              <summary className="flex justify-between items-center p-4 md:p-6 font-semibold text-slate-800 list-none text-sm md:text-base">
-                {item.q}
-                <span className="transform group-open:rotate-180 transition-transform text-indigo-500">▼</span>
-              </summary>
-              <div className="px-4 pb-4 md:px-6 md:pb-6 text-sm md:text-base text-slate-600 leading-relaxed border-t border-slate-50 pt-3 md:pt-4">
-                {item.a}
+            {
+              icon: <ShieldCheck size={28} />,
+              title: "Private & Secure",
+              desc: "We process files locally. No data is ever uploaded to a server.",
+              color: "text-emerald-600", bg: "bg-emerald-50"
+            },
+            {
+              icon: <Zap size={28} />,
+              title: "Lightning Fast",
+              desc: "Powered by WebAssembly for instant conversions without lag.",
+              color: "text-amber-600", bg: "bg-amber-50"
+            },
+            {
+              icon: <FileCheck size={28} />,
+              title: "High Precision",
+              desc: "Preserves layout, fonts, and images during conversion.",
+              color: "text-blue-600", bg: "bg-blue-50"
+            }
+          ].map((feature, idx) => (
+            <div key={idx} className="bg-white p-5 md:p-8 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+              <div className={`w-10 h-10 md:w-14 md:h-14 ${feature.bg} ${feature.color} rounded-xl md:rounded-2xl flex items-center justify-center mb-4 md:mb-6`}>
+                {feature.icon}
               </div>
-            </details>
+              <h3 className="text-lg md:text-xl font-bold text-slate-900 mb-2">{feature.title}</h3>
+              <p className="text-sm md:text-base text-slate-600 leading-relaxed">{feature.desc}</p>
+            </div>
           ))}
-        </div>
-      </section>
-    </div>
+        </section>
+
+        {/* FAQ SECTION */}
+        <section className="mt-12 md:mt-20 max-w-3xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-slate-900 mb-6 md:mb-10">Frequently Asked Questions</h2>
+          <div className="space-y-3 md:space-y-4">
+            {[
+              { q: "How do I convert PDF to Word for free?", a: "Upload your PDF, select DOCX as the format, and click Convert. It runs instantly in your browser." },
+              { q: "Is it safe to use this converter?", a: "Yes. Unlike other sites, we do NOT upload your files. Everything happens on your computer." },
+              { q: "Does it support scanned PDFs?", a: "It extracts images and text layers. For OCR (scanned text), results may vary." },
+              { q: "Can I merge multiple images into one PDF?", a: "Yes! Select multiple images at once (JPG or PNG) and choose PDF Document. They will be merged into a single PDF." },
+              { q: "What if I have a password-protected PDF?", a: "The tool does not support password-protected PDFs. Please remove password protection first." }
+            ].map((item, i) => (
+              <details key={i} className="group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden cursor-pointer transition-all hover:border-indigo-200">
+                <summary className="flex justify-between items-center p-4 md:p-6 font-semibold text-slate-800 list-none text-sm md:text-base">
+                  {item.q}
+                  <span className="transform group-open:rotate-180 transition-transform text-indigo-500">▼</span>
+                </summary>
+                <div className="px-4 pb-4 md:px-6 md:pb-6 text-sm md:text-base text-slate-600 leading-relaxed border-t border-slate-50 pt-3 md:pt-4">
+                  {item.a}
+                </div>
+              </details>
+            ))}
+          </div>
+        </section>
+      </div>
+    </>
   );
 };
 
