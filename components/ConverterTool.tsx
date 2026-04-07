@@ -23,6 +23,40 @@ import {
 
 type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'individual' | 'unsupported';
 
+// --- TEXT SANITIZER TO PREVENT XML CORRUPTION (0x0 Error Fix) ---
+const sanitizeText = (text: string) => {
+  if (!text) return '';
+  // eslint-disable-next-line no-control-regex
+  return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+};
+
+// --- DOCX SANITIZER TO PREVENT XML CORRUPTION BEFORE RENDER (0x0 Error Fix) ---
+const sanitizeDocxBuffer = async (arrayBuffer: ArrayBuffer): Promise<ArrayBuffer> => {
+  try {
+    const JSZip = (await import('https://esm.sh/jszip')).default;
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    const promises: Promise<void>[] = [];
+    
+    zip.forEach((relativePath, zipEntry) => {
+      if (!zipEntry.dir && (relativePath.endsWith('.xml') || relativePath.endsWith('.rels'))) {
+        promises.push(
+          zipEntry.async('string').then(content => {
+            // Remove invalid XML control characters
+            const cleanContent = content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+            zip.file(relativePath, cleanContent);
+          })
+        );
+      }
+    });
+    
+    await Promise.all(promises);
+    return await zip.generateAsync({ type: 'arraybuffer' });
+  } catch (err) {
+    console.error("DOCX Sanitization failed, returning original buffer", err);
+    return arrayBuffer; // Fallback to original if something fails
+  }
+};
+
 // --- INLINED DEPENDENCIES FOR PREVIEW ---
 const SEO: React.FC<any> = ({ title, description }) => {
   useEffect(() => {
@@ -99,6 +133,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const [files, setFiles] = useState<File[]>([]);
   const [targetFormat, setTargetFormat] = useState<ConversionFormat>('pdf');
   const [individualFormats, setIndividualFormats] = useState<Record<string, ConversionFormat>>({});
+  const [imageOrientations, setImageOrientations] = useState<Record<string, 'portrait' | 'landscape'>>({}); 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
@@ -106,7 +141,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   
   // Feature States
   const [pdfDocxMode, setPdfDocxMode] = useState<'text' | 'image'>('image'); 
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait'); 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // ----- DERIVED BATCH ANALYSIS -----
@@ -211,7 +245,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
         const lib = (pdfjs as any).default || pdfjs; 
         const version = lib.version || '3.11.174';
-        if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+        if (lib.GlobalWorkerOptions) {
+          lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+        }
       } catch (e) {
         console.error('PDF worker initialization failed', e);
       }
@@ -230,7 +266,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setDownloadUrl(null);
     const filesWithIds = incomingFiles.map(f => {
       const fileObj = f as any;
-      if (!fileObj._id) fileObj._id = Math.random().toString(36).substring(2, 11);
+      if (!fileObj._id) {
+        fileObj._id = Math.random().toString(36).substring(2, 11);
+      }
       return f;
     });
     setFiles(prev => [...prev, ...filesWithIds]);
@@ -242,22 +280,26 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setFiles(newFiles);
     if (newFiles.length === 0) handleReset();
   };
+
   const moveUp = (index: number) => {
     if (index === 0) return;
     const newFiles = [...files];
     [newFiles[index - 1], newFiles[index]] = [newFiles[index], newFiles[index - 1]]; 
     setFiles(newFiles);
   };
+
   const moveDown = (index: number) => {
     if (index === files.length - 1) return;
     const newFiles = [...files];
     [newFiles[index + 1], newFiles[index]] = [newFiles[index], newFiles[index + 1]]; 
     setFiles(newFiles);
   };
+
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
+
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
@@ -268,14 +310,21 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setDraggedIndex(index);
     setFiles(newFiles);
   };
-  const handleDragEnd = () => setDraggedIndex(null);
 
-  const handleTouchStart = (e: React.TouchEvent, index: number) => setDraggedIndex(index);
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, index: number) => {
+    setDraggedIndex(index);
+  };
+
   const handleTouchMove = (e: React.TouchEvent) => {
     if (draggedIndex === null) return;
     const touch = e.touches[0];
     const target = document.elementFromPoint(touch.clientX, touch.clientY);
     const targetItem = target?.closest('[data-index]');
+    
     if (targetItem) {
       const targetIndex = parseInt(targetItem.getAttribute('data-index') || '-1', 10);
       if (targetIndex !== -1 && targetIndex !== draggedIndex) {
@@ -288,7 +337,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       }
     }
   };
-  const handleTouchEnd = () => setDraggedIndex(null);
+
+  const handleTouchEnd = () => {
+    setDraggedIndex(null);
+  };
 
   // ----- MASTER HELPER: RENDER DOCX TO MULTIPLE CANVASES -----
   const renderDocxToCanvases = async (file: File): Promise<HTMLCanvasElement[]> => {
@@ -297,7 +349,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
     const container = document.createElement('div');
     Object.assign(container.style, {
-      width: '794px', // Exact A4 pixel width at 96 DPI
+      width: '794px', 
       padding: '0', 
       background: 'white',
       position: 'absolute',
@@ -308,7 +360,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       textRendering: 'optimizeLegibility',
       WebkitFontSmoothing: 'antialiased',
       lineHeight: '1.5',
-      minHeight: '1123px', // Exact A4 height
+      minHeight: '1123px', 
       wordWrap: 'break-word',
       overflowWrap: 'break-word',
       boxSizing: 'border-box'
@@ -325,7 +377,16 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     document.body.appendChild(container);
 
     const arrayBuffer = await file.arrayBuffer();
-    await renderAsync(arrayBuffer, innerContainer, null, { inWrapper: false, ignoreWidth: false, experimental: true });
+    // Use the new sanitizer to prevent XML parsing crash in docx-preview
+    const cleanArrayBuffer = await sanitizeDocxBuffer(arrayBuffer);
+    
+    try {
+      await renderAsync(cleanArrayBuffer, innerContainer, null, { inWrapper: false, ignoreWidth: false, experimental: true });
+    } catch (err) {
+      console.error("DOCX Render Error:", err);
+      document.body.removeChild(container);
+      throw new Error("File contains invalid formatting. Please check the document.");
+    }
 
     const allElements = innerContainer.querySelectorAll('*');
     allElements.forEach((el: any) => {
@@ -338,7 +399,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const images = Array.from(innerContainer.getElementsByTagName('img'));
     await Promise.all(images.map(img => {
       if (img.complete) return Promise.resolve();
-      return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+      return new Promise(resolve => { 
+        img.onload = resolve; 
+        img.onerror = resolve; 
+      });
     }));
 
     const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff' });
@@ -348,7 +412,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const width = canvas.width;
     const height = canvas.height;
     
-    // Calculate A4 aspect ratio height based on usable dimensions
     const pdfWidth = 210;
     const pdfHeight = 297;
     const margin = 15;
@@ -361,7 +424,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     let y = 0;
     const canvases: HTMLCanvasElement[] = [];
 
-    // SMART PAGE SPLITTER ALGORITHM
     while (y < height) {
       let sliceHeight = Math.min(maxSliceHeight, height - y);
       
@@ -403,7 +465,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     return canvases;
   };
 
-  // ----- NAYA HELPER: SILENT DOCX TO PDF CONVERTER (Uses Master Helper) -----
+  // ----- NAYA HELPER: SILENT DOCX TO PDF CONVERTER -----
   const convertDocxToPdfSilent = async (file: File) => {
     const canvases = await renderDocxToCanvases(file);
     const { jsPDF } = await import('https://esm.sh/jspdf');
@@ -414,7 +476,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const usableWidth = pdfWidth - (2 * margin);
 
     canvases.forEach((canvas, index) => {
-      if (index > 0) pdf.addPage();
+      if (index > 0) {
+        pdf.addPage();
+      }
       const imgData = canvas.toDataURL('image/jpeg', 0.98);
       const renderedHeight = (canvas.height * usableWidth) / canvas.width; 
       pdf.addImage(imgData, 'JPEG', margin, margin, usableWidth, renderedHeight);
@@ -431,7 +495,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       let processedAny = false;
 
       for (const f of files) {
-        if (!f.name.endsWith('.docx') && !f.type.includes('wordprocessingml')) continue;
+        if (!f.name.endsWith('.docx') && !f.type.includes('wordprocessingml')) {
+          continue;
+        }
         
         const canvases = await renderDocxToCanvases(f);
         const baseName = f.name.replace(/\.[^/.]+$/, '');
@@ -454,7 +520,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       }
     } catch (err) {
       console.error(err);
-      setError('DOCX ko image me badalne me error aayi.');
+      setError('DOCX ko image me badalne me error aayi. File format invalid ho sakti hai.');
     }
   };
 
@@ -467,6 +533,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
       const lib = (pdfjs as any).default || pdfjs;
       const version = lib.version || '3.11.174';
+      
       if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
         lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       }
@@ -515,9 +582,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
               if (!hasText || pdfDocxMode === 'image') {
                 const unscaledViewport = page.getViewport({ scale: 1.0 });
-                let scale = 1.5; // Memory bachane ke liye optimal scale
-                if (unscaledViewport.width * scale > 2000 || unscaledViewport.height * scale > 2000) {
-                  scale = Math.min(2000 / unscaledViewport.width, 2000 / unscaledViewport.height);
+                let scale = 1.5;
+                if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
+                  scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
                 }
                 const viewport = page.getViewport({ scale });
                 const canvas = document.createElement('canvas');
@@ -528,57 +595,82 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                   context.fillStyle = '#ffffff';
                   context.fillRect(0, 0, canvas.width, canvas.height);
                   await page.render({ canvasContext: context, viewport }).promise;
-                  const imgDataUrl = canvas.toDataURL('image/jpeg', 0.75); // Quality optimize ki gayi hai crash rokne ke liye
+                  
+                  const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8);
                   const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
 
+                  const isFirst = docSections.length === 0;
                   docSections.push({
                     children: [
                       new Paragraph({
+                        pageBreakBefore: !isFirst,
                         children: [
                           new ImageRun({
                             data: buffer,
-                            transformation: { width: 600, height: (600 / viewport.width) * viewport.height }, // Word page me perfect fit
+                            transformation: { width: 500, height: (500 / viewport.width) * viewport.height },
                             type: 'jpg'
                           })
                         ],
                         spacing: { after: 200 }
-                      }),
-                      new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                      })
                     ]
                   });
-                  
-                  // Memory clear karna zaroori hai
-                  canvas.width = 0;
-                  canvas.height = 0;
                 }
               } else {
                 const paragraphs = [];
+                
                 const items = textContent.items.map((item: any) => ({
-                  text: item.str, x: item.transform[4], y: item.transform[5]
+                  text: sanitizeText(item.str), 
+                  x: item.transform[4], 
+                  y: item.transform[5]
                 }));
+                
                 items.sort((a: any, b: any) => Math.abs(a.y - b.y) < 5 ? a.x - b.x : b.y - a.y);
 
-                let currentLine = ''; let lastY = -99999;
+                let currentLine = ''; 
+                let lastY = -99999;
+                
                 for (const item of items) {
                   if (lastY !== -99999 && Math.abs(item.y - lastY) > 10) {
-                    if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                    if (currentLine.trim()) {
+                      paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                    }
                     currentLine = '';
                   }
-                  currentLine += item.text + ' '; lastY = item.y;
+                  currentLine += item.text + ' '; 
+                  lastY = item.y;
                 }
-                if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                
+                if (currentLine.trim()) {
+                  paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                }
 
+                const isFirst = docSections.length === 0;
                 docSections.push({
                   children: [
-                    new Paragraph({ children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })], spacing: { after: 200 } }),
-                    ...paragraphs,
-                    new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                    new Paragraph({ 
+                      pageBreakBefore: !isFirst,
+                      children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })], 
+                      spacing: { after: 200 } 
+                    }),
+                    ...paragraphs
                   ]
                 });
               }
             }
+            
             const allChildren = docSections.flatMap((s) => s.children);
-            const doc = new Document({ sections: [{ properties: {}, children: allChildren }] });
+            const doc = new Document({ 
+              sections: [{ 
+                properties: {
+                  page: {
+                    size: { width: 11906, height: 16838, orientation: "portrait" },
+                    margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+                  }
+                }, 
+                children: allChildren 
+              }] 
+            });
             const blob = await Packer.toBlob(doc);
             zip.file(`${baseName}.docx`, blob);
 
@@ -594,8 +686,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
               const viewport = page.getViewport({ scale });
               const canvas = document.createElement('canvas');
               const context = canvas.getContext('2d');
+              
               if (context) {
-                canvas.height = viewport.height; canvas.width = viewport.width;
+                canvas.height = viewport.height; 
+                canvas.width = viewport.width;
                 if (tFmt === 'jpg') {
                   context.fillStyle = '#ffffff';
                   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -611,7 +705,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             for (let i = 1; i <= pdf.numPages; i++) {
               const page = await pdf.getPage(i);
               const textContent = await page.getTextContent();
-              const pageText = textContent.items.map((item: any) => item.str).join(' ');
+              const pageText = textContent.items.map((item: any) => sanitizeText(item.str)).join(' ');
               fullText += `--- Page ${i} ---\n\n${pageText}\n\n`;
             }
             zip.file(`${baseName}.txt`, new Blob([fullText], { type: 'text/plain' }));
@@ -623,12 +717,17 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             const imgBytes = await f.arrayBuffer();
             let image = f.type === 'image/jpeg' ? await pdfDoc.embedJpg(imgBytes) : await pdfDoc.embedPng(imgBytes);
             
-            const a4Width = 595.28; const a4Height = 841.89;
-            const pageWidth = orientation === 'landscape' ? a4Height : a4Width;
-            const pageHeight = orientation === 'landscape' ? a4Width : a4Height;
+            const fileOrientation = imageOrientations[fId] || 'portrait';
+            const a4Width = 595.28; 
+            const a4Height = 841.89;
+            const pageWidth = fileOrientation === 'landscape' ? a4Height : a4Width;
+            const pageHeight = fileOrientation === 'landscape' ? a4Width : a4Height;
+            
             const page = pdfDoc.addPage([pageWidth, pageHeight]);
             const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
-            const scaledWidth = image.width * scale; const scaledHeight = image.height * scale;
+            const scaledWidth = image.width * scale; 
+            const scaledHeight = image.height * scale;
+            
             page.drawImage(image, { x: (pageWidth - scaledWidth) / 2, y: (pageHeight - scaledHeight) / 2, width: scaledWidth, height: scaledHeight });
             
             const pdfBytes = await pdfDoc.save();
@@ -637,14 +736,28 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
           } else if (tFmt === 'docx') {
             const buffer = await f.arrayBuffer();
             const imgUrl = URL.createObjectURL(f);
-            const img = new Image(); img.src = imgUrl; await new Promise(r => img.onload = r);
-            const maxWidth = orientation === 'landscape' ? 700 : 500;
-            const maxHeight = orientation === 'landscape' ? 500 : 700;
+            const img = new Image(); 
+            img.src = imgUrl; 
+            await new Promise(r => img.onload = r);
+            
+            const fileOrientation = imageOrientations[fId] || 'portrait';
+            const maxWidth = fileOrientation === 'landscape' ? 700 : 500;
+            const maxHeight = fileOrientation === 'landscape' ? 500 : 700;
             const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
             
+            const isLandscape = fileOrientation === 'landscape';
             const doc = new Document({ 
               sections: [{ 
-                properties: { page: { size: { orientation: orientation === 'landscape' ? "landscape" : "portrait" } } }, 
+                properties: { 
+                  page: { 
+                    size: { 
+                      width: isLandscape ? 16838 : 11906, 
+                      height: isLandscape ? 11906 : 16838, 
+                      orientation: isLandscape ? "landscape" : "portrait" 
+                    },
+                    margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+                  } 
+                }, 
                 children: [
                   new Paragraph({ children: [new ImageRun({ data: buffer, transformation: { width: Math.round(img.width * scale), height: Math.round(img.height * scale) }, type: f.type === 'image/png' ? 'png' : 'jpg' })] })
                 ] 
@@ -655,10 +768,15 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
           } else if (tFmt === 'jpg' || tFmt === 'png') {
             const imgUrl = URL.createObjectURL(f);
-            const img = new Image(); img.src = imgUrl; await new Promise(r => img.onload = r);
+            const img = new Image(); 
+            img.src = imgUrl; 
+            await new Promise(r => img.onload = r);
+            
             const canvas = document.createElement('canvas');
-            canvas.width = img.width; canvas.height = img.height;
+            canvas.width = img.width; 
+            canvas.height = img.height;
             const ctx = canvas.getContext('2d');
+            
             if (ctx) {
               ctx.drawImage(img, 0, 0);
               const dataUrl = canvas.toDataURL(tFmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.9);
@@ -679,28 +797,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       setDownloadName('converted-files-batch.zip');
     } catch (err) {
       console.error(err);
-      setError('Batch process karne me error aayi.');
-    }
-  };
-
-  // ----- BATCH CONVERT MULTIPLE DOCX TO PDF -----
-  const convertMultipleDocxToPdf = async () => {
-    try {
-      const JSZip = await loadJSZip();
-      const zip = new JSZip();
-
-      for (const f of files) {
-        if (!f.name.endsWith('.docx') && !f.type.includes('wordprocessingml')) continue;
-        const pdfBlob = await convertDocxToPdfSilent(f);
-        zip.file(`${f.name.replace(/\.[^/.]+$/, "")}.pdf`, pdfBlob);
-      }
-
-      const content = await zip.generateAsync({ type: 'blob' });
-      setDownloadUrl(URL.createObjectURL(content));
-      setDownloadName('converted-docx-to-pdf.zip');
-    } catch (err) {
-      console.error(err);
-      setError('DOCX ko PDF me batch convert karne me error aayi.');
+      setError('Batch process karne me error aayi. File format invalid ho sakti hai.');
     }
   };
 
@@ -712,6 +809,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const mergedPdf = await PDFDocument.create();
       
       for (const f of files) {
+        const fId = (f as any)._id;
+        
         if (f.type.startsWith('image/')) {
           const imgBytes = await f.arrayBuffer();
           let image;
@@ -723,10 +822,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             continue;
           }
 
+          const fileOrientation = imageOrientations[fId] || 'portrait';
           const a4Width = 595.28;
           const a4Height = 841.89;
-          const pageWidth = orientation === 'landscape' ? a4Height : a4Width;
-          const pageHeight = orientation === 'landscape' ? a4Width : a4Height;
+          const pageWidth = fileOrientation === 'landscape' ? a4Height : a4Width;
+          const pageHeight = fileOrientation === 'landscape' ? a4Width : a4Height;
 
           const page = mergedPdf.addPage([pageWidth, pageHeight]);
           const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
@@ -856,7 +956,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items.map((item: any) => item.str).join(' ');
+          
+          const pageText = textContent.items.map((item: any) => sanitizeText(item.str)).join(' ');
           fullText += `--- Page ${i} ---\n\n${pageText}\n\n`;
         }
       }
@@ -906,7 +1007,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
           if (!hasText || pdfDocxMode === 'image') {
             const unscaledViewport = page.getViewport({ scale: 1.0 });
-            let scale = 1.5; // Memory bachane ke liye optimal scale
+            let scale = 1.5;
             if (unscaledViewport.width * scale > 2000 || unscaledViewport.height * scale > 2000) {
               scale = Math.min(2000 / unscaledViewport.width, 2000 / unscaledViewport.height);
             }
@@ -921,38 +1022,39 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
               context.fillRect(0, 0, canvas.width, canvas.height);
 
               await page.render({ canvasContext: context, viewport }).promise;
-              const imgDataUrl = canvas.toDataURL('image/jpeg', 0.75); // Quality optimize ki gayi hai
+              const imgDataUrl = canvas.toDataURL('image/jpeg', 0.75); 
               const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
 
+              const isFirst = docSections.length === 0;
               docSections.push({
                 children: [
                   new Paragraph({
+                    pageBreakBefore: !isFirst,
                     children: [
                       new ImageRun({
                         data: buffer,
-                        transformation: { width: 600, height: (600 / viewport.width) * viewport.height }, // Word page me perfect fit
+                        transformation: { width: 600, height: (600 / viewport.width) * viewport.height }, 
                         type: 'jpg'
                       })
                     ],
                     spacing: { after: 200 }
-                  }),
-                  new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                  })
                 ]
               });
               
-              // Memory clear karna zaroori hai
               canvas.width = 0;
               canvas.height = 0;
             }
           } else {
             const paragraphs = [];
+            
             const items = textContent.items.map((item: any) => ({
-              text: item.str,
+              text: sanitizeText(item.str),
               x: item.transform[4],
               y: item.transform[5]
             }));
 
-            items.sort((a, b) => {
+            items.sort((a: any, b: any) => {
               const lineThreshold = 5;
               if (Math.abs(a.y - b.y) < lineThreshold) return a.x - b.x;
               return b.y - a.y;
@@ -962,22 +1064,27 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             let lastY = -99999;
             for (const item of items) {
               if (lastY !== -99999 && Math.abs(item.y - lastY) > 10) {
-                if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                if (currentLine.trim()) {
+                  paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                }
                 currentLine = '';
               }
               currentLine += item.text + ' ';
               lastY = item.y;
             }
-            if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+            if (currentLine.trim()) {
+              paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+            }
 
+            const isFirst = docSections.length === 0;
             docSections.push({
               children: [
                 new Paragraph({
+                  pageBreakBefore: !isFirst,
                   children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })],
                   spacing: { after: 200 }
                 }),
-                ...paragraphs,
-                new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                ...paragraphs
               ]
             });
           }
@@ -991,7 +1098,17 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       }
 
       const allChildren = docSections.flatMap((s) => s.children);
-      const doc = new Document({ sections: [{ properties: {}, children: allChildren }] });
+      const doc = new Document({ 
+        sections: [{ 
+          properties: {
+            page: {
+              size: { width: 11906, height: 16838, orientation: "portrait" },
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+            }
+          }, 
+          children: allChildren 
+        }] 
+      });
       const blob = await Packer.toBlob(doc);
       
       setDownloadUrl(URL.createObjectURL(blob));
@@ -999,7 +1116,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
     } catch (err) {
       console.error(err);
-      setError('Word document me convert hone me error aayi. File shayad bohot badi hai.');
+      setError('Word document me convert hone me error aayi. File format check karein.');
     }
   };
 
@@ -1007,13 +1124,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const convertImagesToDocx = async () => {
     try {
       const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
-      const paragraphs = [];
-
-      const maxWidth = orientation === 'landscape' ? 700 : 500;
-      const maxHeight = orientation === 'landscape' ? 500 : 700;
+      const sections: any[] = [];
 
       for (const f of files) {
         if (!f.type.startsWith('image/')) continue;
+        const fId = (f as any)._id;
 
         const buffer = await f.arrayBuffer();
         const imgUrl = URL.createObjectURL(f);
@@ -1021,37 +1136,53 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         img.src = imgUrl;
         await new Promise(r => img.onload = r);
         
+        const fileOrientation = imageOrientations[fId] || 'portrait';
+        const maxWidth = fileOrientation === 'landscape' ? 700 : 500;
+        const maxHeight = fileOrientation === 'landscape' ? 500 : 700;
+        
         const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
         const finalWidth = Math.round(img.width * scale);
         const finalHeight = Math.round(img.height * scale);
 
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new ImageRun({
-                data: buffer,
-                transformation: { width: finalWidth, height: finalHeight },
-                type: f.type === 'image/png' ? 'png' : 'jpg'
-              })
-            ],
-            spacing: { after: 400 }
-          })
-        );
-        paragraphs.push(
-          new Paragraph({
-            children: [new TextRun({ text: f.name, size: 20, color: '666666' })],
-            spacing: { after: 800 }
-          })
-        );
+        const isLandscape = fileOrientation === 'landscape';
+        sections.push({
+          properties: { 
+            page: { 
+              size: { 
+                width: isLandscape ? 16838 : 11906, 
+                height: isLandscape ? 11906 : 16838, 
+                orientation: isLandscape ? "landscape" : "portrait" 
+              },
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 }
+            } 
+          },
+          children: [
+            new Paragraph({
+              children: [
+                new ImageRun({
+                  data: buffer,
+                  transformation: { width: finalWidth, height: finalHeight },
+                  type: f.type === 'image/png' ? 'png' : 'jpg'
+                })
+              ],
+              spacing: { after: 400 }
+            }),
+            new Paragraph({
+              children: [new TextRun({ text: f.name, size: 20, color: '666666' })],
+              spacing: { after: 800 }
+            })
+          ]
+        });
+        
         URL.revokeObjectURL(imgUrl);
       }
 
-      const doc = new Document({ 
-        sections: [{ 
-          properties: { page: { size: { orientation: orientation === 'landscape' ? "landscape" : "portrait" } } }, 
-          children: paragraphs 
-        }] 
-      });
+      if (sections.length === 0) {
+         setError('Koi image file nahi mili.');
+         return;
+      }
+
+      const doc = new Document({ sections });
       const blob = await Packer.toBlob(doc);
       setDownloadUrl(URL.createObjectURL(blob));
       setDownloadName('images-to-word.docx');
@@ -1130,6 +1261,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     try {
       const { renderAsync } = await loadDocxPreview();
       const arrayBuffer = await file.arrayBuffer();
+      
+      const cleanArrayBuffer = await sanitizeDocxBuffer(arrayBuffer);
 
       iframe = document.createElement('iframe');
       Object.assign(iframe.style, {
@@ -1174,7 +1307,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       });
       iframeDoc.body.appendChild(container);
 
-      await renderAsync(arrayBuffer, container, null, { inWrapper: false, ignoreWidth: false, experimental: true });
+      await renderAsync(cleanArrayBuffer, container, null, { inWrapper: false, ignoreWidth: false, experimental: true });
 
       setIsProcessing(false);
 
@@ -1190,8 +1323,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         if (iframe && document.body.contains(iframe)) document.body.removeChild(iframe);
       }, 10000);
     } catch (err) {
-      console.error(err);
-      setError('DOCX to PDF conversion failed. Please try again.');
+      console.error("DOCX Print error:", err);
+      setError('DOCX to PDF conversion failed. File format check karein.');
       setIsProcessing(false);
       if (iframe) document.body.removeChild(iframe);
     }
@@ -1207,8 +1340,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       if (targetFormat === 'individual') {
         await processIndividualFiles();
       } else if (targetFormat === 'pdf') {
-        if (hasDocx && files.length === 1) await convertDocxToPdf(); // Single docx native print for text selection
-        else await mergeMixedToPdf(); // Merge all files (including multiple docx) into one PDF
+        if (hasDocx && files.length === 1) await convertDocxToPdf(); 
+        else await mergeMixedToPdf(); 
       } else if (targetFormat === 'docx') {
         if (hasPdf) await convertPdfToDocx();
         else if (hasImage) await convertImagesToDocx();
@@ -1232,6 +1365,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setDownloadUrl(null);
     setError(null);
     setIndividualFormats({});
+    setImageOrientations({});
   };
 
   // ----- RENDER -----
@@ -1426,6 +1560,20 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                             )}
                                           </select>
                                         )}
+
+                                        {/* PER-IMAGE ORIENTATION DROPDOWN */}
+                                        {file.type.startsWith('image/') && (targetFormat === 'pdf' || targetFormat === 'docx' || (targetFormat === 'individual' && (!individualFormats[fileId] || individualFormats[fileId] === 'pdf' || individualFormats[fileId] === 'docx'))) && (
+                                          <select
+                                            value={imageOrientations[fileId] || 'portrait'}
+                                            onChange={(e) => setImageOrientations({...imageOrientations, [fileId]: e.target.value as 'portrait' | 'landscape'})}
+                                            className="text-[10px] sm:text-xs font-bold bg-amber-50 border border-amber-200 text-amber-700 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-sm"
+                                            onClick={(e) => e.stopPropagation()} 
+                                          >
+                                            <option value="portrait">Portrait</option>
+                                            <option value="landscape">Landscape</option>
+                                          </select>
+                                        )}
+
                                       </div>
                                     </div>
                                   </div>
@@ -1499,39 +1647,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                           </div>
                         )}
                         
-                        {/* ORIENTATION SELECTOR FOR IMAGE TO PDF/DOCX OR MIXED MERGE */}
-                        {((hasImage && targetFormat === 'pdf') || (hasImage && targetFormat === 'docx') || (hasImage && targetFormat === 'individual')) && (
-                          <div className="mt-4 pt-4 border-t border-slate-100 animate-in fade-in zoom-in-95">
-                            <label className="text-xs md:text-sm font-bold text-slate-700 uppercase tracking-wide mb-3 block">Page Layout (Images ke liye)</label>
-                            <div className="flex gap-4">
-                              {/* Portrait */}
-                              <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'portrait' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                                <input type="radio" name="orientation" value="portrait" checked={orientation === 'portrait'} onChange={() => setOrientation('portrait')} className="sr-only" />
-                                <div className="w-10 h-14 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'portrait' ? '#4f46e5' : '#cbd5e1' }}>
-                                  <ImageIcon size={18} className={orientation === 'portrait' ? 'text-indigo-500' : 'text-slate-400'} />
-                                </div>
-                                <span className={`font-bold text-sm ${orientation === 'portrait' ? 'text-indigo-900' : 'text-slate-700'}`}>Portrait (Khada)</span>
-                              </label>
-
-                              {/* Landscape */}
-                              <label className={`flex-1 relative flex flex-col items-center p-4 cursor-pointer rounded-xl border-2 transition-all ${orientation === 'landscape' ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 hover:border-indigo-200 bg-white'}`}>
-                                <input type="radio" name="orientation" value="landscape" checked={orientation === 'landscape'} onChange={() => setOrientation('landscape')} className="sr-only" />
-                                <div className="w-14 h-10 border-2 rounded-md mb-2 flex items-center justify-center shadow-sm bg-white" style={{ borderColor: orientation === 'landscape' ? '#4f46e5' : '#cbd5e1' }}>
-                                  <ImageIcon size={18} className={orientation === 'landscape' ? 'text-indigo-500' : 'text-slate-400'} />
-                                </div>
-                                <span className={`font-bold text-sm ${orientation === 'landscape' ? 'text-indigo-900' : 'text-slate-700'}`}>Landscape (Aada)</span>
-                              </label>
-                            </div>
-                          </div>
-                        )}
                       </div>
-
-                      {hasDocx && files.length === 1 && targetFormat === 'pdf' && (
-                        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-3 text-blue-800 animate-in fade-in zoom-in-95">
-                          <Zap className="shrink-0 mt-0.5" size={18} />
-                          <p className="text-sm">Single file ke liye native print engine use hoga. Yeh 100% original text format banaye rakhega.</p>
-                        </div>
-                      )}
 
                       <button
                         onClick={handleConvert}
