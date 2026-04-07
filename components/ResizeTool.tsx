@@ -36,11 +36,12 @@ export const ResizeTool: React.FC<ResizeToolProps> = ({ initialTargetKb }) => {
     return "Free online image resizer. Change dimensions of JPG, PNG, and WebP images by pixels or percentage without losing quality. 100% secure & client-side.";
   };
 
+  // ✅ FIX: Return relative paths (SEO component will add base URL)
   const getCanonicalUrl = () => {
     if (initialTargetKb) {
-      return `https://genzpdf.com/resize-image-${initialTargetKb}kb`;
+      return `/resize-image-${initialTargetKb}kb`;
     }
-    return "https://genzpdf.com/resize";
+    return "/resize";
   };
 
   // ---------- STATE ----------
