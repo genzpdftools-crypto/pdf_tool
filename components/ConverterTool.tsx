@@ -875,10 +875,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                 onDragStart={(e) => handleDragStart(e, index)}
                                 onDragOver={(e) => handleDragOver(e, index)}
                                 onDragEnd={handleDragEnd}
-                                className={`flex items-center justify-between p-3 rounded-xl border transition-all bg-white
+                                className={`flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-3 sm:p-4 rounded-xl border transition-all bg-white gap-3 sm:gap-0
                                   ${draggedIndex === index ? 'opacity-50 border-dashed border-indigo-400 bg-indigo-50 z-10 relative shadow-md' : 'border-slate-200 hover:border-indigo-300 shadow-sm'}`}
                               >
-                                <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 pr-2">
+                                <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0 pr-2">
                                   {/* Drag Handle - Touch None ensures scrolling doesn't break drag */}
                                   <div 
                                     className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-indigo-500 transition-colors p-2 -ml-2 shrink-0 touch-none"
@@ -896,7 +896,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                   </div>
                                   
                                   {/* File Name & Size (Truncated correctly) */}
-                                  <div className="flex flex-col flex-1 min-w-0 ml-1">
+                                  <div className="flex flex-col justify-center flex-1 min-w-0 ml-1">
                                     <span className="text-sm sm:text-base font-bold text-slate-700 truncate w-full" title={file.name}>
                                       {file.name}
                                     </span>
@@ -907,19 +907,19 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                 </div>
                                 
                                 {/* Right Side Actions (Fixed width, won't shrink) */}
-                                <div className="flex items-center gap-1 shrink-0">
+                                <div className="flex flex-row items-center justify-end gap-2 shrink-0 sm:ml-2">
                                   {files.length > 1 && (
                                     <div className="flex items-center bg-slate-50 rounded-lg p-0.5 border border-slate-200">
-                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 sm:p-2 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Up">
+                                      <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Up">
                                         <ArrowUp size={18} />
                                       </button>
                                       <div className="w-px h-5 bg-slate-200 mx-0.5"></div>
-                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-1.5 sm:p-2 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Down">
+                                      <button onClick={() => moveDown(index)} disabled={index === files.length - 1} className="p-2 sm:p-2.5 text-slate-400 hover:text-indigo-600 disabled:opacity-30 rounded-md transition-all" title="Move Down">
                                         <ArrowDown size={18} />
                                       </button>
                                     </div>
                                   )}
-                                  <button onClick={() => removeFile(index)} className="p-2 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 bg-slate-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors" title="Remove File">
+                                  <button onClick={() => removeFile(index)} className="p-2 sm:p-2.5 ml-1 text-slate-400 hover:text-red-600 hover:bg-red-50 bg-slate-50 rounded-lg border border-slate-200 hover:border-red-200 transition-colors" title="Remove File">
                                     <X size={18} />
                                   </button>
                                 </div>
