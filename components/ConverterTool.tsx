@@ -515,9 +515,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
               if (!hasText || pdfDocxMode === 'image') {
                 const unscaledViewport = page.getViewport({ scale: 1.0 });
-                let scale = 1.5;
-                if (unscaledViewport.width * scale > 2500 || unscaledViewport.height * scale > 2500) {
-                  scale = Math.min(2500 / unscaledViewport.width, 2500 / unscaledViewport.height);
+                let scale = 1.5; // Memory bachane ke liye optimal scale
+                if (unscaledViewport.width * scale > 2000 || unscaledViewport.height * scale > 2000) {
+                  scale = Math.min(2000 / unscaledViewport.width, 2000 / unscaledViewport.height);
                 }
                 const viewport = page.getViewport({ scale });
                 const canvas = document.createElement('canvas');
@@ -528,7 +528,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                   context.fillStyle = '#ffffff';
                   context.fillRect(0, 0, canvas.width, canvas.height);
                   await page.render({ canvasContext: context, viewport }).promise;
-                  const imgDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                  const imgDataUrl = canvas.toDataURL('image/jpeg', 0.75); // Quality optimize ki gayi hai crash rokne ke liye
                   const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
 
                   docSections.push({
@@ -537,7 +537,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                         children: [
                           new ImageRun({
                             data: buffer,
-                            transformation: { width: 500, height: (500 / viewport.width) * viewport.height },
+                            transformation: { width: 600, height: (600 / viewport.width) * viewport.height }, // Word page me perfect fit
                             type: 'jpg'
                           })
                         ],
@@ -546,6 +546,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                       new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
                     ]
                   });
+                  
+                  // Memory clear karna zaroori hai
+                  canvas.width = 0;
+                  canvas.height = 0;
                 }
               } else {
                 const paragraphs = [];
@@ -866,6 +870,256 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     }
   };
 
+  // ----- CONVERT PDF(S) TO DOCX -----
+  const convertPdfToDocx = async () => {
+    try {
+      const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
+      const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
+      const lib = (pdfjs as any).default || pdfjs;
+
+      const version = lib.version || '3.11.174';
+      if(lib.GlobalWorkerOptions && !lib.GlobalWorkerOptions.workerSrc) {
+        lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
+      }
+
+      const docSections: any[] = [];
+      let processedCount = 0;
+
+      for (const f of files) {
+        if (f.type !== 'application/pdf') continue;
+
+        const arrayBuffer = await f.arrayBuffer();
+        const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
+
+        if (files.length > 1) {
+           docSections.push({
+             children: [
+               new Paragraph({ children: [new TextRun({ text: `--- Document: ${f.name} ---`, bold: true, size: 28 })], spacing: { after: 400 } })
+             ]
+           });
+        }
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const hasText = textContent.items.length > 5;
+
+          if (!hasText || pdfDocxMode === 'image') {
+            const unscaledViewport = page.getViewport({ scale: 1.0 });
+            let scale = 1.5; // Memory bachane ke liye optimal scale
+            if (unscaledViewport.width * scale > 2000 || unscaledViewport.height * scale > 2000) {
+              scale = Math.min(2000 / unscaledViewport.width, 2000 / unscaledViewport.height);
+            }
+
+            const viewport = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            if (context) {
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+              context.fillStyle = '#ffffff';
+              context.fillRect(0, 0, canvas.width, canvas.height);
+
+              await page.render({ canvasContext: context, viewport }).promise;
+              const imgDataUrl = canvas.toDataURL('image/jpeg', 0.75); // Quality optimize ki gayi hai
+              const buffer = await (await fetch(imgDataUrl)).arrayBuffer();
+
+              docSections.push({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new ImageRun({
+                        data: buffer,
+                        transformation: { width: 600, height: (600 / viewport.width) * viewport.height }, // Word page me perfect fit
+                        type: 'jpg'
+                      })
+                    ],
+                    spacing: { after: 200 }
+                  }),
+                  new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+                ]
+              });
+              
+              // Memory clear karna zaroori hai
+              canvas.width = 0;
+              canvas.height = 0;
+            }
+          } else {
+            const paragraphs = [];
+            const items = textContent.items.map((item: any) => ({
+              text: item.str,
+              x: item.transform[4],
+              y: item.transform[5]
+            }));
+
+            items.sort((a, b) => {
+              const lineThreshold = 5;
+              if (Math.abs(a.y - b.y) < lineThreshold) return a.x - b.x;
+              return b.y - a.y;
+            });
+
+            let currentLine = '';
+            let lastY = -99999;
+            for (const item of items) {
+              if (lastY !== -99999 && Math.abs(item.y - lastY) > 10) {
+                if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+                currentLine = '';
+              }
+              currentLine += item.text + ' ';
+              lastY = item.y;
+            }
+            if (currentLine.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(currentLine.trim())] }));
+
+            docSections.push({
+              children: [
+                new Paragraph({
+                  children: [new TextRun({ text: `[Page ${i}]`, bold: true, color: '888888' })],
+                  spacing: { after: 200 }
+                }),
+                ...paragraphs,
+                new Paragraph({ children: [new TextRun({ text: '', break: 1 })] })
+              ]
+            });
+          }
+        }
+        processedCount++;
+      }
+
+      if (processedCount === 0) {
+        setError('No processable PDF files found.');
+        return;
+      }
+
+      const allChildren = docSections.flatMap((s) => s.children);
+      const doc = new Document({ sections: [{ properties: {}, children: allChildren }] });
+      const blob = await Packer.toBlob(doc);
+      
+      setDownloadUrl(URL.createObjectURL(blob));
+      setDownloadName(files.length > 1 ? 'merged-documents.docx' : `${files[0].name.replace(/\.pdf$/i, '')}.docx`);
+
+    } catch (err) {
+      console.error(err);
+      setError('Word document me convert hone me error aayi. File shayad bohot badi hai.');
+    }
+  };
+
+  // ----- CONVERT IMAGES TO DOCX -----
+  const convertImagesToDocx = async () => {
+    try {
+      const { Document, Packer, Paragraph, TextRun, ImageRun } = await loadDocx();
+      const paragraphs = [];
+
+      const maxWidth = orientation === 'landscape' ? 700 : 500;
+      const maxHeight = orientation === 'landscape' ? 500 : 700;
+
+      for (const f of files) {
+        if (!f.type.startsWith('image/')) continue;
+
+        const buffer = await f.arrayBuffer();
+        const imgUrl = URL.createObjectURL(f);
+        const img = new Image();
+        img.src = imgUrl;
+        await new Promise(r => img.onload = r);
+        
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+        const finalWidth = Math.round(img.width * scale);
+        const finalHeight = Math.round(img.height * scale);
+
+        paragraphs.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: buffer,
+                transformation: { width: finalWidth, height: finalHeight },
+                type: f.type === 'image/png' ? 'png' : 'jpg'
+              })
+            ],
+            spacing: { after: 400 }
+          })
+        );
+        paragraphs.push(
+          new Paragraph({
+            children: [new TextRun({ text: f.name, size: 20, color: '666666' })],
+            spacing: { after: 800 }
+          })
+        );
+        URL.revokeObjectURL(imgUrl);
+      }
+
+      const doc = new Document({ 
+        sections: [{ 
+          properties: { page: { size: { orientation: orientation === 'landscape' ? "landscape" : "portrait" } } }, 
+          children: paragraphs 
+        }] 
+      });
+      const blob = await Packer.toBlob(doc);
+      setDownloadUrl(URL.createObjectURL(blob));
+      setDownloadName('images-to-word.docx');
+    } catch (err) {
+      console.error(err);
+      setError('Images ko Word me convert karne me error aayi.');
+    }
+  };
+
+  // ----- CONVERT IMAGE FORMATS -----
+  const convertImageFormat = async (target: 'jpg' | 'png') => {
+    try {
+      const JSZip = await loadJSZip();
+      const imageFiles = files.filter(f => f.type.startsWith('image/'));
+
+      if (imageFiles.length > 1) {
+        const zip = new JSZip();
+        const folder = zip.folder('converted_images');
+
+        for (const imgFile of imageFiles) {
+          const img = new Image();
+          const objectUrl = URL.createObjectURL(imgFile);
+          img.src = objectUrl;
+          await new Promise((resolve) => { img.onload = resolve; });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0);
+            const mimeType = target === 'jpg' ? 'image/jpeg' : 'image/png';
+            const dataUrl = canvas.toDataURL(mimeType, 0.9);
+            const base64Data = dataUrl.split(',')[1];
+            folder?.file(`${imgFile.name.split('.')[0]}.${target}`, base64Data, { base64: true });
+          }
+          URL.revokeObjectURL(objectUrl);
+        }
+
+        const content = await zip.generateAsync({ type: 'blob' });
+        setDownloadUrl(URL.createObjectURL(content));
+        setDownloadName(`converted-images.zip`);
+      } else if (imageFiles.length === 1) {
+        const imgFile = imageFiles[0];
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(imgFile);
+        img.src = objectUrl;
+        await new Promise((resolve) => { img.onload = resolve; });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const mimeType = target === 'jpg' ? 'image/jpeg' : 'image/png';
+          const dataUrl = canvas.toDataURL(mimeType, 0.9);
+          setDownloadUrl(dataUrl);
+          setDownloadName(`${imgFile.name.split('.')[0]}.${target}`);
+        }
+        URL.revokeObjectURL(objectUrl);
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Image format conversion failed.');
+    }
+  };
+
   // ----- DOCX TO PDF (NATIVE PRINT FOR SINGLE FILES) -----
   const convertDocxToPdf = async () => {
     const file = files.find(f => f.name.endsWith('.docx') || f.type.includes('wordprocessingml'));
@@ -945,11 +1199,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
   // ----- MAIN CONVERT HANDLER -----
   const handleConvert = async () => {
-    if (targetFormat === 'unsupported') {
-      setError('Error: Please upload DOCX files one at a time for processing.');
-      return;
-    }
-
     setIsProcessing(true);
     setError(null);
     try {
