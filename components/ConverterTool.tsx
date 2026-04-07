@@ -203,7 +203,15 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const handleFilesSelected = useCallback((incomingFiles: File[]) => {
     setError(null);
     setDownloadUrl(null);
-    setFiles(prev => [...prev, ...incomingFiles]); // Nayi files ko purani files ke aage jod (append) dega
+    
+    // Add unique IDs to files to prevent DOM remounting during drag-and-drop
+    const filesWithIds = incomingFiles.map(f => {
+      const fileObj = f as any;
+      if (!fileObj._id) fileObj._id = Math.random().toString(36).substring(2, 11);
+      return f;
+    });
+
+    setFiles(prev => [...prev, ...filesWithIds]);
   }, []);
 
   // ----- REARRANGE & REMOVE FILE HANDLERS -----
@@ -869,7 +877,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                           <div className="max-h-[500px] overflow-y-auto space-y-3 pr-1 custom-scrollbar">
                             {files.map((file, index) => (
                               <div 
-                                key={`${file.name}-${index}`}
+                                key={(file as any)._id || `${file.name}-${index}`}
                                 data-index={index}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, index)}
