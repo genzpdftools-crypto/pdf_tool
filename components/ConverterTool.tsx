@@ -56,7 +56,7 @@ const FileUploader: React.FC<any> = ({ onFilesSelected, allowMultiple, acceptedF
   );
 };
 
-// --- UPDATED COMPONENT: BADE VISUAL THUMBNAILS KE LIYE ---
+// --- BADE VISUAL THUMBNAILS ---
 const FileThumbnail: React.FC<{ file: File }> = ({ file }) => {
   const [url, setUrl] = useState<string | null>(null);
 
@@ -124,7 +124,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
     if (files.length === 1) {
       if (hasD) {
-        options = [{ value: 'pdf', label: 'PDF Document (.pdf)' }];
+        options = [
+          { value: 'pdf', label: 'PDF Document (.pdf)' },
+          { value: 'jpg', label: 'Convert to JPG' },
+          { value: 'png', label: 'Convert to PNG' }
+        ];
       } else if (hasI) {
         options = [
           { value: 'pdf', label: 'PDF Document (.pdf)' },
@@ -144,6 +148,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       if (hasD && !hasI && !hasP) { 
         options = [
           { value: 'pdf', label: 'Merge into Single PDF (.pdf)' },
+          { value: 'jpg', label: 'Convert to JPG' },
+          { value: 'png', label: 'Convert to PNG' },
           { value: 'individual', label: 'Convert Individually (Alag-Alag Format)' }
         ];
       } else if (mixed) {
@@ -174,32 +180,25 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     return { hasPdf: hasP, hasImage: hasI, hasDocx: hasD, isMixed: mixed, availableOptions: options };
   }, [files]);
 
-  // Ensure selected target format is always valid when options change
   useEffect(() => {
     if (availableOptions.length > 0 && !availableOptions.some(opt => opt.value === targetFormat)) {
       setTargetFormat(availableOptions[0].value);
     }
   }, [availableOptions, targetFormat]);
 
-
   // ----- DYNAMIC SEO DATA -----
   const getPageTitle = () => {
     if (initialFormat) return `${initialFormat.toUpperCase()} to PDF Converter Online Free | Genz PDF`;
     return "Universal File Converter – PDF, Word, Images | Genz PDF";
   };
-
   const getPageDescription = () => {
-    if (initialFormat) {
-      return `Convert ${initialFormat.toUpperCase()} images to PDF documents instantly and securely. High quality output, no watermarks, 100% free. Client-side processing – no upload, no signup. Unlimited usage.`;
-    }
+    if (initialFormat) return `Convert ${initialFormat.toUpperCase()} images to PDF documents instantly and securely. High quality output, no watermarks, 100% free. Client-side processing – no upload, no signup. Unlimited usage.`;
     return "Free online file converter. Convert PDF to Word, Image to PDF, DOCX to PDF and more – securely in your browser, no upload. No registration, no watermarks, unlimited conversions.";
   };
-
   const getPageKeywords = () => {
     if (initialFormat) return `${initialFormat} to pdf, convert ${initialFormat} to pdf, free ${initialFormat} to pdf converter`;
     return "pdf converter, pdf to word, pdf to jpg, convert pdf, pdf to png, pdf to excel, docx to pdf, jpg to pdf";
   };
-
   const getCanonicalUrl = () => {
     if (initialFormat) return `https://genzpdf.com/${initialFormat}-to-pdf`;
     return "https://genzpdf.com/convert";
@@ -212,10 +211,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         const pdfjs = await import('https://esm.sh/pdfjs-dist@3.11.174');
         const lib = (pdfjs as any).default || pdfjs; 
         const version = lib.version || '3.11.174';
-        
-        if (lib.GlobalWorkerOptions) {
-           lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
-        }
+        if (lib.GlobalWorkerOptions) lib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`;
       } catch (e) {
         console.error('PDF worker initialization failed', e);
       }
@@ -232,13 +228,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
   const handleFilesSelected = useCallback((incomingFiles: File[]) => {
     setError(null);
     setDownloadUrl(null);
-    
     const filesWithIds = incomingFiles.map(f => {
       const fileObj = f as any;
       if (!fileObj._id) fileObj._id = Math.random().toString(36).substring(2, 11);
       return f;
     });
-
     setFiles(prev => [...prev, ...filesWithIds]);
   }, []);
 
@@ -248,26 +242,22 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setFiles(newFiles);
     if (newFiles.length === 0) handleReset();
   };
-
   const moveUp = (index: number) => {
     if (index === 0) return;
     const newFiles = [...files];
     [newFiles[index - 1], newFiles[index]] = [newFiles[index], newFiles[index - 1]]; 
     setFiles(newFiles);
   };
-
   const moveDown = (index: number) => {
     if (index === files.length - 1) return;
     const newFiles = [...files];
     [newFiles[index + 1], newFiles[index]] = [newFiles[index], newFiles[index + 1]]; 
     setFiles(newFiles);
   };
-
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
-  
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
@@ -278,11 +268,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     setDraggedIndex(index);
     setFiles(newFiles);
   };
-
   const handleDragEnd = () => setDraggedIndex(null);
 
   const handleTouchStart = (e: React.TouchEvent, index: number) => setDraggedIndex(index);
-
   const handleTouchMove = (e: React.TouchEvent) => {
     if (draggedIndex === null) return;
     const touch = e.touches[0];
@@ -300,37 +288,32 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       }
     }
   };
-
   const handleTouchEnd = () => setDraggedIndex(null);
 
-  // ----- NAYA HELPER: SMART SILENT DOCX TO PDF CONVERTER (For Batch Processing) -----
-  const convertDocxToPdfSilent = async (file: File) => {
+  // ----- MASTER HELPER: RENDER DOCX TO MULTIPLE CANVASES -----
+  const renderDocxToCanvases = async (file: File): Promise<HTMLCanvasElement[]> => {
     const { renderAsync } = await loadDocxPreview();
     const html2canvas = (await import('https://esm.sh/html2canvas')).default;
-    const { jsPDF } = await import('https://esm.sh/jspdf');
 
     const container = document.createElement('div');
-    
-    // UPDATED: Better typography, text-wrap fix to prevent cutting, and exact constraints!
     Object.assign(container.style, {
       width: '794px', // Exact A4 pixel width at 96 DPI
-      padding: '0', // Margin will be handled perfectly inside jsPDF now
+      padding: '0', 
       background: 'white',
       position: 'absolute',
       left: '-9999px',
       top: '0',
       color: 'black',
-      fontFamily: '"Times New Roman", Times, serif', // Standard DOCX font fallback
-      textRendering: 'optimizeLegibility', // Sharp text
-      WebkitFontSmoothing: 'antialiased', // Better rendering
+      fontFamily: '"Times New Roman", Times, serif',
+      textRendering: 'optimizeLegibility',
+      WebkitFontSmoothing: 'antialiased',
       lineHeight: '1.5',
       minHeight: '1123px', // Exact A4 height
-      wordWrap: 'break-word',       // <-- FIX: Prevents text right-cutoff
-      overflowWrap: 'break-word',   // <-- FIX: Modern wrap property
+      wordWrap: 'break-word',
+      overflowWrap: 'break-word',
       boxSizing: 'border-box'
     });
     
-    // Create a sub-container inside so that content gets bounded strictly inside A4 bounds
     const innerContainer = document.createElement('div');
     Object.assign(innerContainer.style, {
       width: '100%',
@@ -344,7 +327,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const arrayBuffer = await file.arrayBuffer();
     await renderAsync(arrayBuffer, innerContainer, null, { inWrapper: false, ignoreWidth: false, experimental: true });
 
-    // Ensure style applies inside all nested elements recursively
     const allElements = innerContainer.querySelectorAll('*');
     allElements.forEach((el: any) => {
       el.style.maxWidth = '100%';
@@ -353,14 +335,12 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       el.style.overflowWrap = 'break-word';
     });
 
-    // Wait for all embedded images to load correctly
     const images = Array.from(innerContainer.getElementsByTagName('img'));
     await Promise.all(images.map(img => {
       if (img.complete) return Promise.resolve();
       return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
     }));
 
-    // Render large canvas from DOCX HTML (Scale 3 for crisp text)
     const canvas = await html2canvas(container, { scale: 3, useCORS: true, logging: false, backgroundColor: '#ffffff' });
     document.body.removeChild(container);
 
@@ -368,39 +348,32 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     const width = canvas.width;
     const height = canvas.height;
     
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pdfWidth = pdf.internal.pageSize.getWidth(); // Should be 210mm
-    const pdfHeight = pdf.internal.pageSize.getHeight(); // Should be 297mm
-    
-    // NEW FIX: Perfect Header/Footer Margins (15mm on all sides)
+    // Calculate A4 aspect ratio height based on usable dimensions
+    const pdfWidth = 210;
+    const pdfHeight = 297;
     const margin = 15;
     const usableWidth = pdfWidth - (2 * margin);
     const usableHeight = pdfHeight - (2 * margin);
 
-    // Calculate A4 aspect ratio height based on usable dimensions
     const a4Ratio = usableHeight / usableWidth;
     const maxSliceHeight = Math.floor(width * a4Ratio);
 
     let y = 0;
-    let pageNum = 0;
+    const canvases: HTMLCanvasElement[] = [];
 
-    // SMART PAGE SPLITTER ALGORITHM: Prevents cutting text in half!
+    // SMART PAGE SPLITTER ALGORITHM
     while (y < height) {
       let sliceHeight = Math.min(maxSliceHeight, height - y);
       
-      // Look for a blank white line (space between paragraphs/lines) near the bottom to avoid cutting text
       if (y + sliceHeight < height) {
         const imageData = ctx?.getImageData(0, y, width, sliceHeight);
         const data = imageData?.data;
-        
         if (data) {
-          // Scan the bottom 300 pixels of the current chunk upwards
           for (let scanY = sliceHeight - 1; scanY > sliceHeight - 300 && scanY > 0; scanY--) {
             let isBlank = true;
             for (let x = 0; x < width; x++) {
               const idx = (scanY * width + x) * 4;
               const r = data[idx], g = data[idx+1], b = data[idx+2], a = data[idx+3];
-              
               if ((r < 250 || g < 250 || b < 250) && a > 10) {
                 isBlank = false;
                 break;
@@ -423,20 +396,66 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         sliceCtx.fillStyle = '#ffffff';
         sliceCtx.fillRect(0, 0, width, sliceHeight);
         sliceCtx.drawImage(canvas, 0, y, width, sliceHeight, 0, 0, width, sliceHeight);
-        
-        const imgData = sliceCanvas.toDataURL('image/jpeg', 0.98);
-        const renderedHeight = (sliceHeight * usableWidth) / width; 
-        
-        if (pageNum > 0) pdf.addPage();
-        // Insert with Margins! Center it beautifully.
-        pdf.addImage(imgData, 'JPEG', margin, margin, usableWidth, renderedHeight);
-        pageNum++;
+        canvases.push(sliceCanvas);
       }
-      
       y += sliceHeight;
     }
+    return canvases;
+  };
+
+  // ----- NAYA HELPER: SILENT DOCX TO PDF CONVERTER (Uses Master Helper) -----
+  const convertDocxToPdfSilent = async (file: File) => {
+    const canvases = await renderDocxToCanvases(file);
+    const { jsPDF } = await import('https://esm.sh/jspdf');
+    
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const margin = 15;
+    const usableWidth = pdfWidth - (2 * margin);
+
+    canvases.forEach((canvas, index) => {
+      if (index > 0) pdf.addPage();
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const renderedHeight = (canvas.height * usableWidth) / canvas.width; 
+      pdf.addImage(imgData, 'JPEG', margin, margin, usableWidth, renderedHeight);
+    });
 
     return pdf.output('blob');
+  };
+
+  // ----- DOCX TO IMAGES (JPG/PNG) BATCH -----
+  const convertDocxToImages = async (format: 'jpg' | 'png') => {
+    try {
+      const JSZip = await loadJSZip();
+      const zip = new JSZip();
+      let processedAny = false;
+
+      for (const f of files) {
+        if (!f.name.endsWith('.docx') && !f.type.includes('wordprocessingml')) continue;
+        
+        const canvases = await renderDocxToCanvases(f);
+        const baseName = f.name.replace(/\.[^/.]+$/, '');
+        const folder = files.length > 1 ? zip.folder(baseName) : zip;
+
+        canvases.forEach((canvas, index) => {
+          const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+          const dataUrl = canvas.toDataURL(mimeType, 0.98);
+          folder?.file(`page_${index + 1}.${format}`, dataUrl.split(',')[1], { base64: true });
+          processedAny = true;
+        });
+      }
+
+      if (processedAny) {
+        const content = await zip.generateAsync({ type: 'blob' });
+        setDownloadUrl(URL.createObjectURL(content));
+        setDownloadName(files.length > 1 ? `converted-docx-to-${format}.zip` : `${files[0].name.replace(/\.[^/.]+$/, '')}-${format}.zip`);
+      } else {
+        setError('No valid DOCX files found to convert.');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('DOCX ko image me badalne me error aayi.');
+    }
   };
 
   // ----- BARI-BARI SE (INDIVIDUAL BATCH) PROCESSING -----
@@ -466,10 +485,19 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
         processedCount++;
 
+        // DOCX Individual Process
         if (isDocxFile) {
           if (tFmt === 'pdf') {
             const pdfBlob = await convertDocxToPdfSilent(f);
             zip.file(`${baseName}.pdf`, pdfBlob);
+          } else if (tFmt === 'jpg' || tFmt === 'png') {
+            const canvases = await renderDocxToCanvases(f);
+            const folder = zip.folder(baseName);
+            canvases.forEach((canvas, index) => {
+              const mimeType = tFmt === 'jpg' ? 'image/jpeg' : 'image/png';
+              const dataUrl = canvas.toDataURL(mimeType, 0.98);
+              folder?.file(`page_${index + 1}.${tFmt}`, dataUrl.split(',')[1], { base64: true });
+            });
           }
           continue;
         }
@@ -711,7 +739,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
           const copiedPages = await mergedPdf.copyPages(pdfToMerge, pdfToMerge.getPageIndices());
           copiedPages.forEach((page: any) => mergedPdf.addPage(page));
         } else if (f.name.endsWith('.docx') || f.type.includes('wordprocessingml')) {
-          // Smart Silent Docx Merge
           const pdfBlob = await convertDocxToPdfSilent(f);
           const pdfBytes = await pdfBlob.arrayBuffer();
           const pdfToMerge = await PDFDocument.load(pdfBytes);
@@ -863,7 +890,6 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       const iframeDoc = iframe.contentWindow?.document;
       if (!iframeDoc) throw new Error('Could not create print frame.');
 
-      // UPDATED: Added word-wrap and overflow rules so text doesn't cut off on the right
       const style = iframeDoc.createElement('style');
       style.textContent = `
         @page { size: A4; margin: 15mm; }
@@ -919,6 +945,11 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
 
   // ----- MAIN CONVERT HANDLER -----
   const handleConvert = async () => {
+    if (targetFormat === 'unsupported') {
+      setError('Error: Please upload DOCX files one at a time for processing.');
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
     try {
@@ -933,8 +964,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         if (hasPdf) await convertPdfToDocx();
         else if (hasImage) await convertImagesToDocx();
       } else if (targetFormat === 'jpg' || targetFormat === 'png') {
-        if (hasPdf) await convertPdfToImages(targetFormat);
-        else if (hasImage) await convertImageFormat(targetFormat);
+        if (hasPdf && !hasDocx && !hasImage) await convertPdfToImages(targetFormat);
+        else if (hasDocx && !hasPdf && !hasImage) await convertDocxToImages(targetFormat);
+        else if (hasImage && !hasPdf && !hasDocx) await convertImageFormat(targetFormat);
       } else if (targetFormat === 'txt') {
         if (hasPdf) await convertPdfToText();
       }
@@ -1116,34 +1148,34 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                         
                                         {/* Individual Format Dropdown */}
                                         {targetFormat === 'individual' && (
-                                          isDocxFile ? (
-                                            <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100 whitespace-nowrap">
-                                              To PDF
-                                            </span>
-                                          ) : (
-                                            <select
-                                              value={individualFormats[fileId] || (file.type.startsWith('image/') ? 'pdf' : 'docx')}
-                                              onChange={(e) => setIndividualFormats({...individualFormats, [fileId]: e.target.value as ConversionFormat})}
-                                              className="text-[10px] sm:text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
-                                              onClick={(e) => e.stopPropagation()} 
-                                            >
-                                              {file.type.startsWith('image/') ? (
-                                                <>
-                                                  <option value="pdf">To PDF</option>
-                                                  <option value="docx">To DOCX</option>
-                                                  <option value="jpg">To JPG</option>
-                                                  <option value="png">To PNG</option>
-                                                </>
-                                              ) : (
-                                                <>
-                                                  <option value="docx">To DOCX</option>
-                                                  <option value="jpg">To JPG</option>
-                                                  <option value="png">To PNG</option>
-                                                  <option value="txt">To TXT</option>
-                                                </>
-                                              )}
-                                            </select>
-                                          )
+                                          <select
+                                            value={individualFormats[fileId] || (file.type.startsWith('image/') ? 'pdf' : isDocxFile ? 'pdf' : 'docx')}
+                                            onChange={(e) => setIndividualFormats({...individualFormats, [fileId]: e.target.value as ConversionFormat})}
+                                            className="text-[10px] sm:text-xs font-bold bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm"
+                                            onClick={(e) => e.stopPropagation()} 
+                                          >
+                                            {file.type.startsWith('image/') ? (
+                                              <>
+                                                <option value="pdf">To PDF</option>
+                                                <option value="docx">To DOCX</option>
+                                                <option value="jpg">To JPG</option>
+                                                <option value="png">To PNG</option>
+                                              </>
+                                            ) : isDocxFile ? (
+                                              <>
+                                                <option value="pdf">To PDF</option>
+                                                <option value="jpg">To JPG</option>
+                                                <option value="png">To PNG</option>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <option value="docx">To DOCX</option>
+                                                <option value="jpg">To JPG</option>
+                                                <option value="png">To PNG</option>
+                                                <option value="txt">To TXT</option>
+                                              </>
+                                            )}
+                                          </select>
                                         )}
                                       </div>
                                     </div>
