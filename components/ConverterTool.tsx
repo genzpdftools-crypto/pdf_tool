@@ -1,4 +1,3 @@
-// components/ConverterTool.tsx
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   FileText,
@@ -21,7 +20,7 @@ import {
   GripVertical
 } from 'lucide-react';
 
-type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'individual' | 'unsupported';
+type ConversionFormat = 'jpg' | 'png' | 'pdf' | 'docx' | 'txt' | 'xlsx' | 'csv' | 'individual' | 'unsupported';
 
 // --- TEXT SANITIZER TO PREVENT XML CORRUPTION (0x0 Error Fix) ---
 const sanitizeText = (text: string) => {
@@ -173,6 +172,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       } else if (hasP) {
         options = [
           { value: 'docx', label: 'Word Document (.docx)' },
+          { value: 'xlsx', label: 'Excel Spreadsheet (.xlsx)' },
+          { value: 'csv', label: 'Comma Separated (.csv)' },
           { value: 'jpg', label: 'Extract Images (.jpg)' },
           { value: 'png', label: 'Extract Images (.png)' },
           { value: 'txt', label: 'Extract Text (.txt)' },
@@ -203,6 +204,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         options = [
           { value: 'pdf', label: 'Merge PDFs into One (.pdf)' },
           { value: 'docx', label: 'Word Document (.docx)' },
+          { value: 'xlsx', label: 'Excel Spreadsheet (.xlsx)' },
+          { value: 'csv', label: 'Comma Separated (.csv)' },
           { value: 'jpg', label: 'Extract Images (.jpg)' },
           { value: 'png', label: 'Extract Images (.png)' },
           { value: 'txt', label: 'Extract Text (.txt)' },
@@ -570,6 +573,24 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
         }
 
         if (f.type === 'application/pdf') {
+          // ----- API EXCEL CONVERSION IN INDIVIDUAL MODE -----
+          if (tFmt === 'xlsx' || tFmt === 'csv') {
+            const formData = new FormData();
+            formData.append("file", f);
+            formData.append("format", tFmt);
+
+            const response = await fetch("/api/convert", {
+              method: "POST",
+              body: formData,
+            });
+
+            if (!response.ok) throw new Error("Conversion failed on server");
+            
+            const blob = await response.blob();
+            zip.file(`${baseName}.${tFmt}`, blob);
+            continue; // Skip the rest of the loop for this file
+          }
+          
           const arrayBuffer = await f.arrayBuffer();
           const pdf = await lib.getDocument({ data: arrayBuffer }).promise;
 
@@ -798,6 +819,61 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
     } catch (err) {
       console.error(err);
       setError('Batch process karne me error aayi. File format invalid ho sakti hai.');
+    }
+  };
+
+  // ----- NAYA API-BASED EXCEL CONVERSION -----
+  const convertPdfToExcel = async (format: 'xlsx' | 'csv') => {
+    try {
+      const JSZip = await loadJSZip();
+      const zip = new JSZip();
+      let processedAny = false;
+
+      for (const f of files) {
+        if (f.type !== 'application/pdf') continue;
+
+        // 1. File aur format (xlsx/csv) ko pack karo
+        const formData = new FormData();
+        formData.append("file", f);
+        formData.append("format", format);
+
+        // 2. Vercel par bane Python Backend ko bhejo
+        const response = await fetch("/api/convert", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Server error for ${f.name}`);
+        }
+
+        // 3. Wahan se aayi hui perfect Excel/CSV receive karo
+        const blob = await response.blob();
+        const baseName = f.name.replace(/\.pdf$/i, '');
+
+        // 4. Agar ek se zyada files hain, toh ZIP me dalo, warna direct download
+        if (files.filter(file => file.type === 'application/pdf').length > 1) {
+          zip.file(`${baseName}.${format}`, blob);
+        } else {
+          setDownloadUrl(URL.createObjectURL(blob));
+          setDownloadName(`${baseName}.${format}`);
+          return;
+        }
+        processedAny = true;
+      }
+
+      // 5. Multiple files hone par ZIP download karwao
+      if (files.length > 1 && processedAny) {
+        const content = await zip.generateAsync({ type: 'blob' });
+        setDownloadUrl(URL.createObjectURL(content));
+        setDownloadName(`converted-excel-${format}.zip`);
+      } else if (!processedAny) {
+        setError('PDF process karne ke liye valid nahi thi.');
+      }
+
+    } catch (err) {
+      console.error(err);
+      setError('Server se Excel banne me error aayi. Please try again.');
     }
   };
 
@@ -1345,6 +1421,9 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
       } else if (targetFormat === 'docx') {
         if (hasPdf) await convertPdfToDocx();
         else if (hasImage) await convertImagesToDocx();
+      } else if (targetFormat === 'xlsx' || targetFormat === 'csv') {
+        // --- YE RAHA HAMARA TRIGGER EXCEL/CSV KE LIYE ---
+        if (hasPdf) await convertPdfToExcel(targetFormat);
       } else if (targetFormat === 'jpg' || targetFormat === 'png') {
         if (hasPdf && !hasDocx && !hasImage) await convertPdfToImages(targetFormat);
         else if (hasDocx && !hasPdf && !hasImage) await convertDocxToImages(targetFormat);
@@ -1390,7 +1469,7 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
             Convert <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Anything</span> to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-violet-600">Everything</span>
           </h1>
           <p className="text-base md:text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
-            The most secure file converter on the web. Transform and merge PDFs, Images, and Documents instantly without your data ever leaving this browser tab.
+            The most secure file converter on the web. Transform and merge PDFs, Images, Excel, and Documents instantly without your data ever leaving this browser tab.
           </p>
         </section>
 
@@ -1425,6 +1504,10 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
                      <div className="p-1 bg-blue-100 rounded text-blue-600"><FileType size={14}/></div>
                     <span>DOCX</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
+                     <div className="p-1 bg-green-100 rounded text-green-600"><FileType size={14}/></div>
+                    <span>EXCEL</span>
                   </div>
                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-[11px] md:text-xs font-bold text-slate-600">
                      <div className="p-1 bg-purple-100 rounded text-purple-600"><ImageIcon size={14}/></div>
@@ -1553,6 +1636,8 @@ export const ConverterTool: React.FC<ConverterToolProps> = ({ initialFormat }) =
                                             ) : (
                                               <>
                                                 <option value="docx">To DOCX</option>
+                                                <option value="xlsx">To EXCEL</option>
+                                                <option value="csv">To CSV</option>
                                                 <option value="jpg">To JPG</option>
                                                 <option value="png">To PNG</option>
                                                 <option value="txt">To TXT</option>
