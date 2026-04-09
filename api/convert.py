@@ -2,30 +2,10 @@ from flask import Flask, request, send_file
 import pdfplumber
 import io
 import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.styles import Font, Alignment, Border, Side
 import pandas as pd
-import re
 
 app = Flask(__name__)
-
-# --- ADVANCED DATE CLEANER ---
-def clean_date(text):
-    if not text:
-        return ""
-    text = str(text).replace('\n', '').strip()
-    
-    # Handle Excel numeric dates if they somehow appear (e.g. 37853.0)
-    try:
-        val = float(text)
-        if 30000 < val < 60000:
-            date_val = pd.to_datetime(val, unit='D', origin='1899-12-30')
-            return date_val.strftime('%d-%b')
-    except ValueError:
-        pass
-    
-    # Smart Regex: Fixes "20Aug-" to "20-Aug"
-    text = re.sub(r'(\d+)([a-zA-Z]+)-?', r'\1-\2', text)
-    return text
 
 @app.route('/api/convert', methods=['POST'])
 def convert_pdf():
@@ -36,207 +16,207 @@ def convert_pdf():
     format_type = request.form.get('format', 'xlsx')
     
     try:
-        if format_type != 'xlsx':
-            return {"error": "Only XLSX supported."}, 400
-
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "Co-op Time Sheet"
-
-        # ==========================================
-        # 1. GLOBAL STYLES
-        # ==========================================
-        bold_font = Font(name="Arial", size=10, bold=True)
-        normal_font = Font(name="Arial", size=10)
-        title_font = Font(name="Arial", size=14, bold=True, underline='single')
-        warning_font = Font(name="Arial", size=10, italic=True, color="FF0000", underline='single')
-        
-        center_align = Alignment(horizontal='center', vertical='center')
-        left_align = Alignment(horizontal='left', vertical='center')
-        right_align = Alignment(horizontal='right', vertical='center')
+        ws.title = "Converted PDF"
+        ws.sheet_view.showGridLines = False # Clean paper look
         
         thin_border = Border(
             left=Side(style='thin'), right=Side(style='thin'),
             top=Side(style='thin'), bottom=Side(style='thin')
         )
-        gray_fill = PatternFill(start_color='F2F2F2', end_color='F2F2F2', fill_type='solid')
+
+        all_combined_rows = []
 
         # ==========================================
-        # 2. COLUMN WIDTHS (Perfect Scale)
+        # UNIVERSAL DYNAMIC SPATIAL ENGINE
         # ==========================================
-        ws.column_dimensions['A'].width = 8
-        ws.column_dimensions['B'].width = 18
-        ws.column_dimensions['C'].width = 18
-        ws.column_dimensions['D'].width = 18
-        ws.column_dimensions['E'].width = 20
-        ws.column_dimensions['F'].width = 20
-        ws.column_dimensions['G'].width = 20
+        with pdfplumber.open(file) as pdf:
+            for page in pdf.pages:
+                # Extract har ek word uski exact location aur font style ke sath
+                words = page.extract_words(extra_attrs=["fontname", "size"])
 
-        # ==========================================
-        # 3. STATIC FORM STRUCTURE (100% Match)
-        # ==========================================
-        ws.merge_cells('A1:G1')
-        ws['A1'] = "Fall 2003 Co-op Time Sheet"
-        ws['A1'].font = title_font
-        ws['A1'].alignment = center_align
+                if not words:
+                    continue
 
-        ws.merge_cells('A2:G2')
-        ws['A2'] = "*Must be received in our office by December 5th, 2003*"
-        ws['A2'].font = warning_font
-        ws['A2'].alignment = center_align
+                raw_items = []
+                for w in words:
+                    text = w['text'].strip()
+                    if not text: continue
+                    
+                    # Dynamic Bold Detection
+                    fontname = w.get('fontname', '').lower()
+                    is_bold = 'bold' in fontname or 'black' in fontname
+                    
+                    raw_items.append({
+                        'text': text,
+                        'x0': w['x0'],
+                        'x1': w['x1'],
+                        'top': w['top'],
+                        'is_bold': is_bold
+                    })
 
-        # Left Info
-        labels = ["Student Name:", "Name of Company:", "Address:", "Address:", "Social Security #:", "Phone:", "Major:", "Semester:"]
-        for i, label in enumerate(labels, start=3):
-            ws[f'A{i}'] = label
-            ws[f'A{i}'].font = bold_font
-            ws[f'A{i}'].alignment = left_align
+                # Y-Axis (Lines) ke hisaab se sort karo (Tolerance ~10px)
+                raw_items.sort(key=lambda item: (round(item['top'] / 10), item['x0']))
 
-        # Right Info
-        ws['E3'] = "Supervisor's Signature:"
-        ws['E4'] = "Student's Signature:"
-        ws['E7'] = "Return to:"
-        ws['E8'] = "Eastern Kentucky University"
-        ws['E9'] = "Cooperative Education"
-        ws['E10'] = "SSB 455 CPO 61"
-        ws['E11'] = "Richmond, KY 40475"
-        ws['E12'] = "Phone (859) 622-1296 Fax (859) 622-1300"
-        
-        for r in [3, 4, 7]: ws[f'E{r}'].font = bold_font
-        ws['E7'].font = Font(name="Arial", size=10, bold=True, underline='single')
+                lines = []
+                current_line = []
+                last_y = -9999
 
-        ws['E5'] = "Start Date:"
-        ws['E6'] = "End Date:"
-        ws['F5'] = "August 20th, 2003"
-        ws['F6'] = "December 16th, 2003"
-        ws['G5'] = "Fall Spring Summer"
-        ws['G6'] = "Yes  No"
-        ws['E5'].font = bold_font
-        ws['E6'].font = bold_font
+                # Line Stitching Logic (Words ko sentences/cells me jodna)
+                for item in raw_items:
+                    if last_y != -9999 and abs(item['top'] - last_y) > 10:
+                        if current_line:
+                            stitched_line = []
+                            current_stitch = current_line[0].copy()
+                            for next_item in current_line[1:]:
+                                gap = next_item['x0'] - current_stitch['x1']
+                                if gap < 20: # Agar words paas hain toh ek hi cell me jodo
+                                    current_stitch['text'] += ' ' + next_item['text']
+                                    current_stitch['x1'] = next_item['x1']
+                                    current_stitch['is_bold'] = current_stitch['is_bold'] or next_item['is_bold']
+                                else:
+                                    stitched_line.append(current_stitch)
+                                    current_stitch = next_item.copy()
+                            stitched_line.append(current_stitch)
+                            lines.append(stitched_line)
+                        current_line = [item]
+                    else:
+                        current_line.append(item)
+                    last_y = item['top']
 
-        # Info Area Borders
-        for row in range(3, 11):
-            for col in ['A','B','C','D']: ws[f'{col}{row}'].border = thin_border
-        for row in range(3, 13):
-            for col in ['E','F','G']: ws[f'{col}{row}'].border = thin_border
+                # Aakhri line ko handle karna
+                if current_line:
+                    stitched_line = []
+                    current_stitch = current_line[0].copy()
+                    for next_item in current_line[1:]:
+                        gap = next_item['x0'] - current_stitch['x1']
+                        if gap < 20:
+                            current_stitch['text'] += ' ' + next_item['text']
+                            current_stitch['x1'] = next_item['x1']
+                            current_stitch['is_bold'] = current_stitch['is_bold'] or next_item['is_bold']
+                        else:
+                            stitched_line.append(current_stitch)
+                            current_stitch = next_item.copy()
+                    stitched_line.append(current_stitch)
+                    lines.append(stitched_line)
 
-        ws.merge_cells('E8:G8')
-        ws.merge_cells('E9:G9')
-        ws.merge_cells('E10:G10')
-        ws.merge_cells('E11:G11')
-        ws.merge_cells('E12:G12')
+                # ==========================================
+                # DYNAMIC COLUMN DETECTION (The "Pillars")
+                # ==========================================
+                x_counts = {}
+                for row in lines:
+                    for item in row:
+                        snapped_x = round(item['x0'] / 10) * 10
+                        x_counts[snapped_x] = x_counts.get(snapped_x, 0) + 1
 
-        # Table Header
-        ws.merge_cells('A13:G13')
-        ws['A13'] = "Number of Hours Worked"
-        ws['A13'].font = Font(name="Arial", size=12, bold=True)
-        ws['A13'].alignment = center_align
-        ws['A13'].fill = gray_fill
-        ws.row_dimensions[13].height = 20
+                # Sabse common X positions nikalo (Max 10 columns)
+                sorted_xs = sorted(x_counts.keys(), key=lambda x: x_counts[x], reverse=True)
+                best_columns = []
+                for x in sorted_xs:
+                    if not best_columns:
+                        best_columns.append(x)
+                    else:
+                        min_diff = min(abs(c - x) for c in best_columns)
+                        if min_diff > 40: # Column ke beech ka gap
+                            best_columns.append(x)
+                    if len(best_columns) >= 10: 
+                        break
+                best_columns.sort()
 
-        headers = ["Week", "Start Date", "Ending Date", "Hours Worked"]
-        for idx, col in enumerate(['A','B','C','D']):
-            ws[f'{col}14'] = headers[idx]
-            ws[f'{col}14'].font = bold_font
-            ws[f'{col}14'].alignment = center_align
-            ws[f'{col}14'].fill = gray_fill
-            ws[f'{col}14'].border = thin_border
+                if not best_columns:
+                    best_columns = [0]
 
-        # ==========================================
-        # 4. SMART PDF EXTRACTION
-        # ==========================================
-        extracted_data = []
-        try:
-            with pdfplumber.open(file) as pdf:
-                for page in pdf.pages:
-                    tables = page.extract_tables({"vertical_strategy": "lines", "horizontal_strategy": "lines"})
-                    for table in tables:
-                        for row in table:
-                            if not row or not row[0]: continue
-                            
-                            val = str(row[0]).strip().replace('.', '')
-                            
-                            # Sirf wahi line padho jisme week number (1 se 20) ho
-                            if val.isdigit() and 1 <= int(val) <= 20:
-                                week = val
-                                # Exact data from PDF, par clean format me
-                                start_date = clean_date(row[1]) if len(row) > 1 else ""
-                                end_date = clean_date(row[2]) if len(row) > 2 else ""
-                                
-                                extracted_data.append([week, start_date, end_date])
-        except Exception as e:
-            print("Extraction error:", e)
+                # Rows ko dynamically columns me fit karna
+                for line in lines:
+                    row_data = [{'text': '', 'is_bold': False} for _ in best_columns]
+                    for item in line:
+                        closest_col_idx = 0
+                        min_diff = float('inf')
+                        for idx, col_x in enumerate(best_columns):
+                            diff = abs(item['x0'] - col_x)
+                            if diff < min_diff:
+                                min_diff = diff
+                                closest_col_idx = idx
 
-        # Fail-safe just in case PDF is heavily corrupted
-        if not extracted_data:
-            extracted_data = [
-                ["1", "20-Aug", "22-Aug"], ["2", "25-Aug", "29-Aug"], ["3", "1-Sep", "5-Sep"],
-                ["4", "8-Sep", "12-Sep"], ["5", "15-Sep", "19-Sep"], ["6", "22-Sep", "26-Sep"],
-                ["7", "29-Sep", "3-Oct"], ["8", "6-Oct", "10-Oct"], ["9", "13-Oct", "17-Oct"],
-                ["10", "20-Oct", "24-Oct"], ["11", "27-Oct", "31-Oct"], ["12", "3-Nov", "7-Nov"],
-                ["13", "10-Nov", "14-Nov"], ["14", "17-Nov", "21-Nov"], ["15", "24-Nov", "28-Nov"],
-                ["16", "1-Dec", "5-Dec"], ["17", "8-Dec", "12-Dec"], ["18", "15-Dec", "16-Dec"]
-            ]
+                        if row_data[closest_col_idx]['text']:
+                            row_data[closest_col_idx]['text'] += ' ' + item['text']
+                            row_data[closest_col_idx]['is_bold'] = row_data[closest_col_idx]['is_bold'] or item['is_bold']
+                        else:
+                            row_data[closest_col_idx]['text'] = item['text']
+                            row_data[closest_col_idx]['is_bold'] = item['is_bold']
+                    
+                    all_combined_rows.append(row_data)
+                
+                # Page break gap
+                all_combined_rows.append([{'text': '', 'is_bold': False} for _ in best_columns]) 
 
-        # ==========================================
-        # 5. WRITE DATA (STRICTLY LEAVING 'HOURS WORKED' BLANK)
-        # ==========================================
-        start_row = 15
-        for i, row_data in enumerate(extracted_data):
-            r = start_row + i
-            ws[f'A{r}'] = row_data[0]
-            ws[f'B{r}'] = row_data[1]
-            ws[f'C{r}'] = row_data[2]
-            ws[f'D{r}'] = ""  # <--- THIS FORCES 'HOURS WORKED' TO ALWAYS BE BLANK!
-
-            for col in ['A','B','C','D']:
-                ws[f'{col}{r}'].alignment = center_align
-                ws[f'{col}{r}'].border = thin_border
+        if not all_combined_rows:
+            return {"error": "Could not extract text from this PDF."}, 400
 
         # ==========================================
-        # 6. TOTAL ROW (Exact Styling)
+        # WRITING DYNAMIC EXCEL
         # ==========================================
-        total_row = start_row + len(extracted_data)
-        ws.merge_cells(f'A{total_row}:C{total_row}')
-        ws[f'A{total_row}'] = "Total Hours Worked for Spring 2003"
-        ws[f'A{total_row}'].font = bold_font
-        ws[f'A{total_row}'].alignment = right_align
-        
-        ws[f'D{total_row}'] = ""
-        ws[f'D{total_row}'].border = Border(bottom=Side(style='double'), top=Side(style='thin'), left=Side(style='thin'), right=Side(style='thin'))
-        
-        ws[f'A{total_row}'].border = Border(left=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-        ws[f'B{total_row}'].border = Border(top=Side(style='thin'), bottom=Side(style='thin'))
-        ws[f'C{total_row}'].border = Border(right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+        if format_type == 'xlsx':
+            for r_idx, row_data in enumerate(all_combined_rows, start=1):
+                for c_idx, cell_data in enumerate(row_data, start=1):
+                    cell = ws.cell(row=r_idx, column=c_idx)
+                    
+                    # Sirf wahi likho jo PDF me likha hai
+                    text_val = str(cell_data['text']).strip()
+                    cell.value = text_val
+                    
+                    # Bold mapping
+                    font_args = {"name": "Arial", "size": 10}
+                    if cell_data['is_bold']:
+                        font_args['bold'] = True
+                    cell.font = Font(**font_args)
+                    
+                    cell.alignment = Alignment(wrap_text=True, vertical='center')
+                    
+                    # Agar cell me text hai ya uske aas-paas data hai toh border lagao (Table look)
+                    if text_val:
+                        cell.border = thin_border
 
-        # ==========================================
-        # 7. FINAL PAPER LOOK (No Background Grid)
-        # ==========================================
-        ws.sheet_view.showGridLines = False 
-        ws.page_setup.paperSize = ws.PAPERSIZE_A4
-        ws.page_setup.orientation = ws.ORIENTATION_PORTRAIT
-        ws.page_setup.fitToPage = True
-        ws.page_setup.fitToHeight = 1
-        ws.page_setup.fitToWidth = 1
-        ws.page_margins.left = 0.3
-        ws.page_margins.right = 0.3
-        ws.page_margins.top = 0.5
-        ws.page_margins.bottom = 0.5
-        
-        output_buffer = io.BytesIO()
-        wb.save(output_buffer)
-        output_buffer.seek(0)
-        
-        return send_file(
-            output_buffer,
-            download_name='converted_perfect_form.xlsx',
-            as_attachment=True,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
+            # Dynamic Column Width
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if cell.value and len(str(cell.value)) > max_length:
+                            max_length = len(cell.value)
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 45) # Max width 45
+                ws.column_dimensions[column].width = adjusted_width
+
+            output_buffer = io.BytesIO()
+            wb.save(output_buffer)
+            output_buffer.seek(0)
+            
+            return send_file(
+                output_buffer,
+                download_name='converted_document.xlsx',
+                as_attachment=True,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+        else:
+            # For CSV Export
+            csv_data = [[c['text'] for c in row] for row in all_combined_rows]
+            df = pd.DataFrame(csv_data)
+            output_buffer = io.BytesIO()
+            df.to_csv(output_buffer, index=False, header=False)
+            output_buffer.seek(0)
+            return send_file(
+                output_buffer,
+                download_name='converted_document.csv',
+                as_attachment=True,
+                mimetype='text/csv'
+            )
 
     except Exception as e:
         import traceback
-        print("Error:", e)
         traceback.print_exc()
         return {"error": str(e)}, 500
 
