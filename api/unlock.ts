@@ -37,6 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (password) {
       try {
+        // @ts-ignore
         await PDFDocument.load(pdfBuffer, { password: password, updateMetadata: false });
         correctPassword = password;
         isUnlocked = true;
@@ -56,6 +57,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (const pwd of passwordsToTry) {
         if (!pwd) continue; 
         try {
+          // @ts-ignore
           await PDFDocument.load(pdfBuffer, { password: pwd, updateMetadata: false });
           correctPassword = pwd;
           isUnlocked = true;
